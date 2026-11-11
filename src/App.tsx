@@ -331,6 +331,7 @@ export const App: React.FC = () => {
     occlusogramEnabled: false,
     occlusogramMaxRangeMm: 1.6,
     caliperToolActive: false,
+    showMeasurements: true,
     archDistinction: false,
     wireframeOverlay: false,
     clippingEnabled: false,

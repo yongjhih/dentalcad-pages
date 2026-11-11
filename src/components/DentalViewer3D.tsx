@@ -50,6 +50,7 @@ import {
   Pause,
   Flame,
   Ruler,
+  Activity,
   Trash2,
   ChevronDown,
   ChevronUp,
@@ -864,34 +865,36 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
       group.add(mA);
     }
 
-    // Completed measurements
-    for (const m of caliperMeasurements) {
-      const pA = new THREE.Vector3(m.pointA.x, m.pointA.y, m.pointA.z);
-      const pB = new THREE.Vector3(m.pointB.x, m.pointB.y, m.pointB.z);
+    // Completed measurements (can be hidden or shown via showMeasurements toggle)
+    if (settings.showMeasurements !== false) {
+      for (const m of caliperMeasurements) {
+        const pA = new THREE.Vector3(m.pointA.x, m.pointA.y, m.pointA.z);
+        const pB = new THREE.Vector3(m.pointB.x, m.pointB.y, m.pointB.z);
 
-      const sA = new THREE.Mesh(
-        new THREE.SphereGeometry(0.85, 12, 12),
-        new THREE.MeshBasicMaterial({ color: 0xf59e0b })
-      );
-      sA.position.copy(pA);
+        const sA = new THREE.Mesh(
+          new THREE.SphereGeometry(0.85, 12, 12),
+          new THREE.MeshBasicMaterial({ color: 0xf59e0b })
+        );
+        sA.position.copy(pA);
 
-      const sB = new THREE.Mesh(
-        new THREE.SphereGeometry(0.85, 12, 12),
-        new THREE.MeshBasicMaterial({ color: 0x38bdf8 })
-      );
-      sB.position.copy(pB);
+        const sB = new THREE.Mesh(
+          new THREE.SphereGeometry(0.85, 12, 12),
+          new THREE.MeshBasicMaterial({ color: 0x38bdf8 })
+        );
+        sB.position.copy(pB);
 
-      const lineGeom = new THREE.BufferGeometry().setFromPoints([pA, pB]);
-      const line = new THREE.Line(
-        lineGeom,
-        new THREE.LineBasicMaterial({ color: 0xfbbf24 })
-      );
+        const lineGeom = new THREE.BufferGeometry().setFromPoints([pA, pB]);
+        const line = new THREE.Line(
+          lineGeom,
+          new THREE.LineBasicMaterial({ color: 0xfbbf24 })
+        );
 
-      group.add(sA);
-      group.add(sB);
-      group.add(line);
+        group.add(sA);
+        group.add(sB);
+        group.add(line);
+      }
     }
-  }, [caliperMeasurements, pendingCaliperPoint]);
+  }, [caliperMeasurements, pendingCaliperPoint, settings.showMeasurements]);
 
   // Initialize Three.js Scene once
   useEffect(() => {
@@ -1425,6 +1428,36 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
               {caliperMeasurements[0].distanceMm.toFixed(2)} mm
             </span>
           )}
+          {caliperMeasurements.length > 0 && (
+            <button
+              type="button"
+              data-testid="viewport-toggle-measurements-banner-btn"
+              onClick={() =>
+                onSettingsChange((prev) => ({
+                  ...prev,
+                  showMeasurements: prev.showMeasurements === false ? true : false,
+                }))
+              }
+              className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 text-[11px] font-medium flex items-center gap-1 transition-colors flex-shrink-0"
+              title={
+                settings.showMeasurements === false
+                  ? tr(locale, '顯示 3D 測距線與標記點', 'Show 3D measurements')
+                  : tr(locale, '隱藏 3D 測距線與標記點', 'Hide 3D measurements')
+              }
+            >
+              {settings.showMeasurements === false ? (
+                <>
+                  <Eye className="w-3 h-3 text-amber-500" />
+                  <span>{tr(locale, '顯示測距', 'Show')}</span>
+                </>
+              ) : (
+                <>
+                  <EyeOff className="w-3 h-3 text-slate-400" />
+                  <span>{tr(locale, '隱藏測距', 'Hide')}</span>
+                </>
+              )}
+            </button>
+          )}
           {(caliperMeasurements.length > 0 || pendingCaliperPoint) && (
             <button
               type="button"
@@ -1635,13 +1668,51 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
         </div>
       </div>
       <div className="absolute top-12 sm:top-4 right-2.5 sm:right-4 z-30 flex items-center space-x-1 sm:space-x-1.5 bg-white/90 dark:bg-[#0f172a]/90 border border-slate-200 dark:border-slate-800 p-1 rounded-lg backdrop-blur shadow-md">
+        {/* Toggle Trajectory Gizmo (3D 運動軌跡與顳顎關節軸心) */}
         <button
           type="button"
+          data-testid="viewport-toggle-trajectory-btn"
           onClick={() =>
             onSettingsChange((prev) => ({
               ...prev,
-              caliperToolActive: !prev.caliperToolActive,
+              articulator: {
+                ...prev.articulator,
+                showTrajectoryGizmo: !prev.articulator.showTrajectoryGizmo,
+              },
             }))
+          }
+          title={
+            settings.articulator.showTrajectoryGizmo
+              ? tr(locale, '隱藏 3D 運動軌跡標記與顳顎關節軸心', 'Hide articulation trajectory gizmo & TMJ axis')
+              : tr(locale, '顯示 3D 運動軌跡標記與顳顎關節軸心', 'Show articulation trajectory gizmo & TMJ axis')
+          }
+          className={`px-2 py-1 rounded text-xs font-medium flex items-center gap-1 transition-colors ${
+            settings.articulator.showTrajectoryGizmo
+              ? 'bg-sky-500/15 dark:bg-sky-500/20 text-sky-700 dark:text-sky-300 border border-sky-500/40 shadow-sm'
+              : 'text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+          }`}
+        >
+          <Activity className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">
+            {settings.articulator.showTrajectoryGizmo
+              ? tr(locale, '運動軌跡', 'Trajectory')
+              : tr(locale, '隱藏軌跡', 'Trajectory Off')}
+          </span>
+        </button>
+
+        {/* 3D Caliper Tool Trigger */}
+        <button
+          type="button"
+          data-testid="viewport-caliper-tool-btn"
+          onClick={() =>
+            onSettingsChange((prev) => {
+              const nextActive = !prev.caliperToolActive;
+              return {
+                ...prev,
+                caliperToolActive: nextActive,
+                showMeasurements: nextActive ? true : prev.showMeasurements,
+              };
+            })
           }
           title={tr(locale, '切換 3D 數位游標尺點選測距', 'Toggle 3D Digital Caliper')}
           className={`px-2 py-1 rounded text-xs font-medium flex items-center gap-1 transition-colors ${
@@ -1654,9 +1725,45 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
           <span className="hidden sm:inline">{tr(locale, '3D 測距', '3D Caliper')}</span>
         </button>
 
+        {/* Hide / Show 3D Caliper Measurements Toggle */}
+        {caliperMeasurements.length > 0 && (
+          <button
+            type="button"
+            data-testid="viewport-toggle-measurements-btn"
+            onClick={() =>
+              onSettingsChange((prev) => ({
+                ...prev,
+                showMeasurements: prev.showMeasurements === false ? true : false,
+              }))
+            }
+            title={
+              settings.showMeasurements === false
+                ? tr(locale, '顯示 3D 測距線與標記點', 'Show 3D measurements')
+                : tr(locale, '隱藏 3D 測距線與標記點', 'Hide 3D measurements')
+            }
+            className={`px-2 py-1 rounded text-xs font-medium flex items-center gap-1 transition-colors ${
+              settings.showMeasurements === false
+                ? 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-200'
+                : 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/30'
+            }`}
+          >
+            {settings.showMeasurements === false ? (
+              <EyeOff className="w-3.5 h-3.5" />
+            ) : (
+              <Eye className="w-3.5 h-3.5" />
+            )}
+            <span className="hidden md:inline">
+              {settings.showMeasurements === false
+                ? tr(locale, '顯示測距', 'Show Dist')
+                : tr(locale, '隱藏測距', 'Hide Dist')}
+            </span>
+          </button>
+        )}
+
         {(caliperMeasurements.length > 0 || pendingCaliperPoint) && (
           <button
             type="button"
+            data-testid="viewport-clear-caliper-toolbar-btn"
             onClick={() => {
               pendingCaliperPointRef.current = null;
               setPendingCaliperPoint(null);

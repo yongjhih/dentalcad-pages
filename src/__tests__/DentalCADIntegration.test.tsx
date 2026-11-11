@@ -211,10 +211,31 @@ describe('DentalCAD Pages Application Integration Tests', () => {
       'OJ 2.6 mm · OB 2.4 mm'
     );
 
-    // Verify 3D Digital Caliper measurements can be added and cleared
+    // Verify 3D Digital Caliper measurements can be added, hidden/shown in 3D View, and cleared
     expect(screen.getAllByTestId('caliper-measurement-item')).toHaveLength(1);
     fireEvent.click(screen.getByTestId('add-sample-caliper-btn'));
     expect(screen.getAllByTestId('caliper-measurement-item')).toHaveLength(2);
+
+    // Verify 3D Viewport can toggle/hide motion trajectory markers
+    const trajToggleBtn = screen.getByTestId('viewport-toggle-trajectory-btn');
+    expect(trajToggleBtn).toBeInTheDocument();
+    fireEvent.click(trajToggleBtn);
+    expect(trajToggleBtn).toHaveTextContent(/Trajectory Off|隱藏軌跡/i);
+    fireEvent.click(trajToggleBtn);
+    expect(trajToggleBtn).toHaveTextContent(/Trajectory|運動軌跡/i);
+
+    // Verify 3D Viewport can toggle/hide distance measurements
+    const distToggleBtn = screen.getByTestId('viewport-toggle-measurements-btn');
+    expect(distToggleBtn).toBeInTheDocument();
+    fireEvent.click(distToggleBtn);
+    expect(distToggleBtn).toHaveTextContent(/Show Dist|顯示測距/i);
+    fireEvent.click(distToggleBtn);
+    expect(distToggleBtn).toHaveTextContent(/Hide Dist|隱藏測距/i);
+
+    // Also verify floating banner toggle button
+    const bannerDistToggleBtn = screen.getByTestId('viewport-toggle-measurements-banner-btn');
+    expect(bannerDistToggleBtn).toBeInTheDocument();
+    fireEvent.click(bannerDistToggleBtn);
 
     fireEvent.click(screen.getByTestId('clear-caliper-btn'));
     expect(screen.queryAllByTestId('caliper-measurement-item')).toHaveLength(0);

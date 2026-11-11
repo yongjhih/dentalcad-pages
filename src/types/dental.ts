@@ -62,6 +62,7 @@ export interface ViewportSettings {
   occlusogramEnabled: boolean; // Occlusogram bite contact heatmap
   occlusogramMaxRangeMm: number; // Max clearance range in mm (default 1.6mm)
   caliperToolActive: boolean; // 3D point-to-point digital caliper mode
+  showMeasurements?: boolean; // Show or hide 3D caliper measurement lines & points
   archDistinction: boolean; // distinct upper / lower tint
   wireframeOverlay: boolean;
   clippingEnabled: boolean;
