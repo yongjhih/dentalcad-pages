@@ -144,23 +144,47 @@ export const PentaGallery: React.FC<PentaGalleryProps> = ({
           </p>
         </div>
 
-        {onTogglePhotoTexture && (
-          <button
-            onClick={onTogglePhotoTexture}
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-              photoTextureMapped
-                ? 'bg-sky-500 border-sky-600 text-white shadow-sm'
-                : 'bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-            }`}
-          >
-            <Layers className="w-3.5 h-3.5" />
-            <span>
-              {photoTextureMapped
-                ? tr(locale, '3D 照片貼圖：已啟用', '3D Photo Texture: ON')
-                : tr(locale, '套用照片貼圖至 3D 模型', 'Map Photos onto 3D Arch')}
-            </span>
-          </button>
-        )}
+        <div className="flex items-center gap-2 flex-wrap">
+          {onImportCaseFiles && (
+            <label
+              data-testid="gallery-upload-label"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white text-xs font-medium cursor-pointer transition-colors flex-shrink-0"
+            >
+              <input
+                type="file"
+                multiple
+                accept=".zip,.stl,.xml,.jpg,.jpeg,.png,.pdf,.html,application/zip,application/x-zip-compressed,model/stl,application/sla,application/vnd.ms-pki.stl,application/octet-stream,image/*,application/pdf,text/xml,application/xml"
+                className="hidden"
+                onChange={(e) => {
+                  if (e.target.files && e.target.files.length > 0) {
+                    onImportCaseFiles(e.target.files);
+                    e.target.value = '';
+                  }
+                }}
+              />
+              <Upload className="w-3.5 h-3.5" />
+              <span>{tr(locale, '選擇本地照片與 STL', 'Load Intraoral Photos & STL Files')}</span>
+            </label>
+          )}
+
+          {onTogglePhotoTexture && (
+            <button
+              onClick={onTogglePhotoTexture}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-colors flex-shrink-0 ${
+                photoTextureMapped
+                  ? 'bg-sky-500 border-sky-600 text-white shadow-sm'
+                  : 'bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`}
+            >
+              <Layers className="w-3.5 h-3.5" />
+              <span>
+                {photoTextureMapped
+                  ? tr(locale, '3D 照片貼圖：已啟用', '3D Photo Texture: ON')
+                  : tr(locale, '套用照片貼圖至 3D 模型', 'Map Photos onto 3D Arch')}
+              </span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Empty State when no local photos have been uploaded yet */}

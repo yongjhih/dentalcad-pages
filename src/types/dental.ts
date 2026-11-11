@@ -50,6 +50,7 @@ export interface ArticulatorSettings {
   showTrajectoryGizmo: boolean; // Render 3D trajectory curve & TMJ hinge axis in viewport
   curvePresetId: ArticulationCurvePresetId;
   bezier: BezierControlPoints;
+  manualExcursion?: { x: number; y: number }; // Continuous 2D direct joystick excursion (x: -1 to 1 lateral, y: -1 to 1 protrusion/opening)
 }
 
 export interface ViewportSettings {

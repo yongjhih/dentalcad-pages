@@ -192,6 +192,37 @@ describe('articulatorKinematics', () => {
       expect(kin.upperPosition.z).toBeCloseTo(17.5, 2);
       expect(kin.lowerPosition.z).toBeCloseTo(-17.5, 2);
     });
+
+    it('computes continuous 6-DOF mandibular excursion directly from 2D joystick coordinates without mode switching', () => {
+      // 1. Pure lateral excursion via joystick X
+      const rightKin = computeMandibularKinematics({
+        ...DEFAULT_ARTICULATOR_SETTINGS,
+        manualExcursion: { x: -0.75, y: 0 },
+      });
+      expect(rightKin.lateralShiftMm).toBeLessThan(-1.0);
+      expect(rightKin.rotationAngleDeg).toBeGreaterThan(0); // Canine guidance rise
+
+      const leftKin = computeMandibularKinematics({
+        ...DEFAULT_ARTICULATOR_SETTINGS,
+        manualExcursion: { x: 0.75, y: 0 },
+      });
+      expect(leftKin.lateralShiftMm).toBeGreaterThan(1.0);
+
+      // 2. Pure protrusion excursion via joystick -Y
+      const protrudeKin = computeMandibularKinematics({
+        ...DEFAULT_ARTICULATOR_SETTINGS,
+        manualExcursion: { x: 0, y: -0.8 },
+      });
+      expect(protrudeKin.incisalDisplacementMm.y).toBeLessThan(-3.0); // Anterior glide is -Y
+
+      // 3. Combined continuous excursion (down-left: opening + left excursion)
+      const combinedKin = computeMandibularKinematics({
+        ...DEFAULT_ARTICULATOR_SETTINGS,
+        manualExcursion: { x: 0.6, y: 0.6 },
+      });
+      expect(combinedKin.lateralShiftMm).toBeGreaterThan(0.5);
+      expect(combinedKin.incisalOpeningMm).toBeGreaterThan(5.0);
+    });
   });
 
   describe('Trajectory Sampling', () => {

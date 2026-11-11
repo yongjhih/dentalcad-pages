@@ -13,6 +13,7 @@ import {
   hydrateCaseBundleFromRecord,
 } from '../utils/caseStorage';
 import { expandUploadedFilesWithZip } from '../utils/zipExtractor';
+import { createDemoClinicalPhotos } from './demoPhotos';
 
 const DEMO_SAMPLE_XML = `<?xml version="1.0" encoding="UTF-8"?>
 <DentalCADExport Version="1.0" Vendor="Universal-Scanner">
@@ -79,7 +80,7 @@ export const DEFAULT_CASE_BUNDLE: DentalCaseBundle = {
     upperDimensions: { width: 61.2, depth: 50.8, height: 15.2 },
     lowerDimensions: { width: 56.8, depth: 48.6, height: 15.2 },
   },
-  photos: [],
+  photos: createDemoClinicalPhotos(),
   rawXmlV50: DEMO_SAMPLE_XML,
 };
 

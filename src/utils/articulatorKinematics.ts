@@ -261,6 +261,112 @@ export function transformPoint3DByMatrix4(p: Point3D, m: number[]): Point3D {
 }
 
 /**
+ * Compute continuous 6-DOF mandibular excursion directly driven by 2D joystick coordinates (normX, normY).
+ * This eliminates discrete mode switching and provides fluid, continuous, organic mandibular manipulation.
+ * - normX in [-1, 1]: Lateral excursion (-1 Patient Right, +1 Patient Left)
+ * - normY in [-1, 1]: Sagittal/Vertical excursion (-1 Anterior Protrusion, +1 Mandibular Depression / Opening)
+ */
+export function computeContinuousMandibularExcursion(
+  settings: ArticulatorSettings,
+  normX: number,
+  normY: number,
+  incisalRefPoint: Point3D = DEFAULT_INCISAL_REF_POINT
+): MandibularKinematicsResult {
+  const pivot: Point3D = {
+    x: 0,
+    y: settings.hingeAxisY,
+    z: settings.hingeAxisZ,
+  };
+
+  const condylarRad = (settings.condylarGuidanceAngleDeg * Math.PI) / 180;
+  const incisalRad = (settings.incisalGuidanceAngleDeg * Math.PI) / 180;
+  const bennettRad = (settings.bennettAngleDeg * Math.PI) / 180;
+
+  const upperPos: Point3D = { x: 0, y: 0, z: 0 };
+  const upperRot: Point3D = { x: 0, y: 0, z: 0 };
+
+  const clX = clamp(normX, -1, 1);
+  const clY = clamp(normY, -1, 1);
+
+  // 1. Sagittal & Vertical components (Opening vs Protrusion)
+  let rx = 0;
+  let shiftY = 0;
+  let shiftZ = 0;
+  let condylarTranslationMm = 0;
+
+  if (clY >= 0) {
+    // Mandibular opening / depression: hinge rotation + condylar descent along eminence
+    const rotAngleDeg = clY * settings.maxOpeningAngleDeg;
+    rx = (rotAngleDeg * Math.PI) / 180;
+
+    const maxTransMm = 11.0;
+    condylarTranslationMm = clY * maxTransMm;
+    shiftY = -condylarTranslationMm * Math.cos(condylarRad); // Anterior is -Y
+    shiftZ = -condylarTranslationMm * Math.sin(condylarRad); // Inferior is -Z
+  } else {
+    // Mandibular protrusion: forward translation (-Y) with incisal guide drop (-Z)
+    const forwardMm = -clY * 8.5;
+    const dropMm = forwardMm * Math.tan(incisalRad * 0.55 + condylarRad * 0.45);
+    condylarTranslationMm = Math.hypot(forwardMm, dropMm);
+    shiftY = -forwardMm;
+    shiftZ = -dropMm * 0.65;
+    rx = ((-clY * 2.8) * Math.PI) / 180;
+  }
+
+  // 2. Lateral components (Bennett shift, canine rise, yaw & roll)
+  const shiftX = clX * (3.0 * Math.cos(bennettRad));
+  const rz = clX * ((6.5 * Math.PI) / 180);
+  const ry = -clX * ((1.8 * Math.PI) / 180);
+  // Canine guidance elevates anterior clearance on lateral excursion
+  rx += Math.abs(clX) * ((2.2 * Math.PI) / 180);
+
+  const condyleShift: Point3D = { x: shiftX, y: shiftY, z: shiftZ };
+
+  // 3. Compose rigid body rotation around posterior TMJ pivot + condyle translation
+  const rotOnlyMat = composeMatrix4EulerXYZ(rx, ry, rz, 0, 0, 0);
+  const rotatedPivot = transformPoint3DByMatrix4(pivot, rotOnlyMat);
+
+  const lowerPos: Point3D = {
+    x: pivot.x - rotatedPivot.x + condyleShift.x,
+    y: pivot.y - rotatedPivot.y + condyleShift.y,
+    z: pivot.z - rotatedPivot.z + condyleShift.z,
+  };
+
+  const fullMat = composeMatrix4EulerXYZ(rx, ry, rz, lowerPos.x, lowerPos.y, lowerPos.z);
+  const invMat = invertRigidMatrix4(fullMat);
+
+  const incisalWorld = transformPoint3DByMatrix4(incisalRefPoint, fullMat);
+  const condyleLeftWorld = transformPoint3DByMatrix4({ x: 50, y: pivot.y, z: pivot.z }, fullMat);
+  const condyleRightWorld = transformPoint3DByMatrix4({ x: -50, y: pivot.y, z: pivot.z }, fullMat);
+
+  const disp: Point3D = {
+    x: incisalWorld.x - incisalRefPoint.x,
+    y: incisalWorld.y - incisalRefPoint.y,
+    z: incisalWorld.z - incisalRefPoint.z,
+  };
+
+  const totalDist = Math.hypot(clX, clY);
+  return {
+    upperPosition: upperPos,
+    upperRotation: upperRot,
+    lowerPosition: lowerPos,
+    lowerRotation: { x: rx, y: ry, z: rz },
+    lowerMatrixElements: fullMat,
+    lowerInverseMatrixElements: invMat,
+    hingePivot: pivot,
+    condyleLeftWorld,
+    condyleRightWorld,
+    incisalWorldPoint: incisalWorld,
+    incisalDisplacementMm: disp,
+    incisalOpeningMm: Math.hypot(disp.x, disp.y, disp.z),
+    rotationAngleDeg: Number(((rx * 180) / Math.PI).toFixed(2)),
+    condylarTranslationMm: Number(condylarTranslationMm.toFixed(2)),
+    lateralShiftMm: Number(disp.x.toFixed(2)),
+    bezierPoint: { x: totalDist, y: totalDist },
+  };
+}
+
+/**
  * Compute full 6-DOF mandibular articulation kinematics at the current progress
  * based on anatomical TMJ parameters and the user-adjustable Bezier movement curve.
  *
@@ -273,6 +379,20 @@ export function computeMandibularKinematics(
   settings: ArticulatorSettings,
   incisalRefPoint: Point3D = DEFAULT_INCISAL_REF_POINT
 ): MandibularKinematicsResult {
+  // If manual continuous 2D excursion is active (e.g. dragged by mandibular joystick),
+  // directly compute continuous 6-DOF transformation without mode switching
+  if (
+    settings.manualExcursion &&
+    (settings.manualExcursion.x !== 0 || settings.manualExcursion.y !== 0)
+  ) {
+    return computeContinuousMandibularExcursion(
+      settings,
+      settings.manualExcursion.x,
+      settings.manualExcursion.y,
+      incisalRefPoint
+    );
+  }
+
   const t = clamp(settings.progress, 0, 1);
   const bezierEval = evaluateCubicBezier2D(t, settings.bezier);
   const curveFactor = evaluateBezierYForProgress(t, settings.bezier);

@@ -277,31 +277,16 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
         y: normY * maxRadius,
       });
 
-      // Determine movement mode based on direction:
-      // normY > 0.35 -> hinge / opening
-      // normY < -0.35 -> protrusion
-      // normX < -0.35 -> lateral left
-      // normX > 0.35 -> lateral right
+      // Smooth continuous 2D mandibular excursion: directly drives jaw movements without mode switching
       const mag = Math.min(1, clampedDist / maxRadius);
       const roundedMag = Number(mag.toFixed(3));
-
-      let determinedMode: ArticulationMode = 'hinge';
-      if (normY < -0.35 && Math.abs(normY) >= Math.abs(normX)) {
-        determinedMode = 'protrusion';
-      } else if (normX < -0.35) {
-        determinedMode = 'lateral_left';
-      } else if (normX > 0.35) {
-        determinedMode = 'lateral_right';
-      } else {
-        determinedMode = 'hinge';
-      }
 
       onSettingsChange((prev) => ({
         ...prev,
         occlusionSeparation: Math.round(roundedMag * 35),
         articulator: {
           ...prev.articulator,
-          mode: determinedMode,
+          manualExcursion: { x: normX, y: normY },
           progress: roundedMag,
           isPlaying: false,
         },
@@ -339,23 +324,12 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
     const mag = Math.min(1, clampedDist / maxRadius);
     const roundedMag = Number(mag.toFixed(3));
 
-    let determinedMode: ArticulationMode = 'hinge';
-    if (normY < -0.35 && Math.abs(normY) >= Math.abs(normX)) {
-      determinedMode = 'protrusion';
-    } else if (normX < -0.35) {
-      determinedMode = 'lateral_left';
-    } else if (normX > 0.35) {
-      determinedMode = 'lateral_right';
-    } else {
-      determinedMode = 'hinge';
-    }
-
     onSettingsChange((prev) => ({
       ...prev,
       occlusionSeparation: Math.round(roundedMag * 35),
       articulator: {
         ...prev.articulator,
-        mode: determinedMode,
+        manualExcursion: { x: normX, y: normY },
         progress: roundedMag,
         isPlaying: false,
       },
@@ -369,12 +343,13 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
     setJoystickActive(false);
     setJoystickPos({ x: 0, y: 0 });
 
-    // Spring back to neutral centric occlusion (0 progress)
+    // Spring back to neutral centric occlusion (0 progress & clear manual excursion)
     onSettingsChange((prev) => ({
       ...prev,
       occlusionSeparation: 0,
       articulator: {
         ...prev.articulator,
+        manualExcursion: undefined,
         progress: 0,
         isPlaying: false,
       },

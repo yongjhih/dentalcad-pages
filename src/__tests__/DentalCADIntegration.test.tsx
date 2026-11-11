@@ -435,4 +435,19 @@ describe('DentalCAD Pages Application Integration Tests', () => {
     // Occlusogram should STILL remain active!
     expect(occlusogramBtn.className).toContain('bg-rose-600');
   });
+
+  it('preloads 5-view clinical photo textures for demo data and renders them in the gallery tab', async () => {
+    render(<App />);
+
+    // Switch to 5-View Photo Gallery tab
+    const galleryTabBtn = screen.getByTestId('tab-gallery');
+    fireEvent.click(galleryTabBtn);
+
+    // Verify all 5 views are rendered in the gallery grid
+    expect(screen.getByText(/Frontal Occlusion|正視臨床咬合照片/i)).toBeInTheDocument();
+    expect(screen.getByText(/Maxillary Occlusal|上顎齒列咬合面/i)).toBeInTheDocument();
+    expect(screen.getByText(/Mandibular Occlusal|下顎齒列咬合面/i)).toBeInTheDocument();
+    expect(screen.getByText(/Right Buccal Occlusion|右側頰面咬合/i)).toBeInTheDocument();
+    expect(screen.getByText(/Left Buccal Occlusion|左側頰面咬合/i)).toBeInTheDocument();
+  });
 });
