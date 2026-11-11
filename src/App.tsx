@@ -79,6 +79,10 @@ const DEFAULT_OCCLUSOGRAM_STATS: OcclusogramStats = {
 };
 
 const THEME_STORAGE_KEY = 'dentalcad_theme';
+const SIDEBAR_WIDTH_STORAGE_KEY = 'dentalcad_sidebar_width';
+const DEFAULT_SIDEBAR_WIDTH = 500;
+const MIN_SIDEBAR_WIDTH = 320;
+const MAX_SIDEBAR_WIDTH = 880;
 
 export const App: React.FC = () => {
   // Theme state (Light / Dark mode)
@@ -308,6 +312,83 @@ export const App: React.FC = () => {
 
   // Collapsible right/bottom sidebar panel state
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
+
+  // Resizable right sidebar width (clamped and persisted in localStorage)
+  const [sidebarWidth, setSidebarWidth] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY);
+      if (saved) {
+        const val = parseInt(saved, 10);
+        if (!isNaN(val) && val >= MIN_SIDEBAR_WIDTH && val <= MAX_SIDEBAR_WIDTH) {
+          return val;
+        }
+      }
+    } catch {
+      // ignore
+    }
+    return DEFAULT_SIDEBAR_WIDTH;
+  });
+
+  const [isResizingSidebar, setIsResizingSidebar] = useState<boolean>(false);
+  const mainRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, sidebarWidth.toString());
+    } catch {
+      // ignore
+    }
+  }, [sidebarWidth]);
+
+  const handleResizeStart = (e: React.PointerEvent) => {
+    e.preventDefault();
+    setIsResizingSidebar(true);
+  };
+
+  useEffect(() => {
+    if (!isResizingSidebar) return;
+
+    const onPointerMove = (e: PointerEvent) => {
+      const mainEl = mainRef.current;
+      const rightEdge = mainEl ? mainEl.getBoundingClientRect().right : window.innerWidth;
+      const newWidth = rightEdge - e.clientX;
+      const maxAllowed = Math.max(
+        MIN_SIDEBAR_WIDTH,
+        Math.min(MAX_SIDEBAR_WIDTH, (mainEl?.clientWidth ?? window.innerWidth) - 320)
+      );
+      const clamped = Math.max(MIN_SIDEBAR_WIDTH, Math.min(maxAllowed, Math.round(newWidth)));
+      setSidebarWidth(clamped);
+    };
+
+    const onPointerUp = () => {
+      setIsResizingSidebar(false);
+    };
+
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+
+    return () => {
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+    };
+  }, [isResizingSidebar]);
+
+  const handleResizeReset = () => {
+    setSidebarWidth(DEFAULT_SIDEBAR_WIDTH);
+  };
+
+  const handleResizeKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      setSidebarWidth((prev) => Math.min(MAX_SIDEBAR_WIDTH, prev + 24));
+    } else if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      setSidebarWidth((prev) => Math.max(MIN_SIDEBAR_WIDTH, prev - 24));
+    } else if (e.key === 'Home') {
+      e.preventDefault();
+      setSidebarWidth(DEFAULT_SIDEBAR_WIDTH);
+    }
+  };
 
   // Ask AI Assistant slide-over drawer state
   const [askAiOpen, setAskAiOpen] = useState<boolean>(false);
@@ -553,12 +634,14 @@ export const App: React.FC = () => {
       )}
 
       {/* Main CAD Workspace Layout */}
-      <main className="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
+      <main ref={mainRef} className="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
         {/* Left: 3D Dental CAD Viewport Canvas */}
         <section
           className={`relative overflow-hidden border-b lg:border-b-0 ${
-            sidebarCollapsed ? 'lg:border-r-0 flex-1 h-full' : 'lg:border-r'
-          } border-slate-200 dark:border-slate-800 lg:flex-1 lg:h-full transition-all ${
+            sidebarCollapsed ? 'lg:border-r-0 flex-1 h-full' : 'lg:border-r-0'
+          } border-slate-200 dark:border-slate-800 lg:flex-1 lg:h-full ${
+            isResizingSidebar ? 'transition-none select-none' : 'transition-all'
+          } ${
             sidebarCollapsed
               ? 'flex-1'
               : mobileLayoutMode === '3d'
@@ -735,14 +818,64 @@ export const App: React.FC = () => {
           </div>
         </div>
 
+        {/* Resizable Divider between 3D Viewport and Sidebar (Desktop only) */}
+        {!sidebarCollapsed && (
+          <div
+            data-testid="sidebar-resize-handle"
+            role="separator"
+            aria-orientation="vertical"
+            aria-valuenow={sidebarWidth}
+            aria-valuemin={MIN_SIDEBAR_WIDTH}
+            aria-valuemax={MAX_SIDEBAR_WIDTH}
+            tabIndex={0}
+            onPointerDown={handleResizeStart}
+            onDoubleClick={handleResizeReset}
+            onKeyDown={handleResizeKeyDown}
+            title={tr(
+              locale,
+              '拖曳分隔線調整側欄寬度（雙擊重置寬度）',
+              'Drag divider to resize sidebar (double-click to reset)'
+            )}
+            className={`hidden lg:flex flex-col justify-center items-center w-2 -mx-1 z-30 cursor-col-resize select-none group transition-colors focus:outline-none focus:ring-1 focus:ring-sky-500 ${
+              isResizingSidebar
+                ? 'bg-sky-500 text-white'
+                : 'hover:bg-sky-500/20 active:bg-sky-500/40 text-slate-400 dark:text-slate-500 hover:text-sky-500 border-x border-slate-200 dark:border-slate-800'
+            }`}
+          >
+            {/* Grip Handle Indicator */}
+            <div
+              className={`w-0.5 h-8 rounded-full transition-colors ${
+                isResizingSidebar
+                  ? 'bg-white'
+                  : 'bg-slate-300 dark:bg-slate-600 group-hover:bg-sky-500'
+              }`}
+            />
+          </div>
+        )}
+
+        {/* Global Active Resizing Overlay to prevent pointer event hijacking */}
+        {isResizingSidebar && (
+          <div
+            className="fixed inset-0 z-50 cursor-col-resize select-none pointer-events-auto"
+            aria-hidden="true"
+          />
+        )}
+
         {/* Right: Clinical Dossier, Articulator, 5-View Gallery, Tools, & XML Tabs */}
         <aside
           data-testid="right-sidebar-panel"
+          style={
+            !sidebarCollapsed
+              ? ({ '--sidebar-width': `${sidebarWidth}px` } as React.CSSProperties)
+              : undefined
+          }
           className={`${
             sidebarCollapsed
               ? 'hidden'
-              : 'w-full lg:w-[490px] xl:w-[550px] flex-shrink-0 flex flex-col flex-1 lg:h-full'
-          } bg-slate-50 dark:bg-[#0c1220] overflow-hidden transition-all`}
+              : 'w-full lg:w-[var(--sidebar-width)] flex-shrink-0 flex flex-col flex-1 lg:flex-initial lg:h-full'
+          } bg-slate-50 dark:bg-[#0c1220] overflow-hidden ${
+            isResizingSidebar ? 'select-none transition-none' : 'transition-all'
+          }`}
         >
           {/* Tab Selection Bar */}
           <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-[#090d16] px-2 pt-2 flex-shrink-0 gap-1 overflow-x-auto transition-colors">

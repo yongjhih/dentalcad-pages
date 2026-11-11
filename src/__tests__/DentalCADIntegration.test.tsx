@@ -358,6 +358,39 @@ describe('DentalCAD Pages Application Integration Tests', () => {
     expect(sidebar).not.toHaveClass('hidden');
   });
 
+  it('supports resizing sidebar width via divider line, keyboard arrows, and double-click reset', () => {
+    render(<App />);
+
+    const resizeHandle = screen.getByTestId('sidebar-resize-handle');
+    expect(resizeHandle).toBeInTheDocument();
+    expect(resizeHandle).toHaveAttribute('role', 'separator');
+    expect(resizeHandle).toHaveAttribute('aria-orientation', 'vertical');
+
+    const sidebar = screen.getByTestId('right-sidebar-panel');
+    expect(sidebar).toHaveStyle({ '--sidebar-width': '500px' });
+
+    // Keyboard navigation: ArrowLeft expands sidebar width
+    fireEvent.keyDown(resizeHandle, { key: 'ArrowLeft' });
+    expect(sidebar).toHaveStyle({ '--sidebar-width': '524px' });
+
+    // Keyboard navigation: ArrowRight shrinks sidebar width
+    fireEvent.keyDown(resizeHandle, { key: 'ArrowRight' });
+    expect(sidebar).toHaveStyle({ '--sidebar-width': '500px' });
+
+    // Pointer drag resize
+    fireEvent.pointerDown(resizeHandle, { clientX: 700 });
+    fireEvent(window, new MouseEvent('pointermove', { clientX: 600 }));
+    fireEvent(window, new MouseEvent('pointerup'));
+
+    // Double-click resets to default 500px
+    fireEvent.doubleClick(resizeHandle);
+    expect(sidebar).toHaveStyle({ '--sidebar-width': '500px' });
+
+    // When sidebar is collapsed, the divider handle is hidden
+    fireEvent.click(screen.getByTestId('sidebar-collapse-btn'));
+    expect(screen.queryByTestId('sidebar-resize-handle')).not.toBeInTheDocument();
+  });
+
   it('keeps header clean without redundant MCP/coverage buttons, and supports interactive Ask AI assistant drawer', async () => {
     render(<App />);
 
