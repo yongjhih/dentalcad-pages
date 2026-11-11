@@ -48,6 +48,15 @@ export const CadToolsPanel: React.FC<CadToolsPanelProps> = ({
 
   const shadingModes: { id: ShadingMode; name: string; desc: string }[] = [
     {
+      id: 'texture',
+      name: tr(locale, '五方位臨床貼圖 (5-View Photo Texture)', '5-View Photo Texture'),
+      desc: tr(
+        locale,
+        '將正視、上顎、下顎、左右頰面共 5 張臨床照片依據法向量權重投影貼合至 3D 齒列上。',
+        'Projects and normal-blends 5 intraoral clinical photos directly onto the 3D dental arch meshes.'
+      ),
+    },
+    {
       id: 'enamel',
       name: tr(locale, '臨床琺瑯質 (Enamel)', 'Clinical Enamel'),
       desc: tr(
@@ -128,19 +137,25 @@ export const CadToolsPanel: React.FC<CadToolsPanelProps> = ({
           </div>
           <button
             data-testid="tools-photo-texture-btn"
-            onClick={() =>
+            onClick={() => {
+              const nextMapped = !(settings.photoTextureMapped || settings.shadingMode === 'texture');
               onSettingsChange({
                 ...settings,
-                photoTextureMapped: !settings.photoTextureMapped,
-              })
-            }
+                photoTextureMapped: nextMapped,
+                shadingMode: nextMapped
+                  ? 'texture'
+                  : settings.shadingMode === 'texture'
+                  ? 'enamel'
+                  : settings.shadingMode,
+              });
+            }}
             className={`px-3 py-1.5 rounded text-xs font-medium transition-colors border flex-shrink-0 ${
-              settings.photoTextureMapped
+              settings.photoTextureMapped || settings.shadingMode === 'texture'
                 ? 'bg-sky-500 border-sky-600 text-white shadow-sm'
                 : 'bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
             }`}
           >
-            {settings.photoTextureMapped
+            {settings.photoTextureMapped || settings.shadingMode === 'texture'
               ? tr(locale, '已開啟貼圖', 'Texture ON')
               : tr(locale, '開啟貼圖', 'Enable Texture')}
           </button>
@@ -154,43 +169,49 @@ export const CadToolsPanel: React.FC<CadToolsPanelProps> = ({
           <span>{tr(locale, '幾何材質與光學渲染 (Shaders)', 'Surface Shaders & Optical Materials')}</span>
         </h2>
         <div className="space-y-2">
-          {shadingModes.map((mode) => (
-            <label
-              key={mode.id}
-              onClick={() =>
-                onSettingsChange({
-                  ...settings,
-                  photoTextureMapped: false,
-                  shadingMode: mode.id,
-                })
-              }
-              className={`flex items-start gap-3 p-2.5 rounded-lg border cursor-pointer transition-colors ${
-                !settings.photoTextureMapped && settings.shadingMode === mode.id
-                  ? 'bg-sky-500/10 dark:bg-sky-950/40 border-sky-500/60 text-slate-900 dark:text-slate-200'
-                  : 'bg-white dark:bg-[#0b0f17] border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 text-slate-500 dark:text-slate-400'
-              }`}
-            >
-              <input
-                type="radio"
-                name="shadingMode"
-                checked={!settings.photoTextureMapped && settings.shadingMode === mode.id}
-                onChange={() =>
+          {shadingModes.map((mode) => {
+            const isSelected =
+              mode.id === 'texture'
+                ? settings.shadingMode === 'texture' || settings.photoTextureMapped
+                : settings.shadingMode === mode.id && !settings.photoTextureMapped;
+            return (
+              <label
+                key={mode.id}
+                onClick={() =>
                   onSettingsChange({
                     ...settings,
-                    photoTextureMapped: false,
+                    photoTextureMapped: mode.id === 'texture',
                     shadingMode: mode.id,
                   })
                 }
-                className="mt-0.5 accent-sky-500"
-              />
-              <div className="space-y-0.5">
-                <p className="font-medium text-slate-900 dark:text-slate-200">{mode.name}</p>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
-                  {mode.desc}
-                </p>
-              </div>
-            </label>
-          ))}
+                className={`flex items-start gap-3 p-2.5 rounded-lg border cursor-pointer transition-colors ${
+                  isSelected
+                    ? 'bg-sky-500/10 dark:bg-sky-950/40 border-sky-500/60 text-slate-900 dark:text-slate-200'
+                    : 'bg-white dark:bg-[#0b0f17] border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 text-slate-500 dark:text-slate-400'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="shadingMode"
+                  checked={isSelected}
+                  onChange={() =>
+                    onSettingsChange({
+                      ...settings,
+                      photoTextureMapped: mode.id === 'texture',
+                      shadingMode: mode.id,
+                    })
+                  }
+                  className="mt-0.5 accent-sky-500"
+                />
+                <div className="space-y-0.5">
+                  <p className="font-medium text-slate-900 dark:text-slate-200">{mode.name}</p>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                    {mode.desc}
+                  </p>
+                </div>
+              </label>
+            );
+          })}
         </div>
 
         {/* Arch Color Distinction Toggle */}

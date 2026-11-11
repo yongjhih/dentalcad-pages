@@ -318,6 +318,15 @@ export function createOcclusogramMaterial(params: {
   upperZOffset: number;
   wireframe: boolean;
   clippingPlanes: THREE.Plane[];
+  baseColor?: number;
+  baseRoughness?: number;
+  baseMetalness?: number;
+  baseIor?: number;
+  baseTransmission?: number;
+  baseOpacity?: number;
+  pentaTextures?: import('./pentaTextureShader').LoadedPentaTextures | null;
+  archBox?: THREE.Box3 | null;
+  combinedBox?: THREE.Box3 | null;
 }): {
   material: THREE.MeshPhysicalMaterial;
   updateKinematicsUniforms: (
@@ -337,15 +346,27 @@ export function createOcclusogramMaterial(params: {
     upperZOffset,
     wireframe,
     clippingPlanes,
+    baseColor = 0xf8fafc,
+    baseRoughness = 0.26,
+    baseMetalness = 0.03,
+    baseIor = 1.54,
+    baseTransmission = 0.0,
+    baseOpacity = 1.0,
+    pentaTextures = null,
+    archBox = null,
+    combinedBox = null,
   } = params;
 
   const mat = new THREE.MeshPhysicalMaterial({
-    color: 0xf8fafc,
-    roughness: 0.26,
-    metalness: 0.03,
+    color: baseColor,
+    roughness: baseRoughness,
+    metalness: baseMetalness,
     clearcoat: 0.42,
     clearcoatRoughness: 0.18,
-    ior: 1.54,
+    ior: baseIor,
+    transmission: baseTransmission,
+    opacity: baseOpacity,
+    transparent: baseTransmission > 0 || baseOpacity < 1,
     side: THREE.DoubleSide,
     wireframe,
   });
@@ -362,8 +383,44 @@ export function createOcclusogramMaterial(params: {
     uIsUpper: { value: isUpper ? 1.0 : 0.0 },
   };
 
+  const hasPenta = Boolean(
+    pentaTextures &&
+      archBox &&
+      combinedBox &&
+      (pentaTextures.front ||
+        pentaTextures.upper ||
+        pentaTextures.lower ||
+        pentaTextures.right ||
+        pentaTextures.left)
+  );
+
   mat.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, uniformsRef);
+
+    if (hasPenta && pentaTextures && archBox && combinedBox) {
+      const occlusalTex = isUpper ? pentaTextures.upper : pentaTextures.lower;
+      const occlusalRect = isUpper ? pentaTextures.rects.upper : pentaTextures.rects.lower;
+
+      const dummyCanvas = document.createElement('canvas');
+      dummyCanvas.width = 2;
+      dummyCanvas.height = 2;
+      const dummyTex = new THREE.CanvasTexture(dummyCanvas);
+
+      shader.uniforms.uTexFront = { value: pentaTextures.front || dummyTex };
+      shader.uniforms.uTexOcclusal = { value: occlusalTex || dummyTex };
+      shader.uniforms.uTexRight = { value: pentaTextures.right || dummyTex };
+      shader.uniforms.uTexLeft = { value: pentaTextures.left || dummyTex };
+
+      shader.uniforms.uRectFront = { value: pentaTextures.rects.front };
+      shader.uniforms.uRectOcclusal = { value: occlusalRect };
+      shader.uniforms.uRectRight = { value: pentaTextures.rects.right };
+      shader.uniforms.uRectLeft = { value: pentaTextures.rects.left };
+
+      shader.uniforms.uArchMin = { value: archBox.min.clone() };
+      shader.uniforms.uArchMax = { value: archBox.max.clone() };
+      shader.uniforms.uCombMin = { value: combinedBox.min.clone() };
+      shader.uniforms.uCombMax = { value: combinedBox.max.clone() };
+    }
 
     shader.vertexShader =
       `
@@ -379,7 +436,84 @@ export function createOcclusogramMaterial(params: {
         `
       );
 
+    const pentaHeader = hasPenta
+      ? `
+      uniform sampler2D uTexFront;
+      uniform sampler2D uTexOcclusal;
+      uniform sampler2D uTexRight;
+      uniform sampler2D uTexLeft;
+
+      uniform vec4 uRectFront;
+      uniform vec4 uRectOcclusal;
+      uniform vec4 uRectRight;
+      uniform vec4 uRectLeft;
+
+      uniform vec3 uArchMin;
+      uniform vec3 uArchMax;
+      uniform vec3 uCombMin;
+      uniform vec3 uCombMax;
+
+      float pentaForegroundMask(vec3 col, vec2 uv, vec4 rect) {
+        if (uv.x < rect.x || uv.x > rect.y || uv.y < rect.z || uv.y > rect.w) {
+          return 0.0;
+        }
+        float minChannel = min(col.r, min(col.g, col.b));
+        return 1.0 - smoothstep(0.90, 0.965, minChannel);
+      }
+      `
+      : '';
+
+    const pentaBlendBody = hasPenta
+      ? `
+        {
+          vec3 P = vOccLocalPos;
+          vec3 N = normalize(vOccLocalNormal);
+          vec3 combSpan = max(uCombMax - uCombMin, vec3(0.001));
+          vec3 archSpan = max(uArchMax - uArchMin, vec3(0.001));
+          vec3 nComb = clamp((P - uCombMin) / combSpan, 0.0, 1.0);
+          vec3 nArch = clamp((P - uArchMin) / archSpan, 0.0, 1.0);
+
+          float vOcc = uIsUpper > 0.5
+            ? mix(uRectOcclusal.w, uRectOcclusal.z, nArch.y)
+            : mix(uRectOcclusal.z, uRectOcclusal.w, nArch.y);
+          vec2 uvOcclusal = vec2(mix(uRectOcclusal.x, uRectOcclusal.y, nArch.x), vOcc);
+          vec2 uvFront = vec2(mix(uRectFront.x, uRectFront.y, nComb.x), mix(uRectFront.z, uRectFront.w, nComb.z));
+          vec2 uvRight = vec2(mix(uRectRight.y, uRectRight.x, nComb.y), mix(uRectRight.z, uRectRight.w, nComb.z));
+          vec2 uvLeft  = vec2(mix(uRectLeft.x, uRectLeft.y, nComb.y), mix(uRectLeft.z, uRectLeft.w, nComb.z));
+
+          vec3 colOcc = texture2D(uTexOcclusal, uvOcclusal).rgb;
+          vec3 colFront = texture2D(uTexFront, uvFront).rgb;
+          vec3 colRight = texture2D(uTexRight, uvRight).rgb;
+          vec3 colLeft = texture2D(uTexLeft, uvLeft).rgb;
+
+          float maskOcc = pentaForegroundMask(colOcc, uvOcclusal, uRectOcclusal);
+          float maskFront = pentaForegroundMask(colFront, uvFront, uRectFront);
+          float maskRight = pentaForegroundMask(colRight, uvRight, uRectRight);
+          float maskLeft = pentaForegroundMask(colLeft, uvLeft, uRectLeft);
+
+          vec2 archCenter = vec2(0.0, -14.0);
+          vec2 radialDir = normalize(P.xy - archCenter + vec2(0.0001));
+          vec2 horizNorm = normalize(N.xy + vec2(0.0001));
+          float outward = smoothstep(0.05, 0.45, dot(radialDir, horizNorm));
+
+          float archZMask = uIsUpper > 0.5 ? smoothstep(-0.2, 2.5, P.z) : smoothstep(0.2, -2.2, P.z);
+          float wFront = pow(max(0.0, -N.y), 1.5) * outward * smoothstep(-18.0, -32.0, P.y) * archZMask * maskFront;
+          float wRight = pow(max(0.0, -N.x), 1.5) * outward * smoothstep(-4.0, -14.0, P.x) * archZMask * maskRight;
+          float wLeft  = pow(max(0.0,  N.x), 1.5) * outward * smoothstep( 4.0,  14.0, P.x) * archZMask * maskLeft;
+          float wOcc   = (pow(abs(N.z), 0.9) + (1.0 - outward * archZMask) * 1.15 + 0.18) * maskOcc;
+
+          float totalW = wFront + wRight + wLeft + wOcc;
+          if (totalW > 0.001) {
+            diffuseColor.rgb = (colFront * wFront + colRight * wRight + colLeft * wLeft + colOcc * wOcc) / totalW;
+          } else if (maskOcc > 0.01) {
+            diffuseColor.rgb = colOcc;
+          }
+        }
+      `
+      : '';
+
     shader.fragmentShader =
+      pentaHeader +
       `
       uniform sampler2D uOpposingTex;
       uniform vec3 uBoundsMin;
@@ -413,6 +547,9 @@ export function createOcclusogramMaterial(params: {
         '#include <color_fragment>',
         `
         #include <color_fragment>
+        ` +
+        pentaBlendBody +
+        `
         {
           vec3 N = normalize(vOccLocalNormal);
           // Only shade occlusal-facing surfaces
@@ -426,7 +563,6 @@ export function createOcclusogramMaterial(params: {
             float validSample = 0.0;
 
             if (uIsUpper > 0.5) {
-              // Upper tooth point in world space -> transform into lower arch local space
               vec3 worldUpper = vec3(vOccLocalPos.x, vOccLocalPos.y, vOccLocalPos.z + uUpperZOffset);
               vec3 lowerLocal = (uLowerInvMatrix * vec4(worldUpper, 1.0)).xyz;
               vec2 uv = (lowerLocal.xy - uBoundsMin.xy) / span.xy;
@@ -440,7 +576,6 @@ export function createOcclusogramMaterial(params: {
                 }
               }
             } else {
-              // Lower tooth point in local space -> transform into world space to lookup upper map
               vec3 worldLower = (uLowerMatrix * vec4(vOccLocalPos, 1.0)).xyz;
               vec2 uv = (worldLower.xy - uBoundsMin.xy) / span.xy;
               if (uv.x >= 0.0 && uv.x <= 1.0 && uv.y >= 0.0 && uv.y <= 1.0) {
@@ -466,7 +601,7 @@ export function createOcclusogramMaterial(params: {
   };
 
   mat.customProgramCacheKey = () =>
-    `dentalcad-occlusogram-${isUpper ? 'u' : 'l'}-${wireframe ? 'w' : 's'}`;
+    `dentalcad-occlusogram-${isUpper ? 'u' : 'l'}-${wireframe ? 'w' : 's'}-${hasPenta ? 'p' : 'n'}-${baseRoughness}-${baseTransmission}`;
 
   return {
     material: mat,

@@ -402,12 +402,68 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
         lowerOccUpdaterRef.current = null;
       }
 
-      // Priority 1: Occlusogram Real-time Bite Contact Heatmap
+      // Check whether 5-view photo textures are available and active
+      const hasAnyPentaTexture = Boolean(
+        photos.length > 0 &&
+          pentaTexturesRef.current &&
+          (pentaTexturesRef.current.front ||
+            pentaTexturesRef.current.upper ||
+            pentaTexturesRef.current.lower ||
+            pentaTexturesRef.current.right ||
+            pentaTexturesRef.current.left)
+      );
+      const shouldUseTexture =
+        (shadingMode === 'texture' || photoTextureMapped) && hasAnyPentaTexture;
+
+      // Layered Occlusogram Real-time Bite Contact Heatmap:
+      // Overlays the contact heatmap directly ON TOP of the active material / shader / texture
       if (
         occlusogramEnabled &&
         upperElevationTexRef.current &&
         lowerElevationTexRef.current
       ) {
+        let baseColor = isUpper
+          ? archDistinction
+            ? 0xfffaf0
+            : 0xf8fafc
+          : archDistinction
+          ? 0xf0fdf4
+          : 0xf8fafc;
+        let baseRoughness = 0.28;
+        let baseMetalness = 0.04;
+        let baseIor = 1.55;
+        let baseTransmission = 0.0;
+        let baseOpacity = 1.0;
+
+        if (shouldUseTexture) {
+          baseColor = 0xffffff;
+          baseRoughness = 0.35;
+          baseMetalness = 0.02;
+        } else if (shadingMode === 'plaster') {
+          baseColor = isUpper
+            ? archDistinction
+              ? 0xfef3c7
+              : 0xf1f5f9
+            : archDistinction
+            ? 0xdbeafe
+            : 0xf1f5f9;
+          baseRoughness = 0.75;
+          baseMetalness = 0.02;
+        } else if (shadingMode === 'translucent') {
+          baseColor = isUpper
+            ? archDistinction
+              ? 0xbae6fd
+              : 0xe2e8f0
+            : archDistinction
+            ? 0xbfdbfe
+            : 0xe2e8f0;
+          baseRoughness = 0.15;
+          baseTransmission = 0.65;
+          baseOpacity = 0.6;
+        } else if (shadingMode === 'wireframe') {
+          baseColor = isUpper ? 0x0284c7 : 0x6366f1;
+        }
+
         const lowerMat = new THREE.Matrix4().fromArray(currentKinematics.lowerMatrixElements);
         const lowerInvMat = new THREE.Matrix4().fromArray(
           currentKinematics.lowerInverseMatrixElements
@@ -426,6 +482,15 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
           upperZOffset: currentKinematics.upperPosition.z,
           wireframe: wireframeOverlay || shadingMode === 'wireframe',
           clippingPlanes,
+          baseColor,
+          baseRoughness,
+          baseMetalness,
+          baseIor,
+          baseTransmission,
+          baseOpacity,
+          pentaTextures: shouldUseTexture ? pentaTexturesRef.current : null,
+          archBox: isUpper ? upperBoxRef.current : lowerBoxRef.current,
+          combinedBox: combinedBoxRef.current,
         });
 
         if (isUpper) {
@@ -436,17 +501,8 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
         return material;
       }
 
-      // Priority 2: 5-view photo texture projection (only when active case has photos and at least 1 texture loaded)
-      const hasAnyPentaTexture = Boolean(
-        photos.length > 0 &&
-          pentaTexturesRef.current &&
-          (pentaTexturesRef.current.front ||
-            pentaTexturesRef.current.upper ||
-            pentaTexturesRef.current.lower ||
-            pentaTexturesRef.current.right ||
-            pentaTexturesRef.current.left)
-      );
-      if (photoTextureMapped && hasAnyPentaTexture && pentaTexturesRef.current) {
+      // Base Materials (when Occlusogram is off or elevation maps are still calculating):
+      if (shouldUseTexture && pentaTexturesRef.current) {
         return createPentaTexturedMaterial({
           isUpper,
           textures: pentaTexturesRef.current,
@@ -1834,15 +1890,23 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
               <div className="flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-800/80 gap-2">
                 <button
                   type="button"
+                  data-testid="hud-photo-texture-btn"
                   onClick={() =>
-                    onSettingsChange((prev) => ({
-                      ...prev,
-                      photoTextureMapped: !prev.photoTextureMapped,
-                      occlusogramEnabled: !prev.photoTextureMapped ? false : prev.occlusogramEnabled,
-                    }))
+                    onSettingsChange((prev) => {
+                      const nextMapped = !(prev.photoTextureMapped || prev.shadingMode === 'texture');
+                      return {
+                        ...prev,
+                        photoTextureMapped: nextMapped,
+                        shadingMode: nextMapped
+                          ? 'texture'
+                          : prev.shadingMode === 'texture'
+                          ? 'enamel'
+                          : prev.shadingMode,
+                      };
+                    })
                   }
                   className={`flex-1 px-2.5 py-1 rounded text-[11px] font-medium transition-colors border flex items-center justify-center gap-1.5 ${
-                    settings.photoTextureMapped && !settings.occlusogramEnabled
+                    settings.photoTextureMapped || settings.shadingMode === 'texture'
                       ? 'bg-sky-500 border-sky-600 text-white shadow-sm'
                       : 'bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400'
                   }`}
@@ -1853,6 +1917,7 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
 
                 <button
                   type="button"
+                  data-testid="hud-occlusogram-btn"
                   onClick={() =>
                     onSettingsChange((prev) => ({
                       ...prev,
@@ -1877,34 +1942,38 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
                 </span>
                 <div className="flex items-center gap-1">
                   {[
+                    { id: 'texture', label: tr(locale, '貼圖', 'Texture') },
                     { id: 'enamel', label: tr(locale, '琺瑯質', 'Enamel') },
                     { id: 'plaster', label: tr(locale, '石膏', 'Plaster') },
                     { id: 'normal', label: tr(locale, '法線', 'Normals') },
                     { id: 'wireframe', label: tr(locale, '線框', 'Wire') },
                     { id: 'translucent', label: tr(locale, '半透', 'X-Ray') },
-                  ].map((m) => (
-                    <button
-                      key={m.id}
-                      type="button"
-                      onClick={() =>
-                        onSettingsChange((prev) => ({
-                          ...prev,
-                          photoTextureMapped: false,
-                          occlusogramEnabled: false,
-                          shadingMode: m.id as ViewportSettings['shadingMode'],
-                        }))
-                      }
-                      className={`px-1.5 py-0.5 rounded text-[10px] transition-colors ${
-                        !settings.photoTextureMapped &&
-                        !settings.occlusogramEnabled &&
-                        settings.shadingMode === m.id
-                          ? 'bg-sky-500/15 dark:bg-slate-700 text-sky-700 dark:text-sky-300 font-medium'
-                          : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-                      }`}
-                    >
-                      {m.label}
-                    </button>
-                  ))}
+                  ].map((m) => {
+                    const isSelected =
+                      m.id === 'texture'
+                        ? settings.shadingMode === 'texture' || settings.photoTextureMapped
+                        : settings.shadingMode === m.id && !settings.photoTextureMapped;
+                    return (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() =>
+                          onSettingsChange((prev) => ({
+                            ...prev,
+                            shadingMode: m.id as ViewportSettings['shadingMode'],
+                            photoTextureMapped: m.id === 'texture',
+                          }))
+                        }
+                        className={`px-1.5 py-0.5 rounded text-[10px] transition-colors ${
+                          isSelected
+                            ? 'bg-sky-500/15 dark:bg-slate-700 text-sky-700 dark:text-sky-300 font-medium'
+                            : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                        }`}
+                      >
+                        {m.label}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </>

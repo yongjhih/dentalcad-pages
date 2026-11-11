@@ -1,4 +1,4 @@
-export type ShadingMode = 'enamel' | 'plaster' | 'normal' | 'wireframe' | 'translucent';
+export type ShadingMode = 'texture' | 'enamel' | 'plaster' | 'normal' | 'wireframe' | 'translucent';
 
 export type CameraPreset = 'front' | 'upper' | 'lower' | 'right' | 'left' | 'isometric';
 

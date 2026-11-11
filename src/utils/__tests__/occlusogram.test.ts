@@ -109,4 +109,51 @@ describe('occlusogram (Bite Contact Heatmap Engine)', () => {
       expect(stats.minClearanceMm).toBeGreaterThan(5);
     });
   });
+
+  describe('createOcclusogramMaterial layered rendering', () => {
+    it('creates MeshPhysicalMaterial configured with custom shader hooks and layered base properties', async () => {
+      const { createOcclusogramMaterial, createElevationDataTexture, DEFAULT_OCCLUSAL_BOUNDS } = await import('../occlusogram');
+      const THREE = await import('three');
+
+      const dummyMap = {
+        isUpper: true,
+        resolution: 16,
+        bounds: DEFAULT_OCCLUSAL_BOUNDS,
+        heights: new Float32Array(16 * 16),
+        cellAreaMm2: 1.0,
+      };
+      const tex = createElevationDataTexture(dummyMap);
+
+      const { material, updateKinematicsUniforms } = createOcclusogramMaterial({
+        isUpper: true,
+        opposingElevationTex: tex,
+        bounds: DEFAULT_OCCLUSAL_BOUNDS,
+        maxRangeMm: 1.6,
+        lowerMatrix: new THREE.Matrix4(),
+        lowerInverseMatrix: new THREE.Matrix4(),
+        upperZOffset: 0,
+        wireframe: false,
+        clippingPlanes: [],
+        baseColor: 0xfef3c7,
+        baseRoughness: 0.75,
+        baseMetalness: 0.02,
+        baseTransmission: 0.65,
+      });
+
+      expect(material).toBeDefined();
+      expect(material.roughness).toBe(0.75);
+      expect(material.transmission).toBe(0.65);
+      expect(typeof updateKinematicsUniforms).toBe('function');
+
+      // Test shader onBeforeCompile hook injects occlusogram logic
+      const mockShader = {
+        uniforms: {},
+        vertexShader: 'void main() { #include <begin_vertex> }',
+        fragmentShader: 'void main() { #include <color_fragment> }',
+      };
+      material.onBeforeCompile(mockShader as any, {} as any);
+      expect(mockShader.vertexShader).toContain('vOccLocalPos');
+      expect(mockShader.fragmentShader).toContain('occlusogramHeatColor');
+    });
+  });
 });

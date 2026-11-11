@@ -401,4 +401,38 @@ describe('DentalCAD Pages Application Integration Tests', () => {
     // Verify spring back
     expect(verticalSeekBar).toHaveValue('0');
   });
+
+  it('supports 5-view photo texture as a material shader alongside enamel, and allows simultaneous occlusogram heatmap overlay', async () => {
+    render(<App />);
+
+    // Switch to CAD Tools tab
+    fireEvent.click(screen.getByTestId('tab-tools'));
+
+    // Check that '5-View Photo Texture' is available in the Shaders list
+    const textureRadio = screen.getByRole('radio', { name: /5-View Photo Texture|五方位臨床貼圖/i });
+    expect(textureRadio).toBeInTheDocument();
+
+    // Select Texture shading mode
+    fireEvent.click(textureRadio);
+    expect(textureRadio).toBeChecked();
+
+    // Toggle Occlusogram Heatmap from the 3D HUD quick toggle
+    const occlusogramBtn = screen.getByTestId('hud-occlusogram-btn');
+    expect(occlusogramBtn).toBeInTheDocument();
+
+    fireEvent.click(occlusogramBtn);
+    // Button becomes active (red background)
+    expect(occlusogramBtn.className).toContain('bg-rose-600');
+
+    // Texture should STILL remain checked/selected in the shader list!
+    expect(textureRadio).toBeChecked();
+
+    // Switch to Plaster shading mode while Occlusogram is active
+    const plasterRadio = screen.getByRole('radio', { name: /Plaster|石膏模型/i });
+    fireEvent.click(plasterRadio);
+    expect(plasterRadio).toBeChecked();
+
+    // Occlusogram should STILL remain active!
+    expect(occlusogramBtn.className).toContain('bg-rose-600');
+  });
 });
