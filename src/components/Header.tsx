@@ -51,15 +51,15 @@ export const Header: React.FC<HeaderProps> = ({
       {/* Brand & Dynamic Case Selector */}
       <div className="flex items-center space-x-3 min-w-0">
         <div className="flex items-center space-x-2 flex-shrink-0">
-          <div className="w-7 h-7 rounded bg-sky-500/15 dark:bg-sky-950/80 border border-sky-500/40 dark:border-sky-800/70 flex items-center justify-center text-sky-600 dark:text-sky-400 font-mono text-xs font-bold">
-            IOS
+          <div className="w-7 h-7 rounded bg-sky-500/15 dark:bg-sky-950/80 border border-sky-500/40 dark:border-sky-800/70 flex items-center justify-center text-sky-600 dark:text-sky-400 font-mono text-[11px] font-bold">
+            CAD
           </div>
           <div className="flex flex-col leading-none">
             <span className="font-semibold text-slate-900 dark:text-slate-100 text-sm tracking-tight">
-              IOS Pages
+              DentalCAD Pages
             </span>
             <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400">
-              Universal OrthoCAD 3D
+              Universal IOS 3D
             </span>
           </div>
         </div>
@@ -233,7 +233,7 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* GitHub link */}
         <a
-          href="https://github.com/yongjhih/itero-pages"
+          href="https://github.com/yongjhih/dentalcad-pages"
           target="_blank"
           rel="noopener noreferrer"
           className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-colors"

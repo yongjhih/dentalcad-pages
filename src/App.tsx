@@ -24,7 +24,7 @@ import {
   createCaliperMeasurement,
   LOCALE_STORAGE_KEY,
   tr,
-} from '@ios-pages/core';
+} from '@dentalcad-pages/core';
 import {
   Header,
   DentalViewer3D,
@@ -33,7 +33,7 @@ import {
   ArticulatorPanel,
   CadToolsPanel,
   XmlInspector,
-} from '@ios-pages/viewer';
+} from '@dentalcad-pages/viewer';
 import {
   FileText,
   Image as ImageIcon,

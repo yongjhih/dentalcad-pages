@@ -1,4 +1,4 @@
-# IOS Pages — Universal Intraoral Scanner 3D CAD & Articulator
+# DentalCAD Pages — Universal Intraoral Scanner 3D CAD & Articulator
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](./LICENSE)
 
@@ -8,11 +8,12 @@
 
 ## English
 
-**IOS Pages** is a clinical-grade, vendor-neutral **Universal Intraoral Scanner (IOS) 3D CAD & Occlusal Articulation Workstation** built with **React 18**, **TypeScript**, **Three.js**, and **Tailwind CSS** (conforming to **Impeccable** and **shadcn/ui** design standards).
+**DentalCAD Pages** (`dentalcad-pages`) is a clinical-grade, vendor-neutral **Universal Intraoral Scanner (IOS) 3D CAD & Occlusal Articulation Workstation** built with **React 18**, **TypeScript**, **Three.js**, and **Tailwind CSS** (conforming to **Impeccable** and **shadcn/ui** design standards).
 
 It supports intraoral scans from **Align iTero**, **3Shape TRIOS**, **Medit i-Series**, **Shining 3D Aoralscan**, **Carestream**, and standard `.stl` dental arch meshes — running 100% client-side in the browser with **6-DOF mandibular kinematics**, **real-time Occlusogram bite contact heatmaps**, **5-view clinical photo orthographic texture projection**, and **3D digital caliper biometrics**.
 
-- **Live Demo (GitHub Pages)**: https://yongjhih.github.io/itero-pages/
+- **Live Demo (GitHub Pages)**: https://yongjhih.github.io/dentalcad-pages/
+- **Repository**: https://github.com/yongjhih/dentalcad-pages
 - **License**: [Apache License 2.0](./LICENSE)
 
 ### 🔒 Zero-PHI Preload & Pure Browser Ingestion Architecture
@@ -35,19 +36,19 @@ The project is structured as a modular monorepo workspace (`packages/*`) so exte
 
 ```text
 packages/
-├── core/     (@ios-pages/core)   # Framework-agnostic TypeScript + Three.js dental CAD engine & multi-scanner parser
-└── viewer/   (@ios-pages/viewer) # Reusable React + Three.js 3D Dental Viewport, Articulator Panel & Dossier UI
+├── core/     (@dentalcad-pages/core)   # Framework-agnostic TypeScript + Three.js dental CAD engine & multi-scanner parser
+└── viewer/   (@dentalcad-pages/viewer) # Reusable React + Three.js 3D Dental Viewport, Articulator Panel & Dossier UI
 ```
 
-#### 1. `@ios-pages/core` — Headless Dental 3D Kinematics, Shaders & Parser SDK
+#### 1. `@dentalcad-pages/core` — Headless Dental 3D Kinematics, Shaders & Parser SDK
 Zero React dependency; usable in React, Vue, Svelte, or vanilla Three.js projects:
-- **`@ios-pages/core/kinematics`**: 6-DOF TMJ hinge rotation + condylar translation, Posselt envelope presets, and interactive cubic Bezier trajectory solver (`computeMandibularKinematics`, `sampleArticulationTrajectory`, `evalCubicBezier`).
-- **`@ios-pages/core/occlusogram`**: Maxillary/mandibular occlusal elevation maps (`buildOcclusalElevationMap`), real-time contact clearance stats (`computeOcclusogramStats`), and custom GLSL heatmap shader (`createOcclusogramMaterial`).
-- **`@ios-pages/core/metrics`**: Automated orthodontic arch metrics (intercanine width `U3-U3`, intermolar width `U6-U6`, Overjet, Overbite) and 3D digital caliper (`computeOrthoArchMetrics`, `createCaliperMeasurement`).
-- **`@ios-pages/core/shaders`**: Calibrated 5-view clinical photography orthographic texture projection shader (`loadPentaViewTextures`, `createPentaTexturedMaterial`).
-- **`@ios-pages/core/geometry`**: Procedural 14-tooth maxillary & mandibular 3D `BufferGeometry` generator (`createProceduralDentalArchGeometry`).
-- **`@ios-pages/core/parsers`**: Multi-scanner file bundle ingestion and vendor auto-detection (`buildCaseBundleFromFiles`, `detectScannerVendor`, `parseScannerXmlString`).
-- **`@ios-pages/core/storage` & `@ios-pages/core/privacy` & `@ios-pages/core/i18n`**: Browser `IndexedDB` storage (`saveCaseRecordToIndexedDB`, `loadAllCasesFromIndexedDB`), PHI anonymizer (`getDisplayMetadata`, `anonymizeXmlString`), and bilingual helper (`tr`).
+- **`@dentalcad-pages/core/kinematics`**: 6-DOF TMJ hinge rotation + condylar translation, Posselt envelope presets, and interactive cubic Bezier trajectory solver (`computeMandibularKinematics`, `sampleArticulationTrajectory`, `evalCubicBezier`).
+- **`@dentalcad-pages/core/occlusogram`**: Maxillary/mandibular occlusal elevation maps (`buildOcclusalElevationMap`), real-time contact clearance stats (`computeOcclusogramStats`), and custom GLSL heatmap shader (`createOcclusogramMaterial`).
+- **`@dentalcad-pages/core/metrics`**: Automated orthodontic arch metrics (intercanine width `U3-U3`, intermolar width `U6-U6`, Overjet, Overbite) and 3D digital caliper (`computeOrthoArchMetrics`, `createCaliperMeasurement`).
+- **`@dentalcad-pages/core/shaders`**: Calibrated 5-view clinical photography orthographic texture projection shader (`loadPentaViewTextures`, `createPentaTexturedMaterial`).
+- **`@dentalcad-pages/core/geometry`**: Procedural 14-tooth maxillary & mandibular 3D `BufferGeometry` generator (`createProceduralDentalArchGeometry`).
+- **`@dentalcad-pages/core/parsers`**: Multi-scanner file bundle ingestion and vendor auto-detection (`buildCaseBundleFromFiles`, `detectScannerVendor`, `parseScannerXmlString`).
+- **`@dentalcad-pages/core/storage` & `@dentalcad-pages/core/privacy` & `@dentalcad-pages/core/i18n`**: Browser `IndexedDB` storage (`saveCaseRecordToIndexedDB`, `loadAllCasesFromIndexedDB`), PHI anonymizer (`getDisplayMetadata`, `anonymizeXmlString`), and bilingual helper (`tr`).
 
 ```ts
 import {
@@ -55,7 +56,7 @@ import {
   computeMandibularKinematics,
   createProceduralDentalArchGeometry,
   detectScannerVendor,
-} from '@ios-pages/core';
+} from '@dentalcad-pages/core';
 
 const upperGeom = createProceduralDentalArchGeometry(true);
 const lowerGeom = createProceduralDentalArchGeometry(false);
@@ -67,12 +68,12 @@ const kinematics = computeMandibularKinematics({
 });
 ```
 
-#### 2. `@ios-pages/viewer` — React 3D Dental CAD Workstation Components
+#### 2. `@dentalcad-pages/viewer` — React 3D Dental CAD Workstation Components
 Exports reusable React components: `DentalViewer3D`, `ArticulatorPanel`, `PentaGallery`, `CaseDossier`, `CadToolsPanel`, `XmlInspector`, and `Header`.
 
 ```tsx
-import { DentalViewer3D, ArticulatorPanel } from '@ios-pages/viewer';
-import { DEFAULT_ARTICULATOR_SETTINGS } from '@ios-pages/core';
+import { DentalViewer3D, ArticulatorPanel } from '@dentalcad-pages/viewer';
+import { DEFAULT_ARTICULATOR_SETTINGS } from '@dentalcad-pages/core';
 ```
 
 ### 🛠️ Local Development & Testing
@@ -95,9 +96,10 @@ npm run build
 
 ## 繁體中文
 
-**IOS Pages** 是一個符合 **Impeccable** 規範與 **shadcn/ui** 設計語言的**跨品牌口掃機通用 (Universal Intraoral Scanner, IOS) 臨床 3D CAD 與咬合運動模擬工作站**。支援 **Align iTero**、**3Shape TRIOS**、**Medit i-Series**、**Shining 3D Aoralscan**、**Carestream** 及各類標準 `.stl` 牙弓模型，透過 **Three.js** 在純瀏覽器環境中即時進行 **6-DOF 下顎生理運動模擬**、**咬合接觸熱力圖 (Occlusogram)**、**五方位臨床照片 3D 正交投影貼圖**與 **3D 數位游標尺測距**。
+**DentalCAD Pages** (`dentalcad-pages`) 是一個符合 **Impeccable** 規範與 **shadcn/ui** 設計語言的**跨品牌口掃機通用 (Universal Intraoral Scanner, IOS) 臨床 3D CAD 與咬合運動模擬工作站**。支援 **Align iTero**、**3Shape TRIOS**、**Medit i-Series**、**Shining 3D Aoralscan**、**Carestream** 及各類標準 `.stl` 牙弓模型，透過 **Three.js** 在純瀏覽器環境中即時進行 **6-DOF 下顎生理運動模擬**、**咬合接觸熱力圖 (Occlusogram)**、**五方位臨床照片 3D 正交投影貼圖**與 **3D 數位游標尺測距**。
 
-- **線上展示 (GitHub Pages)**：https://yongjhih.github.io/itero-pages/
+- **線上展示 (GitHub Pages)**：https://yongjhih.github.io/dentalcad-pages/
+- **GitHub 儲存庫**：https://github.com/yongjhih/dentalcad-pages
 - **開源授權**：[Apache License 2.0](./LICENSE)
 
 ### 🔒 純瀏覽器上傳與零隱私外洩架構 (Zero Local Preload / Browser-Only Ingestion)
@@ -112,8 +114,8 @@ npm run build
 
 ### 📦 模組化 Package 架構（支援第三方專案引用與二次開發）
 
-- **`@ios-pages/core`** ([`packages/core`](file:///Users/yongjhih/works/yongjhih-dental-OrthoCAD/packages/core/package.json))：無 UI 依賴之純 TypeScript + Three.js 牙科 3D 運動學、Occlusogram 熱力圖、五方照片正交投影 Shader、程序化牙弓生成、多廠牌口掃解析器與 IndexedDB 儲存引擎。
-- **`@ios-pages/viewer`** ([`packages/viewer`](file:///Users/yongjhih/works/yongjhih-dental-OrthoCAD/packages/viewer/package.json))：可複用之 React + Three.js 3D 牙弓檢視器 (`DentalViewer3D`)、虛擬咬合器面板 (`ArticulatorPanel`)、五方相簿 (`PentaGallery`) 與規格面板組件。
+- **`@dentalcad-pages/core`** ([`packages/core`](file:///Users/yongjhih/works/yongjhih-dental-OrthoCAD/packages/core/package.json))：無 UI 依賴之純 TypeScript + Three.js 牙科 3D 運動學、Occlusogram 熱力圖、五方照片正交投影 Shader、程序化牙弓生成、多廠牌口掃解析器與 IndexedDB 儲存引擎。
+- **`@dentalcad-pages/viewer`** ([`packages/viewer`](file:///Users/yongjhih/works/yongjhih-dental-OrthoCAD/packages/viewer/package.json))：可複用之 React + Three.js 3D 牙弓檢視器 (`DentalViewer3D`)、虛擬咬合器面板 (`ArticulatorPanel`)、五方相簿 (`PentaGallery`) 與規格面板組件。
 
 ---
 

@@ -1,5 +1,5 @@
 {
-  "name": "@ios-pages/core",
+  "name": "@dentalcad-pages/core",
   "version": "1.0.0",
   "license": "Apache-2.0",
   "description": "Universal Intraoral Scanner (iTero, 3Shape TRIOS, Medit, Shining3D, STL) 3D CAD kinematics, Occlusogram, arch biometrics, 5-view photo projection shader, and browser IndexedDB engine",

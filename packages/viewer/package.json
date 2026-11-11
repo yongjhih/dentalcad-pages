@@ -1,5 +1,5 @@
 {
-  "name": "@ios-pages/viewer",
+  "name": "@dentalcad-pages/viewer",
   "version": "1.0.0",
   "license": "Apache-2.0",
   "description": "Reusable React + Three.js 3D Dental CAD Viewport, 6-DOF Articulator Panel, Occlusogram, Penta Gallery, and Case Dossier UI components",
@@ -10,7 +10,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@ios-pages/core": "1.0.0"
+    "@dentalcad-pages/core": "1.0.0"
   },
   "peerDependencies": {
     "lucide-react": "^1.16.0",

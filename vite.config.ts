@@ -7,6 +7,8 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
+      '@dentalcad-pages/core': path.resolve(__dirname, 'packages/core/src'),
+      '@dentalcad-pages/viewer': path.resolve(__dirname, 'packages/viewer/src'),
       '@ios-pages/core': path.resolve(__dirname, 'packages/core/src'),
       '@ios-pages/viewer': path.resolve(__dirname, 'packages/viewer/src'),
     },
