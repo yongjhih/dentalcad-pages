@@ -24,6 +24,7 @@ import {
   createCaliperMeasurement,
   LOCALE_STORAGE_KEY,
   tr,
+  detectInitialLocale,
   parseUrlDataParameter,
   ParsedUrlDataParam,
 } from '@dentalcad-pages/core';
@@ -103,16 +104,8 @@ export const App: React.FC = () => {
     setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
   }, []);
 
-  // Language / Locale state (Traditional Chinese 'zh-TW' & English 'en')
-  const [locale, setLocale] = useState<LocaleMode>(() => {
-    try {
-      const saved = localStorage.getItem(LOCALE_STORAGE_KEY);
-      if (saved === 'en' || saved === 'zh-TW') return saved;
-    } catch {
-      // ignore
-    }
-    return 'zh-TW';
-  });
+  // Language / Locale state: auto-detect browser language; default to English ('en') if non-Chinese or undetectable
+  const [locale, setLocale] = useState<LocaleMode>(() => detectInitialLocale());
 
   useEffect(() => {
     document.documentElement.lang = locale;
@@ -445,7 +438,11 @@ export const App: React.FC = () => {
                 setTimeout(() => setCopiedUrlPath(false), 2000);
               }}
               className="px-2.5 py-1 rounded bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-medium flex items-center gap-1 transition-colors"
-              title="複製完整本地路徑（於 macOS 檔案對話框按 ⌘+Shift+G 貼上即可直達）"
+              title={tr(
+                locale,
+                '複製完整本地路徑（於 macOS 檔案對話框按 ⌘+Shift+G 貼上即可直達）',
+                'Copy full local path (press ⌘+Shift+G in macOS file dialog to paste directly)'
+              )}
             >
               {copiedUrlPath ? (
                 <>
@@ -484,7 +481,7 @@ export const App: React.FC = () => {
               data-testid="url-param-dismiss-btn"
               onClick={() => setPendingUrlDataParam(null)}
               className="p-1 rounded text-slate-500 hover:text-slate-900 dark:hover:text-white"
-              title="關閉提示"
+              title={tr(locale, '關閉提示', 'Dismiss banner')}
             >
               <X className="w-3.5 h-3.5" />
             </button>

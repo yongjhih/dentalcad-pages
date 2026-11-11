@@ -38,7 +38,7 @@ export const CadToolsPanel: React.FC<CadToolsPanelProps> = ({
   onSelectCase,
   onDeleteCustomCase,
   anonymizePatient = true,
-  locale = 'zh-TW',
+  locale = 'en',
 }) => {
   const upperFileInputRef = useRef<HTMLInputElement>(null);
   const lowerFileInputRef = useRef<HTMLInputElement>(null);
@@ -49,28 +49,48 @@ export const CadToolsPanel: React.FC<CadToolsPanelProps> = ({
   const shadingModes: { id: ShadingMode; name: string; desc: string }[] = [
     {
       id: 'enamel',
-      name: '臨床琺瑯質 (Enamel)',
-      desc: '真實牙科光學折射 (IOR 1.55)，帶有細緻清漆與微透珠光。',
+      name: tr(locale, '臨床琺瑯質 (Enamel)', 'Clinical Enamel'),
+      desc: tr(
+        locale,
+        '真實牙科光學折射 (IOR 1.55)，帶有細緻清漆與微透珠光。',
+        'Physical dental enamel refraction (IOR 1.55) with clearcoat and subtle subsurface sheen.'
+      ),
     },
     {
       id: 'plaster',
-      name: '石膏模型 (Plaster)',
-      desc: '啞光高漫射白石膏模型，適合清楚觀察齒列窩溝與形態學特徵。',
+      name: tr(locale, '石膏模型 (Plaster)', 'Dental Stone (Plaster)'),
+      desc: tr(
+        locale,
+        '啞光高漫射白石膏模型，適合清楚觀察齒列窩溝與形態學特徵。',
+        'High-diffuse matte orthodontic stone model for inspecting occlusal grooves and cusp morphology.'
+      ),
     },
     {
       id: 'normal',
-      name: '法向量圖 (Normals)',
-      desc: '以 RGB 色彩對應幾何面法線方向，利於檢視曲面平滑度與咬合斜面。',
+      name: tr(locale, '法向量圖 (Normals)', 'Surface Normals'),
+      desc: tr(
+        locale,
+        '以 RGB 色彩對應幾何面法線方向，利於檢視曲面平滑度與咬合斜面。',
+        'Maps XYZ surface normals to RGB colors to inspect curvature smoothness and cusp inclines.'
+      ),
     },
     {
       id: 'wireframe',
-      name: '拓撲線框 (Wireframe)',
-      desc: '顯示原始 3D 網格三角形拓撲分佈與密度 (Triangle Mesh)。',
+      name: tr(locale, '拓撲線框 (Wireframe)', 'Topology Wireframe'),
+      desc: tr(
+        locale,
+        '顯示原始 3D 網格三角形拓撲分佈與密度 (Triangle Mesh)。',
+        'Displays raw 3D triangle mesh topology and vertex density.'
+      ),
     },
     {
       id: 'translucent',
-      name: '半透明 X 光 (Translucent)',
-      desc: '半透明透視效果，便於分析上下牙弓內外側重疊與牙齒長軸。',
+      name: tr(locale, '半透明 X 光 (Translucent)', 'Translucent X-Ray'),
+      desc: tr(
+        locale,
+        '半透明透視效果，便於分析上下牙弓內外側重疊與牙齒長軸。',
+        'Semi-transparent optical shader for analyzing internal overbite/overjet overlap.'
+      ),
     },
   ];
 
@@ -92,13 +112,22 @@ export const CadToolsPanel: React.FC<CadToolsPanelProps> = ({
         <div className="bg-white dark:bg-[#0b0f17] border border-slate-200 dark:border-slate-800 p-3 rounded-lg flex items-center justify-between gap-3 shadow-sm dark:shadow-none">
           <div className="space-y-0.5">
             <span className="font-medium text-slate-900 dark:text-slate-200">
-              多視角正交投影貼圖 (Multi-View Projection)
+              {tr(
+                locale,
+                '多視角正交投影貼圖 (Multi-View Projection)',
+                'Multi-View Orthographic Texture Projection'
+              )}
             </span>
             <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
-              將正視、上顎、下顎、左右頰面共 5 張臨床照片依據法向量權重自動貼合渲染至 3D STL 齒列模型上。
+              {tr(
+                locale,
+                '將正視、上顎、下顎、左右頰面共 5 張臨床照片依據法向量權重自動貼合渲染至 3D STL 齒列模型上。',
+                'Automatically blends 5 clinical intraoral photos (frontal, upper, lower, left & right buccal) onto the 3D STL dental arches by surface normal weights.'
+              )}
             </p>
           </div>
           <button
+            data-testid="tools-photo-texture-btn"
             onClick={() =>
               onSettingsChange({
                 ...settings,
@@ -111,7 +140,9 @@ export const CadToolsPanel: React.FC<CadToolsPanelProps> = ({
                 : 'bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
             }`}
           >
-            {settings.photoTextureMapped ? '已開啟貼圖' : '開啟貼圖'}
+            {settings.photoTextureMapped
+              ? tr(locale, '已開啟貼圖', 'Texture ON')
+              : tr(locale, '開啟貼圖', 'Enable Texture')}
           </button>
         </div>
       </div>
@@ -120,7 +151,7 @@ export const CadToolsPanel: React.FC<CadToolsPanelProps> = ({
       <div className="space-y-3 pt-2 border-t border-slate-200 dark:border-slate-800/80">
         <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
           <Palette className="w-4 h-4 text-sky-500 dark:text-sky-400" />
-          <span>幾何材質與光學渲染 (Shaders)</span>
+          <span>{tr(locale, '幾何材質與光學渲染 (Shaders)', 'Surface Shaders & Optical Materials')}</span>
         </h2>
         <div className="space-y-2">
           {shadingModes.map((mode) => (
@@ -167,10 +198,14 @@ export const CadToolsPanel: React.FC<CadToolsPanelProps> = ({
           <div className="space-y-0.5">
             <span className="font-medium text-slate-900 dark:text-slate-200 flex items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" />
-              上下顎色彩區隔 (Arch Distinction)
+              {tr(locale, '上下顎色彩區隔 (Arch Distinction)', 'Maxilla / Mandible Color Distinction')}
             </span>
             <p className="text-[11px] text-slate-500 dark:text-slate-400">
-              分別賦予上顎溫潤白與下顎微冷白色調，利於辨別咬合接觸邊界。
+              {tr(
+                locale,
+                '分別賦予上顎溫潤白與下顎微冷白色調，利於辨別咬合接觸邊界。',
+                'Applies distinct warm/cool tints to upper and lower arches to clarify occlusal boundaries.'
+              )}
             </p>
           </div>
           <button
@@ -186,7 +221,9 @@ export const CadToolsPanel: React.FC<CadToolsPanelProps> = ({
                 : 'bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400'
             }`}
           >
-            {settings.archDistinction ? '已啟用' : '停用'}
+            {settings.archDistinction
+              ? tr(locale, '已啟用', 'Enabled')
+              : tr(locale, '停用', 'Disabled')}
           </button>
         </div>
 
@@ -195,10 +232,14 @@ export const CadToolsPanel: React.FC<CadToolsPanelProps> = ({
           <div className="space-y-0.5">
             <span className="font-medium text-slate-900 dark:text-slate-200 flex items-center gap-1.5">
               <Grid className="w-3.5 h-3.5 text-sky-500 dark:text-sky-400" />
-              疊加三角形網格線 (Wireframe Overlay)
+              {tr(locale, '疊加三角形網格線 (Wireframe Overlay)', 'Triangle Wireframe Overlay')}
             </span>
             <p className="text-[11px] text-slate-500 dark:text-slate-400">
-              在現有材質或照片貼圖表面顯示三角網格拓撲結構。
+              {tr(
+                locale,
+                '在現有材質或照片貼圖表面顯示三角網格拓撲結構。',
+                'Overlays triangle mesh edges on top of the active shader or photo texture.'
+              )}
             </p>
           </div>
           <button
@@ -214,7 +255,9 @@ export const CadToolsPanel: React.FC<CadToolsPanelProps> = ({
                 : 'bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400'
             }`}
           >
-            {settings.wireframeOverlay ? '已啟用' : '停用'}
+            {settings.wireframeOverlay
+              ? tr(locale, '已啟用', 'Enabled')
+              : tr(locale, '停用', 'Disabled')}
           </button>
         </div>
       </div>
@@ -223,12 +266,15 @@ export const CadToolsPanel: React.FC<CadToolsPanelProps> = ({
       <div className="space-y-3 pt-2 border-t border-slate-200 dark:border-slate-800/80">
         <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
           <Scissors className="w-4 h-4 text-sky-500 dark:text-sky-400" />
-          <span>剖面剖切分析 (Cross-Section Clipping)</span>
+          <span>{tr(locale, '剖面剖切分析 (Cross-Section Clipping)', 'Cross-Section Clipping Plane')}</span>
         </h2>
         <div className="bg-white dark:bg-[#0b0f17] border border-slate-200 dark:border-slate-800 p-3 rounded-lg space-y-3 shadow-sm dark:shadow-none">
           <div className="flex items-center justify-between">
-            <span className="font-medium text-slate-900 dark:text-slate-200">剖切面狀態</span>
+            <span className="font-medium text-slate-900 dark:text-slate-200">
+              {tr(locale, '剖切面狀態', 'Clipping Plane')}
+            </span>
             <button
+              data-testid="tools-clipping-toggle-btn"
               onClick={() =>
                 onSettingsChange({
                   ...settings,
@@ -241,26 +287,34 @@ export const CadToolsPanel: React.FC<CadToolsPanelProps> = ({
                   : 'bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400'
               }`}
             >
-              {settings.clippingEnabled ? '剖切中' : '未開啟'}
+              {settings.clippingEnabled
+                ? tr(locale, '剖切中', 'Active')
+                : tr(locale, '未開啟', 'Off')}
             </button>
           </div>
 
           {settings.clippingEnabled && (
             <div className="space-y-3 pt-2 border-t border-slate-200 dark:border-slate-800/60">
               <div className="flex items-center justify-between">
-                <span className="text-slate-500 dark:text-slate-400">剖切軸向</span>
+                <span className="text-slate-500 dark:text-slate-400">
+                  {tr(locale, '剖切軸向', 'Clipping Axis')}
+                </span>
                 <div className="flex gap-1">
                   {(['z', 'y', 'x'] as const).map((axis) => (
                     <button
                       key={axis}
                       onClick={() => onSettingsChange({ ...settings, clippingAxis: axis })}
-                      className={`px-2.5 py-1 rounded text-xs uppercase font-mono ${
+                      className={`px-2.5 py-1 rounded text-xs font-mono ${
                         settings.clippingAxis === axis
                           ? 'bg-sky-600 text-white'
                           : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
                       }`}
                     >
-                      {axis === 'z' ? '水平 (Z 軸)' : axis === 'y' ? '冠狀 (Y 軸)' : '矢狀 (X 軸)'}
+                      {axis === 'z'
+                        ? tr(locale, '水平 (Z 軸)', 'Axial (Z)')
+                        : axis === 'y'
+                        ? tr(locale, '冠狀 (Y 軸)', 'Coronal (Y)')
+                        : tr(locale, '矢狀 (X 軸)', 'Sagittal (X)')}
                     </button>
                   ))}
                 </div>
@@ -268,7 +322,7 @@ export const CadToolsPanel: React.FC<CadToolsPanelProps> = ({
 
               <div className="space-y-1">
                 <div className="flex justify-between text-slate-500 dark:text-slate-400 text-[11px]">
-                  <span>剖面切面深度</span>
+                  <span>{tr(locale, '剖面切面深度', 'Clipping Offset')}</span>
                   <span className="font-mono text-sky-600 dark:text-sky-400 tabular-nums">
                     {settings.clippingOffset} mm
                   </span>
@@ -299,10 +353,10 @@ export const CadToolsPanel: React.FC<CadToolsPanelProps> = ({
           <div className="space-y-0.5">
             <span className="font-medium text-slate-900 dark:text-slate-200 flex items-center gap-1.5">
               <RotateCw className="w-3.5 h-3.5 text-sky-500 dark:text-sky-400" />
-              自動展示旋轉 (Auto-Spin)
+              {tr(locale, '自動展示旋轉 (Auto-Spin)', 'Auto-Rotate Turntable')}
             </span>
             <p className="text-[11px] text-slate-500 dark:text-slate-400">
-              啟用緩慢旋轉展示齒列全景。
+              {tr(locale, '啟用緩慢旋轉展示齒列全景。', 'Slowly rotates the 3D dental model around the vertical axis.')}
             </p>
           </div>
           <button
@@ -318,7 +372,9 @@ export const CadToolsPanel: React.FC<CadToolsPanelProps> = ({
                 : 'bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400'
             }`}
           >
-            {settings.autoRotate ? '旋轉中' : '靜止'}
+            {settings.autoRotate
+              ? tr(locale, '旋轉中', 'Spinning')
+              : tr(locale, '靜止', 'Paused')}
           </button>
         </div>
       </div>
@@ -327,10 +383,14 @@ export const CadToolsPanel: React.FC<CadToolsPanelProps> = ({
       <div className="space-y-3 pt-2 border-t border-slate-200 dark:border-slate-800/80">
         <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
           <Database className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-          <span>加載案例檔案</span>
+          <span>{tr(locale, '加載案例檔案', 'Load Case Files')}</span>
         </h2>
         <p className="text-slate-500 dark:text-slate-400 text-[11px] leading-relaxed">
-          加載的案例檔案（.zip、.xml、.stl、.jpg、.pdf）會自動保存在瀏覽器中，關閉或重新整理網頁後依然完整保留，隨時可切換檢視。
+          {tr(
+            locale,
+            '加載的案例檔案（.zip、.xml、.stl、.jpg、.pdf）會自動保存在瀏覽器中，關閉或重新整理網頁後依然完整保留，隨時可切換檢視。',
+            'Loaded case files (.zip, .xml, .stl, .jpg, .pdf) are automatically saved in your browser so you can switch or reload anytime.'
+          )}
         </p>
 
         {onImportCaseFiles && (
@@ -350,11 +410,18 @@ export const CadToolsPanel: React.FC<CadToolsPanelProps> = ({
             />
             <button
               type="button"
+              data-testid="tools-load-bundle-btn"
               onClick={() => bundleInputRef.current?.click()}
               className="w-full py-2 px-3 rounded-lg bg-sky-500/15 dark:bg-sky-950/60 hover:bg-sky-500/25 dark:hover:bg-sky-900/70 border border-sky-500/40 dark:border-sky-800/70 text-sky-800 dark:text-sky-200 flex items-center justify-center gap-1.5 transition-colors font-medium"
             >
               <FolderOpen className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
-              <span>加載案例檔案 (.zip / .xml / .stl / .jpg)</span>
+              <span>
+                {tr(
+                  locale,
+                  '加載案例檔案 (.zip / .xml / .stl / .jpg)',
+                  'Load Case Files (.zip / .xml / .stl / .jpg)'
+                )}
+              </span>
             </button>
           </div>
         )}
@@ -375,11 +442,12 @@ export const CadToolsPanel: React.FC<CadToolsPanelProps> = ({
             />
             <button
               type="button"
+              data-testid="tools-load-upper-btn"
               onClick={() => upperFileInputRef.current?.click()}
               className="w-full py-2 px-3 rounded-lg bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white flex items-center justify-center gap-1.5 transition-colors shadow-sm dark:shadow-none"
             >
               <Upload className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" />
-              <span>加載上顎 STL</span>
+              <span>{tr(locale, '加載上顎 STL', 'Load Upper STL')}</span>
             </button>
           </div>
 
@@ -398,11 +466,12 @@ export const CadToolsPanel: React.FC<CadToolsPanelProps> = ({
             />
             <button
               type="button"
+              data-testid="tools-load-lower-btn"
               onClick={() => lowerFileInputRef.current?.click()}
               className="w-full py-2 px-3 rounded-lg bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white flex items-center justify-center gap-1.5 transition-colors shadow-sm dark:shadow-none"
             >
               <Upload className="w-3.5 h-3.5 text-sky-500 dark:text-sky-400" />
-              <span>加載下顎 STL</span>
+              <span>{tr(locale, '加載下顎 STL', 'Load Lower STL')}</span>
             </button>
           </div>
         </div>
@@ -412,7 +481,7 @@ export const CadToolsPanel: React.FC<CadToolsPanelProps> = ({
           <div className="space-y-2 pt-2">
             <span className="text-[11px] font-medium text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5">
               <Database className="w-3 h-3" />
-              已儲存案例 ({customCases.length})
+              {tr(locale, '已儲存案例', 'Saved Cases')} ({customCases.length})
             </span>
             <div className="space-y-1.5">
               {customCases.map((c) => {
@@ -438,10 +507,10 @@ export const CadToolsPanel: React.FC<CadToolsPanelProps> = ({
                         type="button"
                         onClick={() => onDeleteCustomCase(c.id)}
                         className="flex items-center gap-1 px-2 py-0.5 rounded text-[11px] text-red-600 dark:text-red-400 hover:bg-red-500/15 transition-colors ml-2 whitespace-nowrap"
-                        title="清除此案例存檔"
+                        title={tr(locale, '清除此案例存檔', 'Clear saved case')}
                       >
                         <Trash2 className="w-3 h-3" />
-                        <span>清除存檔</span>
+                        <span>{tr(locale, '清除存檔', 'Clear Saved')}</span>
                       </button>
                     )}
                   </div>

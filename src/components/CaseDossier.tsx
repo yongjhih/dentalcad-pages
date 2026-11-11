@@ -27,7 +27,7 @@ export const CaseDossier: React.FC<CaseDossierProps> = ({
   meshStats,
   anonymizePatient,
   onToggleAnonymize,
-  locale = 'zh-TW',
+  locale = 'en',
 }) => {
   const { assets } = caseBundle;
   const metadata = getDisplayMetadata(caseBundle.metadata, anonymizePatient);
@@ -52,16 +52,22 @@ export const CaseDossier: React.FC<CaseDossierProps> = ({
             <div className="flex justify-between items-center">
               <span className="font-medium text-amber-700 dark:text-amber-200 flex items-center gap-1.5">
                 <Box className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" />
-                上顎牙弓 (Maxilla)
+                {tr(locale, '上顎牙弓 (Maxilla)', 'Maxillary Arch (Upper)')}
               </span>
               <span className="font-mono text-[11px] text-slate-500 dark:text-slate-400 tabular-nums">
                 {meshStats.upperTriangles.toLocaleString()} Δ
               </span>
             </div>
             <div className="font-mono text-[11px] text-slate-600 dark:text-slate-400 space-y-0.5 tabular-nums">
-              <p>寬 (W): {meshStats.upperDimensions.width} mm</p>
-              <p>深 (D): {meshStats.upperDimensions.depth} mm</p>
-              <p>高 (H): {meshStats.upperDimensions.height} mm</p>
+              <p>
+                {tr(locale, '寬 (W)', 'Width (W)')}: {meshStats.upperDimensions.width} mm
+              </p>
+              <p>
+                {tr(locale, '深 (D)', 'Depth (D)')}: {meshStats.upperDimensions.depth} mm
+              </p>
+              <p>
+                {tr(locale, '高 (H)', 'Height (H)')}: {meshStats.upperDimensions.height} mm
+              </p>
             </div>
             <a
               href={assets.upperStlUrl}
@@ -70,7 +76,7 @@ export const CaseDossier: React.FC<CaseDossierProps> = ({
               title={assets.upperStlFileName}
             >
               <Download className="w-3 h-3 flex-shrink-0" />
-              <span className="truncate">下載上顎 STL</span>
+              <span className="truncate">{tr(locale, '下載上顎 STL', 'Download Upper STL')}</span>
             </a>
           </div>
 
@@ -78,16 +84,22 @@ export const CaseDossier: React.FC<CaseDossierProps> = ({
             <div className="flex justify-between items-center">
               <span className="font-medium text-sky-700 dark:text-sky-200 flex items-center gap-1.5">
                 <Box className="w-3.5 h-3.5 text-sky-500 dark:text-sky-400" />
-                下顎牙弓 (Mandible)
+                {tr(locale, '下顎牙弓 (Mandible)', 'Mandibular Arch (Lower)')}
               </span>
               <span className="font-mono text-[11px] text-slate-500 dark:text-slate-400 tabular-nums">
                 {meshStats.lowerTriangles.toLocaleString()} Δ
               </span>
             </div>
             <div className="font-mono text-[11px] text-slate-600 dark:text-slate-400 space-y-0.5 tabular-nums">
-              <p>寬 (W): {meshStats.lowerDimensions.width} mm</p>
-              <p>深 (D): {meshStats.lowerDimensions.depth} mm</p>
-              <p>高 (H): {meshStats.lowerDimensions.height} mm</p>
+              <p>
+                {tr(locale, '寬 (W)', 'Width (W)')}: {meshStats.lowerDimensions.width} mm
+              </p>
+              <p>
+                {tr(locale, '深 (D)', 'Depth (D)')}: {meshStats.lowerDimensions.depth} mm
+              </p>
+              <p>
+                {tr(locale, '高 (H)', 'Height (H)')}: {meshStats.lowerDimensions.height} mm
+              </p>
             </div>
             <a
               href={assets.lowerStlUrl}
@@ -96,7 +108,7 @@ export const CaseDossier: React.FC<CaseDossierProps> = ({
               title={assets.lowerStlFileName}
             >
               <Download className="w-3 h-3 flex-shrink-0" />
-              <span className="truncate">下載下顎 STL</span>
+              <span className="truncate">{tr(locale, '下載下顎 STL', 'Download Lower STL')}</span>
             </a>
           </div>
         </div>
@@ -105,43 +117,47 @@ export const CaseDossier: React.FC<CaseDossierProps> = ({
       {/* 2. Orthodontic Technical Specifications */}
       <div className="border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden text-xs shadow-sm dark:shadow-none">
         <div className="bg-slate-100 dark:bg-slate-900/80 px-3 py-2 border-b border-slate-200 dark:border-slate-800 font-medium text-slate-800 dark:text-slate-200">
-          齒科數位規格 (Orthodontic Specifications)
+          {tr(locale, '齒科數位規格 (Orthodontic Specifications)', 'Digital Dental & Scanner Specifications')}
         </div>
         <div className="divide-y divide-slate-200 dark:divide-slate-800/60 bg-white dark:bg-[#0b0f17]">
           <div className="grid grid-cols-3 p-2.5">
-            <span className="text-slate-500">訂單編號</span>
+            <span className="text-slate-500">{tr(locale, '訂單編號', 'Order ID')}</span>
             <span className="col-span-2 text-slate-800 dark:text-slate-200 font-mono tabular-nums">
               #{metadata.orderId} ({metadata.orderCode})
             </span>
           </div>
           <div className="grid grid-cols-3 p-2.5">
-            <span className="text-slate-500">處方項目</span>
+            <span className="text-slate-500">{tr(locale, '處方項目', 'Procedure')}</span>
             <span className="col-span-2 text-slate-800 dark:text-slate-200 font-medium">
               {metadata.procedure} ({metadata.procedureType})
             </span>
           </div>
           <div className="grid grid-cols-3 p-2.5">
-            <span className="text-slate-500">掃描牙弓範圍</span>
+            <span className="text-slate-500">{tr(locale, '掃描牙弓範圍', 'Scanned Arch Range')}</span>
             <div className="col-span-2 space-y-0.5">
               <p className="text-slate-800 dark:text-slate-200">{metadata.upperAdaRange}</p>
               <p className="text-slate-800 dark:text-slate-200">{metadata.lowerAdaRange}</p>
             </div>
           </div>
           <div className="grid grid-cols-3 p-2.5">
-            <span className="text-slate-500">比色系統</span>
+            <span className="text-slate-500">{tr(locale, '比色系統', 'Shade System')}</span>
             <span className="col-span-2 text-slate-800 dark:text-slate-200 font-mono">
               {metadata.toothShadeSystem}
             </span>
           </div>
           <div className="grid grid-cols-3 p-2.5">
-            <span className="text-slate-500">掃描日期 / 匯出</span>
+            <span className="text-slate-500">{tr(locale, '掃描日期 / 匯出', 'Scan / Export Time')}</span>
             <div className="col-span-2 font-mono text-[11px] text-slate-700 dark:text-slate-300 tabular-nums">
-              <p>掃描: {metadata.scanDate}</p>
-              <p className="text-slate-500 dark:text-slate-400">匯出: {metadata.exportTime}</p>
+              <p>
+                {tr(locale, '掃描', 'Scan')}: {metadata.scanDate}
+              </p>
+              <p className="text-slate-500 dark:text-slate-400">
+                {tr(locale, '匯出', 'Export')}: {metadata.exportTime}
+              </p>
             </div>
           </div>
           <div className="grid grid-cols-3 p-2.5">
-            <span className="text-slate-500">系統與掃描儀版本</span>
+            <span className="text-slate-500">{tr(locale, '系統與掃描儀版本', 'Scanner & CAD Version')}</span>
             <span className="col-span-2 text-slate-700 dark:text-slate-300 font-mono text-[11px]">
               Scanner v{metadata.scannerVersion} / CAD v{metadata.caasVersion}
             </span>
@@ -153,7 +169,7 @@ export const CaseDossier: React.FC<CaseDossierProps> = ({
       {(assets.rxPdfUrl || assets.rxHtmlUrl) && (
         <div className="space-y-2 pt-2 border-t border-slate-200 dark:border-slate-800/80">
           <h3 className="text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
-            相關檔案與原始報告
+            {tr(locale, '相關檔案與原始報告', 'Associated Files & Reports')}
           </h3>
           <div className="flex flex-wrap gap-2 text-xs">
             {assets.rxPdfUrl && (
@@ -188,10 +204,11 @@ export const CaseDossier: React.FC<CaseDossierProps> = ({
       <div className="space-y-3 pt-3 border-t border-slate-200 dark:border-slate-800/80">
         <div className="flex items-center justify-between">
           <h3 className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-            次要行政與去識別化歸檔資訊
+            {tr(locale, '次要行政與去識別化歸檔資訊', 'Secondary Administrative & De-Identified Archive')}
           </h3>
           {onToggleAnonymize && (
             <button
+              data-testid="dossier-privacy-toggle-btn"
               onClick={onToggleAnonymize}
               className={`flex items-center gap-1 px-2 py-0.5 rounded text-[11px] border transition-colors ${
                 anonymizePatient
@@ -204,7 +221,11 @@ export const CaseDossier: React.FC<CaseDossierProps> = ({
               ) : (
                 <Shield className="w-3 h-3 text-slate-500 dark:text-slate-400" />
               )}
-              <span>{anonymizePatient ? '匿名已啟用' : '顯示完整資訊'}</span>
+              <span>
+                {anonymizePatient
+                  ? tr(locale, '匿名已啟用', 'Anonymized')
+                  : tr(locale, '顯示完整資訊', 'Show Full Info')}
+              </span>
             </button>
           )}
         </div>
@@ -213,7 +234,7 @@ export const CaseDossier: React.FC<CaseDossierProps> = ({
           <div className="bg-slate-100/70 dark:bg-[#0b0f17]/70 border border-slate-200/80 dark:border-slate-800/70 p-2.5 rounded-lg space-y-0.5">
             <span className="text-[11px] text-slate-500 flex items-center gap-1">
               <User className="w-3 h-3 text-slate-400" />
-              病患姓名 (Patient)
+              {tr(locale, '病患姓名 (Patient)', 'Patient Name')}
             </span>
             <p className="font-medium text-slate-800 dark:text-slate-200 text-xs">
               {metadata.patientName}
@@ -226,13 +247,13 @@ export const CaseDossier: React.FC<CaseDossierProps> = ({
           <div className="bg-slate-100/70 dark:bg-[#0b0f17]/70 border border-slate-200/80 dark:border-slate-800/70 p-2.5 rounded-lg space-y-0.5">
             <span className="text-[11px] text-slate-500 flex items-center gap-1">
               <Stethoscope className="w-3 h-3 text-slate-400" />
-              主治醫師 (Practitioner)
+              {tr(locale, '主治醫師 (Practitioner)', 'Attending Practitioner')}
             </span>
             <p className="font-medium text-slate-800 dark:text-slate-200 text-xs">
               {metadata.doctorName}
             </p>
             <p className="font-mono text-[10px] text-slate-400">
-              執照: #{metadata.doctorLicense} | ID: {metadata.doctorId}
+              {tr(locale, '執照', 'License')}: #{metadata.doctorLicense} | ID: {metadata.doctorId}
             </p>
           </div>
         </div>
@@ -240,7 +261,7 @@ export const CaseDossier: React.FC<CaseDossierProps> = ({
         <div className="bg-slate-100/70 dark:bg-[#0b0f17]/70 border border-slate-200/80 dark:border-slate-800/70 p-2.5 rounded-lg text-xs space-y-0.5">
           <span className="text-[11px] text-slate-500 flex items-center gap-1">
             <Building2 className="w-3 h-3 text-slate-400" />
-            診療機構 (Clinic & Practice)
+            {tr(locale, '診療機構 (Clinic & Practice)', 'Clinic & Practice')}
           </span>
           <p className="font-medium text-slate-800 dark:text-slate-200">{metadata.clinicName}</p>
           <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">

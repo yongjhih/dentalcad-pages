@@ -38,7 +38,7 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleAnonymize,
   theme,
   onToggleTheme,
-  locale = 'zh-TW',
+  locale = 'en',
   onToggleLocale,
 }) => {
   const bundleInputRef = useRef<HTMLInputElement>(null);
@@ -69,7 +69,7 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="relative flex items-center gap-1 min-w-0">
           <div className="relative flex items-center min-w-0">
             <select
-              aria-label="選擇臨床案例"
+              aria-label={tr(locale, '選擇臨床案例', 'Select clinical case')}
               value={activeCase.id}
               onChange={(e) => onSelectCase(e.target.value)}
               className="appearance-none max-w-[112px] sm:max-w-[210px] md:max-w-xs truncate bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-800 hover:border-slate-400 dark:hover:border-slate-700 text-xs text-slate-800 dark:text-slate-200 font-mono rounded pl-2 pr-6 py-1 cursor-pointer transition-colors tabular-nums"
@@ -142,6 +142,7 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Privacy Anonymize Toggle (Default Active) */}
         <button
           type="button"
+          data-testid="header-privacy-toggle-btn"
           onClick={onToggleAnonymize}
           className={`flex items-center space-x-1 sm:space-x-1.5 px-2 sm:px-2.5 py-1 rounded text-xs transition-colors border ${
             anonymizePatient
@@ -150,8 +151,16 @@ export const Header: React.FC<HeaderProps> = ({
           }`}
           title={
             anonymizePatient
-              ? '目前為匿名保護模式（已遮罩病患、醫師與醫療機構名稱），點擊可顯示完整資訊'
-              : '點擊開啟匿名保護模式（遮罩病患、醫師與醫療機構名稱）'
+              ? tr(
+                  locale,
+                  '目前為匿名保護模式（已遮罩病患、醫師與醫療機構名稱），點擊可顯示完整資訊',
+                  'Privacy protection active (patient, doctor & clinic masked). Click to show raw info.'
+                )
+              : tr(
+                  locale,
+                  '點擊開啟匿名保護模式（遮罩病患、醫師與醫療機構名稱）',
+                  'Click to enable privacy protection (mask patient, doctor & clinic names)'
+                )
           }
         >
           {anonymizePatient ? (
@@ -173,7 +182,11 @@ export const Header: React.FC<HeaderProps> = ({
             target="_blank"
             rel="noopener noreferrer"
             className="hidden sm:flex items-center space-x-1 px-2.5 py-1 rounded text-xs bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
-            title={`開啟處方 PDF (${assets.rxPdfFileName || 'Rx.pdf'})`}
+            title={tr(
+              locale,
+              `開啟處方 PDF (${assets.rxPdfFileName || 'Rx.pdf'})`,
+              `Open Rx PDF (${assets.rxPdfFileName || 'Rx.pdf'})`
+            )}
           >
             <FileText className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
             <span>{tr(locale, '處方箋 PDF', 'Rx PDF')}</span>
@@ -201,9 +214,14 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Light / Dark Theme Toggle */}
         <button
           type="button"
+          data-testid="theme-toggle-btn"
           onClick={onToggleTheme}
           className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
-          title={theme === 'dark' ? '切換為亮色佈景 (Light Mode)' : '切換為暗色佈景 (Dark Mode)'}
+          title={
+            theme === 'dark'
+              ? tr(locale, '切換為亮色佈景 (Light Mode)', 'Switch to Light Mode')
+              : tr(locale, '切換為暗色佈景 (Dark Mode)', 'Switch to Dark Mode')
+          }
         >
           {theme === 'dark' ? (
             <>
@@ -224,7 +242,7 @@ export const Header: React.FC<HeaderProps> = ({
           target="_blank"
           rel="noopener noreferrer"
           className="hidden sm:inline-flex p-1.5 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-colors"
-          title="檢視 GitHub 倉庫原始碼"
+          title={tr(locale, '檢視 GitHub 倉庫原始碼', 'View source repository on GitHub')}
         >
           <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24" aria-hidden="true">
             <path

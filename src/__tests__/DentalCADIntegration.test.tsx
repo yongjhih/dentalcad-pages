@@ -9,11 +9,35 @@ import {
   extractDentalFilesFromZip,
   buildCaseBundleFromFiles,
   DEFAULT_CASE_BUNDLE,
+  detectInitialLocale,
+  LOCALE_STORAGE_KEY,
 } from '@dentalcad-pages/core';
 
 describe('DentalCAD Pages Application Integration Tests', () => {
   beforeEach(() => {
     localStorage.clear();
+  });
+
+  it('auto-detects browser language and defaults to English (en) when non-Chinese or undetectable', () => {
+    // Undetectable or empty navigator -> defaults to 'en'
+    expect(detectInitialLocale({ language: '', languages: [] }, '')).toBe('en');
+    // English or other non-Chinese languages -> defaults to 'en'
+    expect(detectInitialLocale({ language: 'en-US', languages: ['en-US', 'en'] }, '')).toBe('en');
+    expect(detectInitialLocale({ language: 'ja-JP', languages: ['ja-JP'] }, '')).toBe('en');
+    // Chinese variants -> detects 'zh-TW'
+    expect(detectInitialLocale({ language: 'zh-TW', languages: ['zh-TW', 'en'] }, '')).toBe(
+      'zh-TW'
+    );
+    expect(detectInitialLocale({ language: 'zh-Hant-HK', languages: ['zh-Hant-HK'] }, '')).toBe(
+      'zh-TW'
+    );
+    // URL query param override
+    expect(detectInitialLocale({ language: 'en-US', languages: ['en-US'] }, '?lang=zh-TW')).toBe(
+      'zh-TW'
+    );
+    expect(detectInitialLocale({ language: 'zh-TW', languages: ['zh-TW'] }, '?lang=en')).toBe(
+      'en'
+    );
   });
 
   it('boots in zero-PHI browser sandbox mode, places secondary metadata in Dossier tab, and toggles privacy', () => {
@@ -28,8 +52,8 @@ describe('DentalCAD Pages Application Integration Tests', () => {
     expect(screen.getAllByText(/D\*\*\*, C\*\*\*\*\* A\*\*\*/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/U\*\*\*\*\* D\*\*\*\*\* Clinic/).length).toBeGreaterThan(0);
 
-    // Click the privacy toggle button in the header ("匿名已啟用")
-    const privacyBtn = screen.getByTitle(/目前為匿名保護模式/);
+    // Click the privacy toggle button in the header
+    const privacyBtn = screen.getByTestId('header-privacy-toggle-btn');
     fireEvent.click(privacyBtn);
 
     // Synthetic demo clinic, doctor, and patient names should now be visible in the secondary archive section
@@ -60,40 +84,71 @@ describe('DentalCAD Pages Application Integration Tests', () => {
     // Default theme is dark
     expect(document.documentElement.classList.contains('dark')).toBe(true);
 
-    const themeBtn = screen.getByTitle(/切換為亮色佈景/);
+    const themeBtn = screen.getByTestId('theme-toggle-btn');
     fireEvent.click(themeBtn);
 
     expect(document.documentElement.classList.contains('dark')).toBe(false);
     expect(localStorage.getItem('dentalcad_theme')).toBe('light');
 
-    const backToDarkBtn = screen.getByTitle(/切換為暗色佈景/);
-    fireEvent.click(backToDarkBtn);
+    fireEvent.click(themeBtn);
     expect(document.documentElement.classList.contains('dark')).toBe(true);
     expect(localStorage.getItem('dentalcad_theme')).toBe('dark');
   });
 
-  it('switches between Traditional Chinese (zh-TW) and English (en) locales', () => {
+  it('renders all buttons, camera presets, and tabs in English by default and switches cleanly to Traditional Chinese (zh-TW)', () => {
+    // In jsdom navigator.language is 'en-US' -> defaults to 'en'
     render(<App />);
-
-    expect(screen.getByText('虛擬咬合器與下顎運動模擬')).toBeInTheDocument();
-
-    const localeBtn = screen.getByTestId('locale-toggle-btn');
-    fireEvent.click(localeBtn);
 
     expect(document.documentElement.lang).toBe('en');
     expect(
       screen.getByText('Virtual Articulator & 6-DOF Mandibular Kinematics')
     ).toBeInTheDocument();
-    expect(screen.getByTestId('tab-articulator')).toHaveTextContent(
-      'Articulator & Occlusogram'
+    expect(screen.getByTestId('header-upload-btn')).toHaveTextContent('Load');
+    expect(screen.getByTestId('camera-preset-front')).toHaveTextContent('Front');
+    expect(screen.getByTestId('camera-preset-isometric')).toHaveTextContent('Isometric');
+    expect(screen.getByTestId('articulator-play-toggle')).toHaveTextContent('Auto-Play Motion');
+    expect(screen.getByTestId('curve-preset-posselt')).toHaveTextContent(
+      'Posselt Envelope (Biphasic)'
     );
 
+    // Check English copy across all other tabs
+    fireEvent.click(screen.getByTestId('tab-gallery'));
+    expect(
+      screen.getByText('5-View Intraoral Clinical Photography')
+    ).toBeInTheDocument();
+    expect(screen.getByTestId('gallery-upload-label')).toHaveTextContent(
+      'Load Intraoral Photos & STL Files'
+    );
+
+    fireEvent.click(screen.getByTestId('tab-tools'));
+    expect(screen.getByText('Surface Shaders & Optical Materials')).toBeInTheDocument();
+    expect(screen.getByTestId('tools-load-bundle-btn')).toHaveTextContent(
+      'Load Case Files (.zip / .xml / .stl / .jpg)'
+    );
+    expect(screen.getByTestId('tools-load-upper-btn')).toHaveTextContent('Load Upper STL');
+    expect(screen.getByTestId('tools-load-lower-btn')).toHaveTextContent('Load Lower STL');
+
+    fireEvent.click(screen.getByTestId('tab-dossier'));
+    expect(screen.getByText('Maxillary Arch (Upper)')).toBeInTheDocument();
+    expect(screen.getByText('Download Upper STL')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('tab-xml'));
+    expect(screen.getByTestId('xml-copy-btn')).toHaveTextContent('Copy XML');
+
+    // Switch back to Articulator tab and toggle language to zh-TW
+    fireEvent.click(screen.getByTestId('tab-articulator'));
+    const localeBtn = screen.getByTestId('locale-toggle-btn');
     fireEvent.click(localeBtn);
+
     expect(document.documentElement.lang).toBe('zh-TW');
     expect(screen.getByText('虛擬咬合器與下顎運動模擬')).toBeInTheDocument();
+    expect(screen.getByTestId('header-upload-btn')).toHaveTextContent('加載');
+    expect(screen.getByTestId('camera-preset-front')).toHaveTextContent('正視咬合');
+    expect(screen.getByTestId('articulator-play-toggle')).toHaveTextContent('自動播放運動');
   });
 
   it('simulates 6-DOF mandibular articulation and updates trajectory when curve & condylar parameters change', () => {
+    localStorage.setItem(LOCALE_STORAGE_KEY, 'zh-TW');
     render(<App />);
 
     // Articulator tab is the default tab
@@ -140,6 +195,7 @@ describe('DentalCAD Pages Application Integration Tests', () => {
   });
 
   it('toggles Occlusogram heatmap and manages 3D Digital Caliper measurements', () => {
+    localStorage.setItem(LOCALE_STORAGE_KEY, 'zh-TW');
     render(<App />);
 
     // Toggle Occlusogram ON
@@ -165,6 +221,7 @@ describe('DentalCAD Pages Application Integration Tests', () => {
   });
 
   it('provides mobile-friendly upload buttons, viewport HUD collapse toggle, and mobile split layout controls', async () => {
+    localStorage.setItem(LOCALE_STORAGE_KEY, 'zh-TW');
     render(<App />);
 
     // Verify Header upload button and file input are accessible
@@ -247,7 +304,7 @@ describe('DentalCAD Pages Application Integration Tests', () => {
     expect(banner).toBeInTheDocument();
     expect(banner).toHaveTextContent('/Users/yongjhih/Downloads/Export_99887766.zip');
     expect(screen.getByTestId('url-param-pick-btn')).toHaveTextContent(
-      '選擇 Export_99887766.zip 載入'
+      'Load Export_99887766.zip'
     );
 
     window.history.replaceState({}, '', originalUrl);

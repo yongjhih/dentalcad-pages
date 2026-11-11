@@ -8,7 +8,7 @@ import {
   CaliperMeasurement,
   LocaleMode,
 } from '../types/dental';
-import { tr } from '../utils/i18n';
+import { tr, localizeCaliperLabel } from '../utils/i18n';
 import {
   ARTICULATION_CURVE_PRESETS,
   computeMandibularKinematics,
@@ -47,7 +47,7 @@ export const ArticulatorPanel: React.FC<ArticulatorPanelProps> = ({
   caliperMeasurements,
   onClearCaliperMeasurements,
   onAddPresetCaliperMeasurement,
-  locale = 'zh-TW',
+  locale = 'en',
 }) => {
   const { articulator } = settings;
   const svgRef = useRef<SVGSVGElement>(null);
@@ -191,7 +191,11 @@ export const ArticulatorPanel: React.FC<ArticulatorPanelProps> = ({
         </div>
 
         {/* 6 Movement Modes Grid */}
-        <div className="grid grid-cols-2 gap-1.5" role="group" aria-label="咬合運動模式">
+        <div
+          className="grid grid-cols-2 gap-1.5"
+          role="group"
+          aria-label={tr(locale, '咬合運動模式', 'Articulation movement modes')}
+        >
           {movementModes.map((m) => {
             const active = articulator.mode === m.id;
             return (
@@ -234,12 +238,12 @@ export const ArticulatorPanel: React.FC<ArticulatorPanelProps> = ({
                 {articulator.isPlaying ? (
                   <>
                     <Pause className="w-3.5 h-3.5" />
-                    <span>暫停模擬</span>
+                    <span>{tr(locale, '暫停模擬', 'Pause')}</span>
                   </>
                 ) : (
                   <>
                     <Play className="w-3.5 h-3.5" />
-                    <span>自動播放運動</span>
+                    <span>{tr(locale, '自動播放運動', 'Auto-Play Motion')}</span>
                   </>
                 )}
               </button>
@@ -248,7 +252,7 @@ export const ArticulatorPanel: React.FC<ArticulatorPanelProps> = ({
                 type="button"
                 data-testid="articulator-reset-btn"
                 onClick={() => updateArticulator({ progress: 0, isPlaying: false })}
-                title="回到中心咬合 (MIP / CO)"
+                title={tr(locale, '回到中心咬合 (MIP / CO)', 'Reset to Centric Occlusion (MIP / CO)')}
                 className="p-1.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white border border-slate-200 dark:border-slate-700"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
@@ -277,7 +281,7 @@ export const ArticulatorPanel: React.FC<ArticulatorPanelProps> = ({
           {/* Progress Slider */}
           <div className="space-y-1">
             <div className="flex justify-between text-[11px] text-slate-500 dark:text-slate-400">
-              <span>咬合運動行程進度 (Motion Phase)</span>
+              <span>{tr(locale, '咬合運動行程進度 (Motion Phase)', 'Motion Phase Progress')}</span>
               <span className="font-mono text-sky-600 dark:text-sky-400 font-semibold tabular-nums">
                 {Math.round(articulator.progress * 100)}%
               </span>
@@ -302,7 +306,9 @@ export const ArticulatorPanel: React.FC<ArticulatorPanelProps> = ({
           {/* Real-time 6-DOF Kinematic Readouts */}
           <div className="grid grid-cols-4 gap-1.5 pt-2 border-t border-slate-200 dark:border-slate-800/80 text-center font-mono">
             <div className="bg-slate-50 dark:bg-slate-900/70 p-1.5 rounded border border-slate-200/70 dark:border-slate-800">
-              <div className="text-[10px] text-slate-400 font-sans">切端位移</div>
+              <div className="text-[10px] text-slate-400 font-sans">
+                {tr(locale, '切端位移', 'Incisal Opening')}
+              </div>
               <div
                 data-testid="kinematic-incisal-opening"
                 className="text-xs font-semibold text-sky-600 dark:text-sky-300 tabular-nums"
@@ -311,7 +317,9 @@ export const ArticulatorPanel: React.FC<ArticulatorPanelProps> = ({
               </div>
             </div>
             <div className="bg-slate-50 dark:bg-slate-900/70 p-1.5 rounded border border-slate-200/70 dark:border-slate-800">
-              <div className="text-[10px] text-slate-400 font-sans">樞軸轉角</div>
+              <div className="text-[10px] text-slate-400 font-sans">
+                {tr(locale, '樞軸轉角', 'Hinge Angle')}
+              </div>
               <div
                 data-testid="kinematic-rotation-deg"
                 className="text-xs font-semibold text-amber-600 dark:text-amber-300 tabular-nums"
@@ -320,7 +328,9 @@ export const ArticulatorPanel: React.FC<ArticulatorPanelProps> = ({
               </div>
             </div>
             <div className="bg-slate-50 dark:bg-slate-900/70 p-1.5 rounded border border-slate-200/70 dark:border-slate-800">
-              <div className="text-[10px] text-slate-400 font-sans">髁頭滑動</div>
+              <div className="text-[10px] text-slate-400 font-sans">
+                {tr(locale, '髁頭滑動', 'Condylar Slip')}
+              </div>
               <div
                 data-testid="kinematic-condylar-slip"
                 className="text-xs font-semibold text-emerald-600 dark:text-emerald-300 tabular-nums"
@@ -329,7 +339,9 @@ export const ArticulatorPanel: React.FC<ArticulatorPanelProps> = ({
               </div>
             </div>
             <div className="bg-slate-50 dark:bg-slate-900/70 p-1.5 rounded border border-slate-200/70 dark:border-slate-800">
-              <div className="text-[10px] text-slate-400 font-sans">側方偏移</div>
+              <div className="text-[10px] text-slate-400 font-sans">
+                {tr(locale, '側方偏移', 'Lateral Shift')}
+              </div>
               <div className="text-xs font-semibold text-purple-600 dark:text-purple-300 tabular-nums">
                 {kinematics.lateralShiftMm.toFixed(1)} mm
               </div>
@@ -343,7 +355,13 @@ export const ArticulatorPanel: React.FC<ArticulatorPanelProps> = ({
         <div className="flex items-center justify-between">
           <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
             <Sliders className="w-4 h-4 text-sky-500 dark:text-sky-400" />
-            <span>咬合運動曲線與髁導參數編輯器</span>
+            <span>
+              {tr(
+                locale,
+                '咬合運動曲線與髁導參數編輯器',
+                'Occlusal Trajectory Curve & TMJ Guidance'
+              )}
+            </span>
           </h2>
           <div className="flex items-center gap-1 bg-slate-200/70 dark:bg-slate-900 p-0.5 rounded border border-slate-300 dark:border-slate-800">
             <button
@@ -355,7 +373,7 @@ export const ArticulatorPanel: React.FC<ArticulatorPanelProps> = ({
                   : 'text-slate-500'
               }`}
             >
-              Bezier 曲線
+              {tr(locale, 'Bezier 曲線', 'Bezier Curve')}
             </button>
             <button
               type="button"
@@ -366,7 +384,7 @@ export const ArticulatorPanel: React.FC<ArticulatorPanelProps> = ({
                   : 'text-slate-500'
               }`}
             >
-              矢狀面軌跡
+              {tr(locale, '矢狀面軌跡', 'Sagittal Path')}
             </button>
           </div>
         </div>
@@ -392,7 +410,9 @@ export const ArticulatorPanel: React.FC<ArticulatorPanelProps> = ({
                     : 'bg-white dark:bg-[#0b0f17] border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:border-slate-300'
                 }`}
               >
-                <div className="text-[11px] font-semibold truncate">{preset.name}</div>
+                <div className="text-[11px] font-semibold truncate">
+                  {locale === 'en' ? preset.nameEn : preset.name}
+                </div>
               </button>
             );
           })}
@@ -403,12 +423,22 @@ export const ArticulatorPanel: React.FC<ArticulatorPanelProps> = ({
           <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
             <span>
               {curveViewMode === 'bezier'
-                ? '拖曳控制點 P1 / P2 調整張口旋轉與髁頭滑移耦合曲線'
-                : '下顎切端於矢狀面 (Y-Z) 之即時運動軌跡包絡線'}
+                ? tr(
+                    locale,
+                    '拖曳控制點 P1 / P2 調整張口旋轉與髁頭滑移耦合曲線',
+                    'Drag control points P1 / P2 to tune hinge rotation & condylar slip coupling'
+                  )
+                : tr(
+                    locale,
+                    '下顎切端於矢狀面 (Y-Z) 之即時運動軌跡包絡線',
+                    'Real-time mandibular incisal envelope in the sagittal plane (Y-Z)'
+                  )}
             </span>
             <span className="font-mono text-[10px] text-sky-600 dark:text-sky-400">
               {articulator.curvePresetId === 'custom'
                 ? 'Custom Curve'
+                : locale === 'en'
+                ? ARTICULATION_CURVE_PRESETS[articulator.curvePresetId].nameEn
                 : ARTICULATION_CURVE_PRESETS[articulator.curvePresetId].name}
             </span>
           </div>
@@ -571,7 +601,7 @@ export const ArticulatorPanel: React.FC<ArticulatorPanelProps> = ({
                   textAnchor="middle"
                   className="fill-slate-400 text-[10px] font-mono"
                 >
-                  張口行程進度 t (0% → 100%)
+                  {tr(locale, '張口行程進度 t (0% → 100%)', 'Opening Progress t (0% → 100%)')}
                 </text>
               </>
             ) : (
@@ -590,7 +620,11 @@ export const ArticulatorPanel: React.FC<ArticulatorPanelProps> = ({
                   textAnchor="middle"
                   className="fill-slate-400 text-[10px] font-mono"
                 >
-                  矢狀面切端軌跡 (Posterior -Y ↔ Anterior +Y)
+                  {tr(
+                    locale,
+                    '矢狀面切端軌跡 (Posterior -Y ↔ Anterior +Y)',
+                    'Sagittal Incisal Path (Posterior -Y ↔ Anterior +Y)'
+                  )}
                 </text>
               </>
             )}
@@ -600,14 +634,14 @@ export const ArticulatorPanel: React.FC<ArticulatorPanelProps> = ({
           <div className="grid grid-cols-2 gap-3 pt-1">
             <div className="space-y-1">
               <div className="flex justify-between text-[10px] text-amber-600 dark:text-amber-400 font-mono">
-                <span>P1 初段斜率 (X/Y)</span>
+                <span>{tr(locale, 'P1 初段斜率 (X/Y)', 'P1 Initial Slope (X/Y)')}</span>
                 <span>
                   ({articulator.bezier.p1x.toFixed(2)}, {articulator.bezier.p1y.toFixed(2)})
                 </span>
               </div>
               <input
                 type="range"
-                aria-label="控制點 P1 Y"
+                aria-label={tr(locale, '控制點 P1 Y', 'Control Point P1 Y')}
                 data-testid="bezier-p1y-slider"
                 min="0"
                 max="1"
@@ -625,14 +659,14 @@ export const ArticulatorPanel: React.FC<ArticulatorPanelProps> = ({
 
             <div className="space-y-1">
               <div className="flex justify-between text-[10px] text-emerald-600 dark:text-emerald-400 font-mono">
-                <span>P2 後段滑移 (X/Y)</span>
+                <span>{tr(locale, 'P2 後段滑移 (X/Y)', 'P2 Late Slip (X/Y)')}</span>
                 <span>
                   ({articulator.bezier.p2x.toFixed(2)}, {articulator.bezier.p2y.toFixed(2)})
                 </span>
               </div>
               <input
                 type="range"
-                aria-label="控制點 P2 Y"
+                aria-label={tr(locale, '控制點 P2 Y', 'Control Point P2 Y')}
                 data-testid="bezier-p2y-slider"
                 min="0"
                 max="1"
@@ -653,7 +687,9 @@ export const ArticulatorPanel: React.FC<ArticulatorPanelProps> = ({
           <div className="space-y-2.5 pt-2 border-t border-slate-200 dark:border-slate-800/80">
             <div className="space-y-1">
               <div className="flex justify-between text-[11px] text-slate-600 dark:text-slate-400">
-                <span>矢狀髁導斜度 (Condylar Guidance SCI)</span>
+                <span>
+                  {tr(locale, '矢狀髁導斜度 (Condylar Guidance SCI)', 'Condylar Guidance Angle (SCI)')}
+                </span>
                 <span className="font-mono text-sky-600 dark:text-sky-400 tabular-nums">
                   {articulator.condylarGuidanceAngleDeg}°
                 </span>
@@ -676,7 +712,9 @@ export const ArticulatorPanel: React.FC<ArticulatorPanelProps> = ({
 
             <div className="space-y-1">
               <div className="flex justify-between text-[11px] text-slate-600 dark:text-slate-400">
-                <span>前牙切導斜度 (Incisal Guidance Angle)</span>
+                <span>
+                  {tr(locale, '前牙切導斜度 (Incisal Guidance Angle)', 'Incisal Guidance Angle')}
+                </span>
                 <span className="font-mono text-sky-600 dark:text-sky-400 tabular-nums">
                   {articulator.incisalGuidanceAngleDeg}°
                 </span>
@@ -700,7 +738,7 @@ export const ArticulatorPanel: React.FC<ArticulatorPanelProps> = ({
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <div className="flex justify-between text-[11px] text-slate-600 dark:text-slate-400">
-                  <span>班奈特角 (Bennett)</span>
+                  <span>{tr(locale, '班奈特角 (Bennett)', 'Bennett Angle')}</span>
                   <span className="font-mono text-sky-600 dark:text-sky-400 tabular-nums">
                     {articulator.bennettAngleDeg}°
                   </span>
@@ -722,7 +760,7 @@ export const ArticulatorPanel: React.FC<ArticulatorPanelProps> = ({
 
               <div className="space-y-1">
                 <div className="flex justify-between text-[11px] text-slate-600 dark:text-slate-400">
-                  <span>最大張口角 (Max θ)</span>
+                  <span>{tr(locale, '最大張口角 (Max θ)', 'Max Opening (θ)')}</span>
                   <span className="font-mono text-sky-600 dark:text-sky-400 tabular-nums">
                     {articulator.maxOpeningAngleDeg}°
                   </span>
@@ -747,7 +785,11 @@ export const ArticulatorPanel: React.FC<ArticulatorPanelProps> = ({
             <div className="flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-800/60">
               <span className="text-[11px] text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                 <Compass className="w-3.5 h-3.5 text-amber-500" />
-                於 3D 視窗顯示運動軌跡曲線與髁頭樞軸
+                {tr(
+                  locale,
+                  '於 3D 視窗顯示運動軌跡曲線與髁頭樞軸',
+                  'Show 3D Trajectory Curve & Condylar Hinge Axis'
+                )}
               </span>
               <button
                 type="button"
@@ -762,7 +804,9 @@ export const ArticulatorPanel: React.FC<ArticulatorPanelProps> = ({
                     : 'bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-300 dark:border-slate-700'
                 }`}
               >
-                {articulator.showTrajectoryGizmo ? '顯示中' : '已隱藏'}
+                {articulator.showTrajectoryGizmo
+                  ? tr(locale, '顯示中', 'Visible')
+                  : tr(locale, '已隱藏', 'Hidden')}
               </button>
             </div>
           </div>
@@ -807,11 +851,15 @@ export const ArticulatorPanel: React.FC<ArticulatorPanelProps> = ({
           {/* Color Scale Bar */}
           <div className="space-y-1">
             <div className="flex justify-between text-[10px] font-mono text-slate-500 dark:text-slate-400">
-              <span className="text-rose-500 font-semibold">≤0.0mm 干擾</span>
+              <span className="text-rose-500 font-semibold">
+                {tr(locale, '≤0.0mm 干擾', '≤0.0mm Collision')}
+              </span>
               <span className="text-orange-500">0.25mm</span>
               <span className="text-amber-500">0.55mm</span>
               <span className="text-emerald-500">0.95mm</span>
-              <span className="text-sky-500">{settings.occlusogramMaxRangeMm.toFixed(1)}mm 間隙</span>
+              <span className="text-sky-500">
+                {settings.occlusogramMaxRangeMm.toFixed(1)}mm {tr(locale, '間隙', 'Clearance')}
+              </span>
             </div>
             <div className="h-2 w-full rounded-full bg-gradient-to-r from-rose-600 via-amber-400 to-sky-500" />
           </div>
@@ -820,11 +868,13 @@ export const ArticulatorPanel: React.FC<ArticulatorPanelProps> = ({
           <div className="space-y-1 pt-1">
             <div className="flex justify-between text-[11px] font-medium">
               <span className="text-sky-600 dark:text-sky-400 font-mono tabular-nums">
-                右側牙弓 (R): {occlusogramStats.rightContactPercent}%
+                {tr(locale, '右側牙弓 (R)', 'Right Arch (R)')}: {occlusogramStats.rightContactPercent}%
               </span>
-              <span className="text-slate-500 text-[10px]">左右咬合接觸對稱比</span>
+              <span className="text-slate-500 text-[10px]">
+                {tr(locale, '左右咬合接觸對稱比', 'L/R Occlusal Symmetry')}
+              </span>
               <span className="text-emerald-600 dark:text-emerald-400 font-mono tabular-nums">
-                左側牙弓 (L): {occlusogramStats.leftContactPercent}%
+                {tr(locale, '左側牙弓 (L)', 'Left Arch (L)')}: {occlusogramStats.leftContactPercent}%
               </span>
             </div>
             <div className="w-full h-2 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden flex">
@@ -842,7 +892,9 @@ export const ArticulatorPanel: React.FC<ArticulatorPanelProps> = ({
           {/* Occlusogram Metrics Grid */}
           <div className="grid grid-cols-3 gap-2 pt-1 font-mono text-center">
             <div className="bg-slate-50 dark:bg-slate-900/70 p-2 rounded border border-slate-200/70 dark:border-slate-800">
-              <div className="text-[10px] text-slate-400 font-sans">最小咬合間隙</div>
+              <div className="text-[10px] text-slate-400 font-sans">
+                {tr(locale, '最小咬合間隙', 'Min Clearance')}
+              </div>
               <div
                 data-testid="occlusogram-min-clearance"
                 className="text-xs font-semibold text-slate-900 dark:text-slate-100 tabular-nums"
@@ -853,7 +905,9 @@ export const ArticulatorPanel: React.FC<ArticulatorPanelProps> = ({
               </div>
             </div>
             <div className="bg-slate-50 dark:bg-slate-900/70 p-2 rounded border border-slate-200/70 dark:border-slate-800">
-              <div className="text-[10px] text-slate-400 font-sans">有效接觸面積</div>
+              <div className="text-[10px] text-slate-400 font-sans">
+                {tr(locale, '有效接觸面積', 'Contact Area')}
+              </div>
               <div
                 data-testid="occlusogram-contact-area"
                 className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums"
@@ -862,7 +916,9 @@ export const ArticulatorPanel: React.FC<ArticulatorPanelProps> = ({
               </div>
             </div>
             <div className="bg-slate-50 dark:bg-slate-900/70 p-2 rounded border border-slate-200/70 dark:border-slate-800">
-              <div className="text-[10px] text-slate-400 font-sans">緊密/干擾區</div>
+              <div className="text-[10px] text-slate-400 font-sans">
+                {tr(locale, '緊密/干擾區', 'Heavy Contact')}
+              </div>
               <div className="text-xs font-semibold text-rose-600 dark:text-rose-400 tabular-nums">
                 {occlusogramStats.heavyCollisionAreaMm2.toFixed(1)} mm²
               </div>
@@ -912,7 +968,7 @@ export const ArticulatorPanel: React.FC<ArticulatorPanelProps> = ({
           <div className="grid grid-cols-2 gap-2 font-mono">
             <div className="p-2 rounded bg-slate-50 dark:bg-slate-900/60 border border-slate-200/70 dark:border-slate-800">
               <span className="text-[10px] text-slate-500 dark:text-slate-400 font-sans block">
-                尖牙間寬 (U3-U3 / L3-L3)
+                {tr(locale, '尖牙間寬 (U3-U3 / L3-L3)', 'Intercanine Width (U3-U3 / L3-L3)')}
               </span>
               <span
                 data-testid="arch-canine-width"
@@ -923,7 +979,7 @@ export const ArticulatorPanel: React.FC<ArticulatorPanelProps> = ({
             </div>
             <div className="p-2 rounded bg-slate-50 dark:bg-slate-900/60 border border-slate-200/70 dark:border-slate-800">
               <span className="text-[10px] text-slate-500 dark:text-slate-400 font-sans block">
-                大臼齒間寬 (U6-U6 / L6-L6)
+                {tr(locale, '大臼齒間寬 (U6-U6 / L6-L6)', 'Intermolar Width (U6-U6 / L6-L6)')}
               </span>
               <span
                 data-testid="arch-molar-width"
@@ -934,7 +990,7 @@ export const ArticulatorPanel: React.FC<ArticulatorPanelProps> = ({
             </div>
             <div className="p-2 rounded bg-slate-50 dark:bg-slate-900/60 border border-slate-200/70 dark:border-slate-800">
               <span className="text-[10px] text-slate-500 dark:text-slate-400 font-sans block">
-                水平覆蓋 Overjet / 垂直覆咬 Overbite
+                {tr(locale, '水平覆蓋 Overjet / 垂直覆咬 Overbite', 'Overjet (OJ) / Overbite (OB)')}
               </span>
               <span
                 data-testid="arch-overjet-overbite"
@@ -945,7 +1001,7 @@ export const ArticulatorPanel: React.FC<ArticulatorPanelProps> = ({
             </div>
             <div className="p-2 rounded bg-slate-50 dark:bg-slate-900/60 border border-slate-200/70 dark:border-slate-800">
               <span className="text-[10px] text-slate-500 dark:text-slate-400 font-sans block">
-                上下中線偏移 / 牙弓長寬比
+                {tr(locale, '上下中線偏移 / 牙弓長寬比', 'Midline Shift / Arch Form Ratio')}
               </span>
               <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums">
                 ΔX {archMetrics.midlineDeviationMm} mm · {archMetrics.archFormRatio}
@@ -958,7 +1014,7 @@ export const ArticulatorPanel: React.FC<ArticulatorPanelProps> = ({
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-medium text-slate-700 dark:text-slate-300 flex items-center gap-1">
                 <Eye className="w-3.5 h-3.5 text-amber-500" />
-                3D 游標尺測量紀錄 ({caliperMeasurements.length})
+                {tr(locale, '3D 游標尺測量紀錄', '3D Caliper Measurements')} ({caliperMeasurements.length})
               </span>
               <div className="flex items-center gap-1">
                 <button
@@ -968,7 +1024,7 @@ export const ArticulatorPanel: React.FC<ArticulatorPanelProps> = ({
                   className="px-2 py-0.5 rounded bg-sky-500/15 text-sky-600 dark:text-sky-300 border border-sky-500/30 text-[10px] flex items-center gap-1 hover:bg-sky-500/25"
                 >
                   <Plus className="w-3 h-3" />
-                  <span>新增示範測距</span>
+                  <span>{tr(locale, '新增示範測距', 'Add Sample')}</span>
                 </button>
                 {caliperMeasurements.length > 0 && (
                   <button
@@ -976,7 +1032,7 @@ export const ArticulatorPanel: React.FC<ArticulatorPanelProps> = ({
                     data-testid="clear-caliper-btn"
                     onClick={onClearCaliperMeasurements}
                     className="p-1 rounded text-slate-400 hover:text-rose-500"
-                    title="清除所有測量"
+                    title={tr(locale, '清除所有測量', 'Clear all measurements')}
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
@@ -986,7 +1042,11 @@ export const ArticulatorPanel: React.FC<ArticulatorPanelProps> = ({
 
             {caliperMeasurements.length === 0 ? (
               <p className="text-[11px] text-slate-400 dark:text-slate-500">
-                點擊上方「啟用 3D 游標尺」後，可直接在左側 3D 齒列模型上任選兩點測量真實毫米距離。
+                {tr(
+                  locale,
+                  '點擊上方「啟用 3D 游標尺」後，可直接在左側 3D 齒列模型上任選兩點測量真實毫米距離。',
+                  'Click "Enable 3D Caliper" above, then click any two points on the 3D dental model to measure true distance in mm.'
+                )}
               </p>
             ) : (
               <div className="space-y-1.5">
@@ -998,7 +1058,7 @@ export const ArticulatorPanel: React.FC<ArticulatorPanelProps> = ({
                   >
                     <div>
                       <span className="font-sans font-medium text-slate-800 dark:text-slate-200 mr-2">
-                        {m.label}
+                        {localizeCaliperLabel(m.label, locale)}
                       </span>
                       <span className="text-[10px] text-slate-400">
                         (ΔX:{m.deltaX} ΔY:{m.deltaY} ΔZ:{m.deltaZ})

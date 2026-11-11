@@ -8,7 +8,9 @@ import {
 export interface ArticulationCurvePreset {
   id: ArticulationCurvePresetId;
   name: string;
+  nameEn: string;
   description: string;
+  descriptionEn: string;
   bezier: BezierControlPoints;
   condylarGuidanceAngleDeg?: number;
   incisalGuidanceAngleDeg?: number;
@@ -21,7 +23,10 @@ export const ARTICULATION_CURVE_PRESETS: Record<
   posselt: {
     id: 'posselt',
     name: 'Posselt 生理雙相曲線',
+    nameEn: 'Posselt Envelope (Biphasic)',
     description: '初段 (0–40%) 以雙側髁頭純樞軸旋轉為主，中後段耦合關節結節前下滑動 (TMJ 生理開合)。',
+    descriptionEn:
+      'Initial phase (0–40%) dominated by pure condylar hinge rotation, followed by anterior-inferior translation along the articular eminence.',
     bezier: { p1x: 0.42, p1y: 0.12, p2x: 0.68, p2y: 0.88 },
     condylarGuidanceAngleDeg: 33,
     incisalGuidanceAngleDeg: 40,
@@ -29,7 +34,10 @@ export const ARTICULATION_CURVE_PRESETS: Record<
   pure_hinge: {
     id: 'pure_hinge',
     name: '純樞軸定軸旋轉 (Pure Hinge)',
+    nameEn: 'Pure Hinge Rotation',
     description: '模擬全可調咬合器固定樞軸開合，僅繞雙側髁頭連線旋轉而不產生前下滑動。',
+    descriptionEn:
+      'Simulates fixed-axle hinge rotation around the intercondylar axis with minimal anterior condylar translation.',
     bezier: { p1x: 0.85, p1y: 0.02, p2x: 0.95, p2y: 0.15 },
     condylarGuidanceAngleDeg: 25,
     incisalGuidanceAngleDeg: 30,
@@ -37,7 +45,10 @@ export const ARTICULATION_CURVE_PRESETS: Record<
   early_translation: {
     id: 'early_translation',
     name: '早期髁頭滑動 (Early Translation)',
+    nameEn: 'Early Condylar Translation',
     description: '張口初期即伴隨明顯的下顎前下移位，常見於關節窩較淺或韌帶鬆弛型態。',
+    descriptionEn:
+      'Immediate anterior-inferior condylar translation from early opening, typical of shallow glenoid fossa morphology.',
     bezier: { p1x: 0.12, p1y: 0.58, p2x: 0.38, p2y: 0.94 },
     condylarGuidanceAngleDeg: 28,
     incisalGuidanceAngleDeg: 32,
@@ -45,7 +56,10 @@ export const ARTICULATION_CURVE_PRESETS: Record<
   steep_guidance: {
     id: 'steep_guidance',
     name: '深咬陡峭切導 (Steep Guidance)',
+    nameEn: 'Steep Anterior Guidance',
     description: '前牙覆咬較深，前突與開合初期需較陡峭之垂直打開角度以避開切端干擾。',
+    descriptionEn:
+      'Deep anterior overbite profile requiring steeper initial vertical disclusion to clear incisal interference.',
     bezier: { p1x: 0.25, p1y: 0.05, p2x: 0.5, p2y: 0.96 },
     condylarGuidanceAngleDeg: 45,
     incisalGuidanceAngleDeg: 55,

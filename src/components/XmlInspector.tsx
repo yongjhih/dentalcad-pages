@@ -13,7 +13,7 @@ interface XmlInspectorProps {
 export const XmlInspector: React.FC<XmlInspectorProps> = ({
   caseBundle,
   anonymizePatient = true,
-  locale = 'zh-TW',
+  locale = 'en',
 }) => {
   const [xmlVersion, setXmlVersion] = useState<'v50' | 'v30'>('v50');
   const [xmlContent, setXmlContent] = useState<string>('');
@@ -38,16 +38,25 @@ export const XmlInspector: React.FC<XmlInspectorProps> = ({
           if (!cancelled) setXmlContent(text);
         })
         .catch(() => {
-          if (!cancelled) setXmlContent('<!-- 無法讀取 XML 原始檔案 -->');
+          if (!cancelled)
+            setXmlContent(
+              tr(locale, '<!-- 無法讀取 XML 原始檔案 -->', '<!-- Failed to load raw XML file -->')
+            );
         });
     } else {
-      setXmlContent('<!-- 此案例未包含對應版本之 XML 檔案 -->');
+      setXmlContent(
+        tr(
+          locale,
+          '<!-- 此案例未包含對應版本之 XML 檔案 -->',
+          '<!-- No XML file available for this version -->'
+        )
+      );
     }
 
     return () => {
       cancelled = true;
     };
-  }, [caseBundle, xmlVersion, assets.xmlV50Url, assets.xmlV30Url]);
+  }, [caseBundle, xmlVersion, assets.xmlV50Url, assets.xmlV30Url, locale]);
 
   const displayedXml = useMemo(
     () => anonymizeXmlString(xmlContent, anonymizePatient),
@@ -115,6 +124,7 @@ export const XmlInspector: React.FC<XmlInspectorProps> = ({
             )}
 
           <button
+            data-testid="xml-copy-btn"
             onClick={handleCopy}
             className="flex items-center gap-1 px-2.5 py-1 rounded bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-transparent transition-colors"
           >
@@ -123,7 +133,9 @@ export const XmlInspector: React.FC<XmlInspectorProps> = ({
             ) : (
               <Copy className="w-3.5 h-3.5" />
             )}
-            <span>{copied ? '已複製' : '複製 XML'}</span>
+            <span>
+              {copied ? tr(locale, '已複製', 'Copied') : tr(locale, '複製 XML', 'Copy XML')}
+            </span>
           </button>
 
           {activeDownloadUrl && (
@@ -133,7 +145,7 @@ export const XmlInspector: React.FC<XmlInspectorProps> = ({
               className="flex items-center gap-1 px-2.5 py-1 rounded bg-sky-500/15 dark:bg-sky-950/60 border border-sky-500/40 dark:border-sky-800/60 text-sky-700 dark:text-sky-300 hover:text-sky-900 dark:hover:text-white transition-colors"
             >
               <Download className="w-3.5 h-3.5" />
-              <span>下載原始檔</span>
+              <span>{tr(locale, '下載原始檔', 'Download XML')}</span>
             </a>
           )}
         </div>
@@ -143,7 +155,8 @@ export const XmlInspector: React.FC<XmlInspectorProps> = ({
       <div className="bg-white dark:bg-[#0b0f17] border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden shadow-sm dark:shadow-none">
         <div className="px-3 py-1.5 bg-slate-100 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-800 font-mono text-[11px] text-slate-500 dark:text-slate-400 flex justify-between items-center">
           <span>
-            {activeFileName} {anonymizePatient ? '(匿名遮罩檢視)' : ''}
+            {activeFileName}{' '}
+            {anonymizePatient ? tr(locale, '(匿名遮罩檢視)', '(Anonymized View)') : ''}
           </span>
           <span>
             {xmlVersion === 'v50' ? 'Version 5.0' : 'Version 3.0'} (CaaS {metadata.caasVersion})

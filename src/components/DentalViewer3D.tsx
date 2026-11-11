@@ -91,7 +91,7 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
   onAddCaliperMeasurement,
   onClearCaliperMeasurements,
   onCustomFilesDrop,
-  locale = 'zh-TW',
+  locale = 'en',
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
@@ -1033,7 +1033,13 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
       .catch((err) => {
         if (cancelled) return;
         console.error('Failed to load dental STL files:', err);
-        setErrorMsg('無法載入指定 STL 齒列模型。您可以透過拖曳或頂部選單載入其他案例資料。');
+        setErrorMsg(
+          tr(
+            locale,
+            '無法載入指定 STL 齒列模型。您可以透過拖曳或頂部選單載入其他案例資料。',
+            'Failed to load STL dental model. You can drag and drop or use the Load button to import another case.'
+          )
+        );
         setLoading(false);
       });
 
@@ -1145,7 +1151,7 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
         <div className="absolute inset-0 bg-slate-100/90 dark:bg-[#090d16]/90 z-40 flex flex-col items-center justify-center p-6 backdrop-blur-sm">
           <div className="w-12 h-12 border-2 border-sky-500/20 border-t-sky-500 rounded-full animate-spin mb-4" />
           <p className="text-sm font-medium text-slate-800 dark:text-slate-200 mb-2">
-            載入 3D 齒列數位模型中...
+            {tr(locale, '載入 3D 齒列數位模型中...', 'Loading 3D Dental Arch Models...')}
           </p>
           <div className="w-64 bg-slate-300 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
             <div
@@ -1154,7 +1160,11 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
             />
           </div>
           <span className="text-xs text-slate-500 dark:text-slate-400 font-mono mt-2 tabular-nums">
-            上顎 {loadProgress.upper}% / 下顎 {loadProgress.lower}%
+            {tr(
+              locale,
+              `上顎 ${loadProgress.upper}% / 下顎 ${loadProgress.lower}%`,
+              `Upper ${loadProgress.upper}% / Lower ${loadProgress.lower}%`
+            )}
           </span>
         </div>
       )}
@@ -1170,7 +1180,7 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
             onClick={() => setErrorMsg(null)}
             className="text-red-600 dark:text-red-400 hover:underline px-2 py-0.5 text-xs font-mono"
           >
-            關閉
+            {tr(locale, '關閉', 'Close')}
           </button>
         </div>
       )}
@@ -1182,9 +1192,21 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
           <span className="font-medium truncate">
             {settings.caliperToolActive
               ? pendingCaliperPoint
-                ? '請點選第二點 (Point B) 完成測距'
-                : '3D 測距中：請於齒列模型上點選兩點'
-              : `已標記 ${caliperMeasurements.length} 組 3D 測距`}
+                ? tr(
+                    locale,
+                    '請點選第二點 (Point B) 完成測距',
+                    'Click second point (Point B) to measure'
+                  )
+                : tr(
+                    locale,
+                    '3D 測距中：請於齒列模型上點選兩點',
+                    '3D Caliper active: click two points on the arch'
+                  )
+              : tr(
+                  locale,
+                  `已標記 ${caliperMeasurements.length} 組 3D 測距`,
+                  `${caliperMeasurements.length} 3D measurement(s)`
+                )}
           </span>
           {caliperMeasurements.length > 0 && (
             <span className="font-mono font-semibold text-amber-600 dark:text-amber-400 tabular-nums border-l border-slate-200 dark:border-slate-700 pl-2 flex-shrink-0">
@@ -1201,10 +1223,14 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
                 onClearCaliperMeasurements?.();
               }}
               className="px-2 py-0.5 rounded bg-rose-500/15 hover:bg-rose-500/25 text-rose-600 dark:text-rose-300 border border-rose-500/30 text-[11px] font-medium flex items-center gap-1 transition-colors flex-shrink-0"
-              title="直接清除 3D 視窗中的所有測距線與標記點"
+              title={tr(
+                locale,
+                '直接清除 3D 視窗中的所有測距線與標記點',
+                'Clear all 3D caliper lines and markers'
+              )}
             >
               <Trash2 className="w-3 h-3" />
-              <span>清除測距</span>
+              <span>{tr(locale, '清除測距', 'Clear')}</span>
             </button>
           )}
         </div>
@@ -1215,10 +1241,18 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
         <div className="absolute inset-0 z-50 bg-sky-900/75 border-2 border-dashed border-sky-400 flex flex-col items-center justify-center backdrop-blur-sm">
           <Upload className="w-12 h-12 text-sky-300 mb-2 transition-transform duration-300 scale-110" />
           <p className="text-base font-medium text-sky-100">
-            放開以加載新案例 .zip 壓縮檔、資料包或 STL 模型
+            {tr(
+              locale,
+              '放開以加載新案例 .zip 壓縮檔、資料包或 STL 模型',
+              'Drop to load .zip archive, case bundle, or STL models'
+            )}
           </p>
           <p className="text-xs text-sky-300/80">
-            支援直接拖入 .zip 壓縮包或整套口掃檔案 (.stl + .xml + .jpg + .pdf)
+            {tr(
+              locale,
+              '支援直接拖入 .zip 壓縮包或整套口掃檔案 (.stl + .xml + .jpg + .pdf)',
+              'Supports .zip archives or scanner files (.stl + .xml + .jpg + .pdf)'
+            )}
           </p>
         </div>
       )}
@@ -1227,21 +1261,22 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
       <div className="absolute top-2.5 sm:top-4 left-2.5 sm:left-4 right-2.5 sm:right-auto z-30 flex items-center flex-nowrap sm:flex-wrap overflow-x-auto gap-1 sm:gap-1.5 bg-white/90 dark:bg-[#0f172a]/90 border border-slate-200 dark:border-slate-800 p-1 rounded-lg backdrop-blur shadow-md">
         <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 px-1.5 sm:px-2 py-1 flex items-center gap-1 flex-shrink-0">
           <Compass className="w-3.5 h-3.5 text-sky-500 dark:text-sky-400" />
-          <span className="hidden xs:inline">視角</span>
+          <span className="hidden xs:inline">{tr(locale, '視角', 'View')}</span>
         </span>
         {(
           [
-            { id: 'front', label: '正視咬合' },
-            { id: 'upper', label: '上顎面' },
-            { id: 'lower', label: '下顎面' },
-            { id: 'right', label: '右側頰' },
-            { id: 'left', label: '左側頰' },
-            { id: 'isometric', label: '立體等角' },
+            { id: 'front', label: tr(locale, '正視咬合', 'Front') },
+            { id: 'upper', label: tr(locale, '上顎面', 'Upper') },
+            { id: 'lower', label: tr(locale, '下顎面', 'Lower') },
+            { id: 'right', label: tr(locale, '右側頰', 'Right') },
+            { id: 'left', label: tr(locale, '左側頰', 'Left') },
+            { id: 'isometric', label: tr(locale, '立體等角', 'Isometric') },
           ] as { id: CameraPreset; label: string }[]
         ).map((preset) => (
           <button
             key={preset.id}
             type="button"
+            data-testid={`camera-preset-${preset.id}`}
             onClick={() => {
               onPresetSelect(preset.id);
               applyCameraPreset(preset.id);
@@ -1267,7 +1302,11 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
               occlusogramEnabled: !prev.occlusogramEnabled,
             }))
           }
-          title="切換 Occlusogram 咬合接觸熱力圖"
+          title={tr(
+            locale,
+            '切換 Occlusogram 咬合接觸熱力圖',
+            'Toggle Occlusogram Bite Contact Heatmap'
+          )}
           className={`px-2 py-1 rounded text-xs font-medium flex items-center gap-1 transition-colors ${
             settings.occlusogramEnabled
               ? 'bg-rose-600 text-white shadow-sm'
@@ -1275,7 +1314,7 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
           }`}
         >
           <Flame className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">咬合熱力圖</span>
+          <span className="hidden sm:inline">{tr(locale, '咬合熱力圖', 'Occlusogram')}</span>
         </button>
 
         <button
@@ -1286,7 +1325,7 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
               caliperToolActive: !prev.caliperToolActive,
             }))
           }
-          title="切換 3D 數位游標尺點選測距"
+          title={tr(locale, '切換 3D 數位游標尺點選測距', 'Toggle 3D Digital Caliper')}
           className={`px-2 py-1 rounded text-xs font-medium flex items-center gap-1 transition-colors ${
             settings.caliperToolActive
               ? 'bg-amber-500 text-slate-950 font-semibold shadow-sm'
@@ -1294,7 +1333,7 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
           }`}
         >
           <Ruler className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">3D 測距</span>
+          <span className="hidden sm:inline">{tr(locale, '3D 測距', '3D Caliper')}</span>
         </button>
 
         {(caliperMeasurements.length > 0 || pendingCaliperPoint) && (
@@ -1305,18 +1344,18 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
               setPendingCaliperPoint(null);
               onClearCaliperMeasurements?.();
             }}
-            title="清除所有 3D 測距標記"
+            title={tr(locale, '清除所有 3D 測距標記', 'Clear all 3D caliper markers')}
             className="px-2 py-1 rounded text-xs font-medium flex items-center gap-1 text-rose-600 dark:text-rose-400 hover:bg-rose-500/15 transition-colors"
           >
             <Trash2 className="w-3.5 h-3.5" />
-            <span className="hidden md:inline">清除</span>
+            <span className="hidden md:inline">{tr(locale, '清除', 'Clear')}</span>
           </button>
         )}
 
         <button
           type="button"
           onClick={handleResetCamera}
-          title="重設視角至正面咬合"
+          title={tr(locale, '重設視角至正面咬合', 'Reset camera to frontal view')}
           className="p-1.5 text-slate-600 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-colors"
         >
           <RotateCcw className="w-4 h-4" />
@@ -1324,7 +1363,7 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
         <button
           type="button"
           onClick={handleCaptureScreenshot}
-          title="截取當前 3D 畫面 (PNG)"
+          title={tr(locale, '截取當前 3D 畫面 (PNG)', 'Capture 3D screenshot (PNG)')}
           className="p-1.5 text-slate-600 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-colors"
         >
           <Camera className="w-4 h-4" />
@@ -1332,7 +1371,11 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
         <button
           type="button"
           onClick={toggleFullscreen}
-          title={isFullscreen ? '結束全螢幕' : '全螢幕檢視'}
+          title={
+            isFullscreen
+              ? tr(locale, '結束全螢幕', 'Exit fullscreen')
+              : tr(locale, '全螢幕檢視', 'Fullscreen view')
+          }
           className="p-1.5 text-slate-600 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-colors"
         >
           {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
@@ -1457,7 +1500,11 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
                         }))
                       }
                       className="p-1 rounded bg-sky-500 text-white hover:bg-sky-600 transition-colors"
-                      title={settings.articulator.isPlaying ? '暫停咬合運動' : '自動播放咬合運動'}
+                      title={
+                        settings.articulator.isPlaying
+                          ? tr(locale, '暫停咬合運動', 'Pause articulation')
+                          : tr(locale, '自動播放咬合運動', 'Auto-play articulation')
+                      }
                     >
                       {settings.articulator.isPlaying ? (
                         <Pause className="w-3 h-3" />
