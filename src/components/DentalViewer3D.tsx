@@ -1195,10 +1195,10 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
         <div className="absolute inset-0 z-50 bg-sky-900/75 border-2 border-dashed border-sky-400 flex flex-col items-center justify-center backdrop-blur-sm">
           <Upload className="w-12 h-12 text-sky-300 mb-2 transition-transform duration-300 scale-110" />
           <p className="text-base font-medium text-sky-100">
-            放開以載入新案例 .zip 壓縮檔、資料包或 STL 模型
+            放開以加載新案例 .zip 壓縮檔、資料包或 STL 模型
           </p>
           <p className="text-xs text-sky-300/80">
-            支援直接拖入 .zip 壓縮包或整套口掃檔案 (.stl + .xml + .jpg + .pdf) 自動解壓並存入 IndexedDB
+            支援直接拖入 .zip 壓縮包或整套口掃檔案 (.stl + .xml + .jpg + .pdf)
           </p>
         </div>
       )}
@@ -1602,13 +1602,13 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
         />
         <Upload className="w-3.5 h-3.5 text-white sm:text-sky-500 sm:dark:text-sky-400 flex-shrink-0" />
         <span className="sm:hidden">
-          {tr(locale, '選擇檔案上傳 (.zip/.stl)', 'Upload Files (.zip/.stl)')}
+          {tr(locale, '加載', 'Load')}
         </span>
         <span className="hidden sm:inline">
           {tr(
             locale,
-            '點擊選擇或拖曳本地口掃檔案 (.zip / .stl / .xml / .jpg) 渲染並存入瀏覽器',
-            'Click or drop local scan files (.zip / .stl / .xml / .jpg) to render in browser'
+            '加載或拖曳口掃檔案 (.zip / .stl / .xml / .jpg)',
+            'Load or drop scan files (.zip / .stl / .xml / .jpg)'
           )}
         </span>
       </label>

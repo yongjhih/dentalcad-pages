@@ -6,7 +6,6 @@ import {
   Upload,
   ChevronDown,
   Trash2,
-  Database,
   Sun,
   Moon,
   Globe,
@@ -77,39 +76,23 @@ export const Header: React.FC<HeaderProps> = ({
             >
               {cases.map((c) => (
                 <option key={c.id} value={c.id}>
-                  #{c.metadata.orderId} · {c.metadata.procedure}{' '}
-                  {c.source === 'custom' ? '(IndexedDB)' : ''}
+                  #{c.metadata.orderId} · {c.metadata.procedure}
                 </option>
               ))}
             </select>
             <ChevronDown className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400 pointer-events-none absolute right-1.5" />
           </div>
 
-          {activeCase.source === 'custom' && (
-            <span
-              className="hidden lg:inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-500/15 dark:bg-emerald-950/60 border border-emerald-500/40 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-300 text-[11px]"
-              title={tr(
-                locale,
-                '此案例已持久化儲存於瀏覽器 IndexedDB，下次開啟網頁仍可直接檢視',
-                'Case persisted in browser IndexedDB for offline access'
-              )}
-            >
-              <Database className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
-              <span>{tr(locale, '已存於 IndexedDB', 'Saved in IndexedDB')}</span>
-            </span>
-          )}
-
           {activeCase.source === 'custom' && onDeleteCustomCase && (
             <button
+              type="button"
+              data-testid="header-clear-saved-btn"
               onClick={() => onDeleteCustomCase(activeCase.id)}
-              className="p-1 rounded bg-red-100 dark:bg-red-950/50 hover:bg-red-200 dark:hover:bg-red-900/70 border border-red-300 dark:border-red-800/60 text-red-600 dark:text-red-300 transition-colors"
-              title={tr(
-                locale,
-                '從瀏覽器 IndexedDB 移除此自訂案例',
-                'Remove custom case from browser IndexedDB'
-              )}
+              className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-red-100 dark:bg-red-950/50 hover:bg-red-200 dark:hover:bg-red-900/70 border border-red-300 dark:border-red-800/60 text-red-600 dark:text-red-300 transition-colors whitespace-nowrap"
+              title={tr(locale, '清除此案例存檔', 'Clear saved case')}
             >
-              <Trash2 className="w-3.5 h-3.5" />
+              <Trash2 className="w-3.5 h-3.5 flex-shrink-0" />
+              <span>{tr(locale, '清除存檔', 'Clear Saved')}</span>
             </button>
           )}
         </div>
@@ -145,18 +128,15 @@ export const Header: React.FC<HeaderProps> = ({
           type="button"
           data-testid="header-upload-btn"
           onClick={() => bundleInputRef.current?.click()}
-          className="flex items-center space-x-1 sm:space-x-1.5 px-2.5 py-1.5 sm:py-1 rounded text-xs bg-sky-600 hover:bg-sky-500 text-white shadow-sm transition-colors font-medium"
+          className="flex items-center space-x-1.5 px-2.5 py-1.5 sm:py-1 rounded text-xs bg-sky-600 hover:bg-sky-500 text-white shadow-sm transition-colors font-medium"
           title={tr(
             locale,
-            '選取手機或電腦中的 .zip 壓縮檔或 STL / XML / JPG / PDF 口掃檔案，即時解壓渲染並自動存入瀏覽器 IndexedDB',
-            'Select .zip archive or STL / XML / JPG / PDF scanner files from phone or desktop to render and persist in browser IndexedDB'
+            '選擇 .zip 壓縮檔或 STL / XML / JPG / PDF 口掃檔案加載',
+            'Load .zip archive or STL / XML / JPG / PDF scanner files'
           )}
         >
           <Upload className="w-3.5 h-3.5 flex-shrink-0" />
-          <span className="sm:hidden">{tr(locale, '上傳檔案 (.zip/.stl)', 'Upload (.zip/.stl)')}</span>
-          <span className="hidden sm:inline">
-            {tr(locale, '上傳口掃檔案 (.zip / .stl)', 'Upload Scan (.zip / .stl)')}
-          </span>
+          <span>{tr(locale, '加載', 'Load')}</span>
         </button>
 
         {/* Privacy Anonymize Toggle (Default Active) */}

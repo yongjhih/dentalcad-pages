@@ -579,7 +579,7 @@ export const App: React.FC = () => {
               className="flex items-center gap-1 px-2.5 py-1 rounded bg-sky-600 hover:bg-sky-500 text-white text-[11px] font-medium shadow-sm whitespace-nowrap transition-colors"
             >
               <Upload className="w-3 h-3" />
-              <span>{tr(locale, '選擇檔案上傳 (.zip/.stl)', 'Upload Files (.zip/.stl)')}</span>
+              <span>{tr(locale, '加載', 'Load')}</span>
             </button>
             <button
               type="button"

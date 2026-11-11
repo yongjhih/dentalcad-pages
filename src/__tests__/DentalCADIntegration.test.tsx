@@ -170,7 +170,7 @@ describe('DentalCAD Pages Application Integration Tests', () => {
     // Verify Header upload button and file input are accessible
     const headerUploadBtn = screen.getByTestId('header-upload-btn');
     expect(headerUploadBtn).toBeInTheDocument();
-    expect(headerUploadBtn).toHaveTextContent(/上傳檔案/);
+    expect(headerUploadBtn).toHaveTextContent(/加載/);
 
     // Verify 3D Viewport upload trigger is rendered (not hidden on mobile)
     const viewportUploadLabel = screen.getByTestId('viewport-upload-label');

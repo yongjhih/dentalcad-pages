@@ -323,14 +323,14 @@ export const CadToolsPanel: React.FC<CadToolsPanelProps> = ({
         </div>
       </div>
 
-      {/* External Data Swap & IndexedDB Persistence */}
+      {/* External Data Load & Saved Cases */}
       <div className="space-y-3 pt-2 border-t border-slate-200 dark:border-slate-800/80">
         <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
           <Database className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-          <span>抽換資料與 IndexedDB 持久化儲存</span>
+          <span>加載案例檔案</span>
         </h2>
         <p className="text-slate-500 dark:text-slate-400 text-[11px] leading-relaxed">
-          匯入的案例檔案包（.xml、.stl、.jpg、.pdf）會自動以原始二進位 Blob 格式儲存於您的瀏覽器 IndexedDB，關閉或重新整理網頁後依然完整保留，隨時可切換檢視。
+          加載的案例檔案（.zip、.xml、.stl、.jpg、.pdf）會自動保存在瀏覽器中，關閉或重新整理網頁後依然完整保留，隨時可切換檢視。
         </p>
 
         {onImportCaseFiles && (
@@ -354,7 +354,7 @@ export const CadToolsPanel: React.FC<CadToolsPanelProps> = ({
               className="w-full py-2 px-3 rounded-lg bg-sky-500/15 dark:bg-sky-950/60 hover:bg-sky-500/25 dark:hover:bg-sky-900/70 border border-sky-500/40 dark:border-sky-800/70 text-sky-800 dark:text-sky-200 flex items-center justify-center gap-1.5 transition-colors font-medium"
             >
               <FolderOpen className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
-              <span>整批匯入案例 .zip 壓縮檔或資料包並存入 IndexedDB (.zip / .xml / .stl / .jpg)</span>
+              <span>加載案例檔案 (.zip / .xml / .stl / .jpg)</span>
             </button>
           </div>
         )}
@@ -379,7 +379,7 @@ export const CadToolsPanel: React.FC<CadToolsPanelProps> = ({
               className="w-full py-2 px-3 rounded-lg bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white flex items-center justify-center gap-1.5 transition-colors shadow-sm dark:shadow-none"
             >
               <Upload className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" />
-              <span>僅替換上顎 STL (存入 DB)</span>
+              <span>加載上顎 STL</span>
             </button>
           </div>
 
@@ -402,17 +402,17 @@ export const CadToolsPanel: React.FC<CadToolsPanelProps> = ({
               className="w-full py-2 px-3 rounded-lg bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white flex items-center justify-center gap-1.5 transition-colors shadow-sm dark:shadow-none"
             >
               <Upload className="w-3.5 h-3.5 text-sky-500 dark:text-sky-400" />
-              <span>僅替換下顎 STL (存入 DB)</span>
+              <span>加載下顎 STL</span>
             </button>
           </div>
         </div>
 
-        {/* Saved IndexedDB Cases List */}
+        {/* Saved Cases List */}
         {customCases.length > 0 && (
           <div className="space-y-2 pt-2">
             <span className="text-[11px] font-medium text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5">
               <Database className="w-3 h-3" />
-              瀏覽器 IndexedDB 已儲存案例 ({customCases.length})
+              已儲存案例 ({customCases.length})
             </span>
             <div className="space-y-1.5">
               {customCases.map((c) => {
@@ -427,6 +427,7 @@ export const CadToolsPanel: React.FC<CadToolsPanelProps> = ({
                     }`}
                   >
                     <button
+                      type="button"
                       onClick={() => onSelectCase && onSelectCase(c.id)}
                       className="flex-1 text-left truncate font-mono text-[11px] hover:text-sky-600 dark:hover:text-sky-300 transition-colors"
                     >
@@ -434,11 +435,13 @@ export const CadToolsPanel: React.FC<CadToolsPanelProps> = ({
                     </button>
                     {onDeleteCustomCase && (
                       <button
+                        type="button"
                         onClick={() => onDeleteCustomCase(c.id)}
-                        className="p-1 text-slate-400 hover:text-red-500 dark:hover:text-red-400 transition-colors ml-2"
-                        title="從 IndexedDB 刪除此案例"
+                        className="flex items-center gap-1 px-2 py-0.5 rounded text-[11px] text-red-600 dark:text-red-400 hover:bg-red-500/15 transition-colors ml-2 whitespace-nowrap"
+                        title="清除此案例存檔"
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        <Trash2 className="w-3 h-3" />
+                        <span>清除存檔</span>
                       </button>
                     )}
                   </div>
