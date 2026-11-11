@@ -450,6 +450,24 @@ export async function updateCaseStlInIndexedDB(
   upperFile?: File,
   lowerFile?: File
 ): Promise<DentalCaseBundle> {
+  let resolvedUpper = upperFile;
+  let resolvedLower = lowerFile;
+
+  if (upperFile && upperFile.name.toLowerCase().endsWith('.zip')) {
+    const unzipped = await expandUploadedFilesWithZip([upperFile]);
+    resolvedUpper =
+      unzipped.find((f) => /(_u\.stl|upper|maxilla)/i.test(f.name)) ||
+      unzipped.find((f) => f.name.toLowerCase().endsWith('.stl')) ||
+      upperFile;
+  }
+  if (lowerFile && lowerFile.name.toLowerCase().endsWith('.zip')) {
+    const unzipped = await expandUploadedFilesWithZip([lowerFile]);
+    resolvedLower =
+      unzipped.find((f) => /(_l\.stl|lower|mandible)/i.test(f.name)) ||
+      unzipped.find((f) => f.name.toLowerCase().endsWith('.stl')) ||
+      lowerFile;
+  }
+
   const existingRecord = await getCaseRecordFromIndexedDB(currentBundle.id).catch(() => undefined);
 
   const record: StoredCaseRecord = {
@@ -457,11 +475,11 @@ export async function updateCaseStlInIndexedDB(
     label: currentBundle.label,
     updatedAt: Date.now(),
     metadata: currentBundle.metadata,
-    upperStlBlob: upperFile || existingRecord?.upperStlBlob,
-    upperStlFileName: upperFile ? upperFile.name : currentBundle.assets.upperStlFileName,
+    upperStlBlob: resolvedUpper || existingRecord?.upperStlBlob,
+    upperStlFileName: resolvedUpper ? resolvedUpper.name : currentBundle.assets.upperStlFileName,
     fallbackUpperStlUrl: currentBundle.assets.upperStlUrl,
-    lowerStlBlob: lowerFile || existingRecord?.lowerStlBlob,
-    lowerStlFileName: lowerFile ? lowerFile.name : currentBundle.assets.lowerStlFileName,
+    lowerStlBlob: resolvedLower || existingRecord?.lowerStlBlob,
+    lowerStlFileName: resolvedLower ? resolvedLower.name : currentBundle.assets.lowerStlFileName,
     fallbackLowerStlUrl: currentBundle.assets.lowerStlUrl,
     rxPdfBlob: existingRecord?.rxPdfBlob,
     rxPdfFileName: currentBundle.assets.rxPdfFileName,

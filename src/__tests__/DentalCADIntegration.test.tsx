@@ -7,6 +7,8 @@ import {
   parseUrlDataParameter,
   createUncompressedZipBuffer,
   extractDentalFilesFromZip,
+  buildCaseBundleFromFiles,
+  DEFAULT_CASE_BUNDLE,
 } from '@dentalcad-pages/core';
 
 describe('DentalCAD Pages Application Integration Tests', () => {
@@ -223,7 +225,16 @@ describe('DentalCAD Pages Application Integration Tests', () => {
       '99887766_v50.xml',
     ]);
 
-    // 3. Test ?url= local path banner rendering when opening with ?url="/Users/.../Export_99887766.zip"
+    // 3. Test uploading a .zip file directly into buildCaseBundleFromFiles
+    const zipFile = new File([zipBuffer], 'Export_99887766.zip', {
+      type: 'application/zip',
+    });
+    const bundleFromZip = await buildCaseBundleFromFiles([zipFile], DEFAULT_CASE_BUNDLE);
+    expect(bundleFromZip.id).toBe('99887766');
+    expect(bundleFromZip.assets.upperStlFileName).toBe('99887766_shell_occlusion_u.stl');
+    expect(bundleFromZip.assets.lowerStlFileName).toBe('99887766_shell_occlusion_l.stl');
+
+    // 4. Test ?url= local path banner rendering when opening with ?url="/Users/.../Export_99887766.zip"
     const originalUrl = window.location.href;
     window.history.replaceState(
       {},

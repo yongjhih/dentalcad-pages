@@ -354,7 +354,7 @@ export const CadToolsPanel: React.FC<CadToolsPanelProps> = ({
               className="w-full py-2 px-3 rounded-lg bg-sky-500/15 dark:bg-sky-950/60 hover:bg-sky-500/25 dark:hover:bg-sky-900/70 border border-sky-500/40 dark:border-sky-800/70 text-sky-800 dark:text-sky-200 flex items-center justify-center gap-1.5 transition-colors font-medium"
             >
               <FolderOpen className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
-              <span>整批匯入案例資料包並存入 IndexedDB (.xml + .stl + .jpg)</span>
+              <span>整批匯入案例 .zip 壓縮檔或資料包並存入 IndexedDB (.zip / .xml / .stl / .jpg)</span>
             </button>
           </div>
         )}

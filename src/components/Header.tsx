@@ -148,14 +148,14 @@ export const Header: React.FC<HeaderProps> = ({
           className="flex items-center space-x-1 sm:space-x-1.5 px-2.5 py-1.5 sm:py-1 rounded text-xs bg-sky-600 hover:bg-sky-500 text-white shadow-sm transition-colors font-medium"
           title={tr(
             locale,
-            '選取手機或電腦中的 STL / XML / JPG / PDF 口掃檔案，即時渲染並自動存入瀏覽器 IndexedDB',
-            'Select STL / XML / JPG / PDF scanner files from phone or desktop to render and persist in browser IndexedDB'
+            '選取手機或電腦中的 .zip 壓縮檔或 STL / XML / JPG / PDF 口掃檔案，即時解壓渲染並自動存入瀏覽器 IndexedDB',
+            'Select .zip archive or STL / XML / JPG / PDF scanner files from phone or desktop to render and persist in browser IndexedDB'
           )}
         >
           <Upload className="w-3.5 h-3.5 flex-shrink-0" />
-          <span className="sm:hidden">{tr(locale, '上傳檔案', 'Upload')}</span>
+          <span className="sm:hidden">{tr(locale, '上傳檔案 (.zip/.stl)', 'Upload (.zip/.stl)')}</span>
           <span className="hidden sm:inline">
-            {tr(locale, '上傳口掃檔案', 'Upload Scan Bundle')}
+            {tr(locale, '上傳口掃檔案 (.zip / .stl)', 'Upload Scan (.zip / .stl)')}
           </span>
         </button>
 

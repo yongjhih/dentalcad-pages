@@ -92,7 +92,9 @@ export async function extractDentalFilesFromZip(
       const commentLen = view.getUint16(ptr + 32, true);
       const localHeaderOffset = view.getUint32(ptr + 42, true);
 
-      const rawEntryName = decoder.decode(bytes.subarray(ptr + 46, ptr + 46 + fileNameLen));
+      const rawEntryName = decoder
+        .decode(bytes.subarray(ptr + 46, ptr + 46 + fileNameLen))
+        .replace(/\\/g, '/');
       ptr += 46 + fileNameLen + extraLen + commentLen;
 
       // Skip directories and macOS resource forks (__MACOSX or ._*)
@@ -147,7 +149,9 @@ export async function extractDentalFilesFromZip(
     const fileNameLen = view.getUint16(offset + 26, true);
     const extraLen = view.getUint16(offset + 28, true);
 
-    const rawEntryName = decoder.decode(bytes.subarray(offset + 30, offset + 30 + fileNameLen));
+    const rawEntryName = decoder
+      .decode(bytes.subarray(offset + 30, offset + 30 + fileNameLen))
+      .replace(/\\/g, '/');
     const dataStart = offset + 30 + fileNameLen + extraLen;
     offset = dataStart + compressedSize;
 
