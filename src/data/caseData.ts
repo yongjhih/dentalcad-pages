@@ -3,6 +3,7 @@ import {
   DentalCaseBundle,
   DentalCaseMetadata,
   CameraPreset,
+  ScannerVendor,
 } from '../types/dental';
 import {
   StoredCaseRecord,
@@ -12,131 +13,81 @@ import {
   hydrateCaseBundleFromRecord,
 } from '../utils/caseStorage';
 
+const DEMO_SAMPLE_XML = `<?xml version="1.0" encoding="UTF-8"?>
+<IOSExport Version="1.0" Vendor="Universal-IOS">
+  <OrderInfo>
+    <OrderID>DEMO-ARCH-01</OrderID>
+    <OrderCode>IOS-CALIB-01</OrderCode>
+    <Patient>Demo, Calibration Arch</Patient>
+    <UniquePatientIdentifier>00000000-0000-4000-8000-000000000001</UniquePatientIdentifier>
+    <Doctor>Dr. Demo, Clinician</Doctor>
+    <DoctorLicense>DEMO-808</DoctorLicense>
+    <DoctorID>IOS-DEMO</DoctorID>
+    <PracticeShipToAddress>Universal IOS Dental Clinic 100 Digital Dentistry Blvd, Suite 3D</PracticeShipToAddress>
+    <DueDate>2026-05-02</DueDate>
+    <ExportTime>2026-05-02 09:00:00</ExportTime>
+    <ToothShadeSystem>VITA Classical / 3D-Master</ToothShadeSystem>
+    <ScannerVendor>Universal IOS</ScannerVendor>
+    <ScannerModel>Procedural Calibration Arch (14-Tooth)</ScannerModel>
+  </OrderInfo>
+  <ActualUsedTransforms>
+    <Transformation>-1 0 0 0, 0 -1 0 0, 0 0 1 0, 0 0 0 1</Transformation>
+  </ActualUsedTransforms>
+</IOSExport>`;
+
 /**
- * Built-in fallback case bundle (synced with public/cases/manifest.json)
- * Ensures zero-latency initial render while still allowing dynamic manifest.json overrides.
+ * Built-in zero-PHI synthetic calibration arch bundle.
+ * No local patient files are loaded from disk; users upload their own scanner files via browser.
  */
 export const DEFAULT_CASE_BUNDLE: DentalCaseBundle = {
-  id: '297077963',
-  label: '#297077963 — Chen, Yung Chih (Invisalign)',
+  id: 'DEMO-ARCH-01',
+  label: '#DEMO-ARCH-01 — Demo, Calibration Arch (Universal IOS)',
   source: 'builtin',
   metadata: {
-    orderId: '297077963',
-    orderCode: '0ACP263H',
-    patientName: 'Chen, Yung Chih',
-    patientId: 'ffcd7058-2e43-4fc0-a28f-0c99fd32d19e',
-    doctorName: 'Dr. Chen, De Shing',
-    doctorLicense: '808',
-    doctorId: '838507',
-    clinicName: 'Leader Way OMS Dental Clinic',
-    clinicAddress:
-      'No. 280, Sec. 3, Chongqing N. Rd, Datong Dist., Taipei City 10372, Taiwan',
+    orderId: 'DEMO-ARCH-01',
+    orderCode: 'IOS-CALIB-01',
+    scannerVendor: 'generic',
+    scannerModel: 'Universal IOS Synthetic Arch',
+    patientName: 'Demo, Calibration Arch',
+    patientId: '00000000-0000-4000-8000-000000000001',
+    doctorName: 'Dr. Demo, Clinician',
+    doctorLicense: 'DEMO-808',
+    doctorId: 'IOS-DEMO',
+    clinicName: 'Universal IOS Dental Clinic',
+    clinicAddress: '100 Digital Dentistry Blvd, Suite 3D (Browser Sandbox)',
     scanDate: '2026-05-02',
-    exportTime: '11/11/2026 10:46:00',
+    exportTime: '2026-05-02 09:00:00',
     dueDate: '2026-05-02',
-    procedure: 'Invisalign',
-    procedureType: 'Invisalign Aligners',
+    procedure: 'Universal IOS',
+    procedureType: '3D Occlusal & Articulation Sandbox',
     toothShadeSystem: 'VITA Lumin',
     upperAdaRange: 'ADA #1 - #16 (Maxillary Full Arch)',
     lowerAdaRange: 'ADA #17 - #32 (Mandibular Full Arch)',
-    caasVersion: '1.0.0.49',
-    iteroVersion: '2.19.0.107',
+    caasVersion: '1.0.0',
+    iteroVersion: 'Universal-IOS',
   },
   assets: {
-    upperStlUrl: './cases/297077963/upper.stl',
-    upperStlFileName: '297077963_shell_occlusion_u.stl',
-    lowerStlUrl: './cases/297077963/lower.stl',
-    lowerStlFileName: '297077963_shell_occlusion_l.stl',
-    rxPdfUrl: './cases/297077963/rx.pdf',
-    rxPdfFileName: 'iTero_Rx_297077963.pdf',
-    rxHtmlUrl: './cases/297077963/rx.html',
-    rxHtmlFileName: 'Rx_297077963.html',
-    xmlV50Url: './cases/297077963/itero_export_v50.xml',
-    xmlV50FileName: 'itero_export_#297077963_v50.xml',
-    xmlV30Url: './cases/297077963/itero_export_v30.xml',
-    xmlV30FileName: 'itero_export_#297077963_v30.xml',
-    logoUrl: './cases/297077963/logo.png',
+    upperStlUrl: 'procedural://upper',
+    upperStlFileName: 'demo_maxilla_upper.stl',
+    lowerStlUrl: 'procedural://lower',
+    lowerStlFileName: 'demo_mandible_lower.stl',
   },
   defaultMeshStats: {
-    upperTriangles: 319289,
-    lowerTriangles: 299787,
-    upperDimensions: { width: 66.4, depth: 51.1, height: 19.5 },
-    lowerDimensions: { width: 65.0, depth: 54.5, height: 22.0 },
+    upperTriangles: 14112,
+    lowerTriangles: 14112,
+    upperDimensions: { width: 61.2, depth: 50.8, height: 15.2 },
+    lowerDimensions: { width: 56.8, depth: 48.6, height: 15.2 },
   },
-  photos: [
-    {
-      id: 'overview',
-      title: '複合臨床全覽圖 (Overview)',
-      viewName: 'Composite Penta View',
-      description: 'iTero Element 系統自動匯總之五方位臨床照片集合總覽圖。',
-      fileName: 'gallery_#297077963.jpg',
-      src: './cases/297077963/gallery_overview.jpg',
-      cameraPreset: 'isometric',
-    },
-    {
-      id: 'front',
-      title: '正視咬合面 (Frontal View)',
-      viewName: 'Frontal Occlusion',
-      description: '前牙中線、前牙覆咬 (Overbite) 與覆蓋 (Overjet) 及前牙齒列排列檢視。',
-      fileName: 'gallery_#297077963_penta_front_m.jpg',
-      src: './cases/297077963/penta_front.jpg',
-      cameraPreset: 'front',
-    },
-    {
-      id: 'upper',
-      title: '上顎齒列咬合面 (Upper Arch)',
-      viewName: 'Maxillary Occlusal',
-      description: '上顎牙弓型態、顎面窩溝咬合點以及牙弓寬度與旋轉度。',
-      fileName: 'gallery_#297077963_penta_upper_m.jpg',
-      src: './cases/297077963/penta_upper.jpg',
-      cameraPreset: 'upper',
-    },
-    {
-      id: 'lower',
-      title: '下顎齒列咬合面 (Lower Arch)',
-      viewName: 'Mandibular Occlusal',
-      description: '下顎牙弓對稱性、舌側傾斜度及前牙擁擠 (Crowding) 分析。',
-      fileName: 'gallery_#297077963_penta_lower_m.jpg',
-      src: './cases/297077963/penta_lower.jpg',
-      cameraPreset: 'lower',
-    },
-    {
-      id: 'patientright',
-      title: '右側頰面咬合 (Right Buccal)',
-      viewName: 'Right Buccal Occlusion',
-      description: '右側犬齒與第一大臼齒 Angle Class 咬合關係與齒間接觸。',
-      fileName: 'gallery_#297077963_penta_patientright_m.jpg',
-      src: './cases/297077963/penta_patientright.jpg',
-      cameraPreset: 'right',
-    },
-    {
-      id: 'patientleft',
-      title: '左側頰面咬合 (Left Buccal)',
-      viewName: 'Left Buccal Occlusion',
-      description: '左側犬齒與第一大臼齒咬合關係、對咬接觸點及後牙側方引導。',
-      fileName: 'gallery_#297077963_penta_patientleft_m.jpg',
-      src: './cases/297077963/penta_patientleft.jpg',
-      cameraPreset: 'left',
-    },
-  ],
+  photos: [],
+  rawXmlV50: DEMO_SAMPLE_XML,
 };
 
 /**
- * Fetch the dynamic case manifest generated in public/cases/manifest.json
+ * Returns the synthetic zero-PHI calibration manifest (no local disk files are loaded).
  */
 export async function fetchCaseManifest(): Promise<CaseManifest> {
-  try {
-    const res = await fetch('./cases/manifest.json', { cache: 'no-cache' });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = (await res.json()) as CaseManifest;
-    if (data && Array.isArray(data.cases) && data.cases.length > 0) {
-      return data;
-    }
-  } catch (err) {
-    console.warn('Using fallback case manifest:', err);
-  }
   return {
-    version: '1.0.0',
+    version: '2.0.0',
     generatedAt: new Date().toISOString(),
     defaultCaseId: DEFAULT_CASE_BUNDLE.id,
     cases: [DEFAULT_CASE_BUNDLE],
@@ -144,21 +95,82 @@ export async function fetchCaseManifest(): Promise<CaseManifest> {
 }
 
 /**
- * Parse iTero XML string (v3.0 or v5.0) into DentalCaseMetadata
+ * Automatically detect intraoral scanner vendor from filenames and XML metadata content.
  */
-export function parseIteroXmlString(
+export function detectScannerVendor(
+  files: Array<{ name: string }>,
+  xmlText = ''
+): { vendor: ScannerVendor; model: string } {
+  const joinedNames = files.map((f) => f.name.toLowerCase()).join(' ');
+  const xmlLower = xmlText.toLowerCase();
+
+  if (
+    joinedNames.includes('itero') ||
+    joinedNames.includes('_shell_occlusion_') ||
+    joinedNames.includes('penta_') ||
+    xmlLower.includes('<iteroversion>') ||
+    xmlLower.includes('caasversion')
+  ) {
+    return { vendor: 'itero', model: 'Align iTero Element / Lumina' };
+  }
+  if (
+    joinedNames.includes('upperjawscan') ||
+    joinedNames.includes('lowerjawscan') ||
+    joinedNames.includes('3shape') ||
+    joinedNames.includes('trios') ||
+    xmlLower.includes('3shape') ||
+    xmlLower.includes('trios')
+  ) {
+    return { vendor: '3shape', model: '3Shape TRIOS' };
+  }
+  if (
+    joinedNames.includes('medit') ||
+    xmlLower.includes('medit')
+  ) {
+    return { vendor: 'medit', model: 'Medit i-Series (i600 / i700 / i900)' };
+  }
+  if (
+    joinedNames.includes('aoralscan') ||
+    joinedNames.includes('shining') ||
+    xmlLower.includes('shining3d')
+  ) {
+    return { vendor: 'shining3d', model: 'Shining 3D Aoralscan' };
+  }
+  if (
+    joinedNames.includes('carestream') ||
+    joinedNames.includes('cs3') ||
+    xmlLower.includes('carestream')
+  ) {
+    return { vendor: 'carestream', model: 'Carestream Dental CS Series' };
+  }
+  return { vendor: 'generic', model: 'Universal Intraoral Scanner (STL)' };
+}
+
+/**
+ * Parse intraoral scanner XML metadata (supports iTero v3/v5, 3Shape TRIOS, Medit, and Generic XML)
+ */
+export function parseScannerXmlString(
   xmlText: string,
-  fallbackOrderId = 'custom'
+  fallbackOrderId = 'custom',
+  filesForDetection: Array<{ name: string }> = []
 ): DentalCaseMetadata {
   const parser = new DOMParser();
   const doc = parser.parseFromString(xmlText, 'application/xml');
 
-  const getText = (tag: string) =>
-    doc.querySelector(tag)?.textContent?.trim() || '';
+  const getText = (...tags: string[]) => {
+    for (const tag of tags) {
+      const val = doc.querySelector(tag)?.textContent?.trim();
+      if (val) return val;
+    }
+    return '';
+  };
 
-  const orderId = getText('OrderID') || fallbackOrderId;
-  const orderCode = getText('OrderCode') || 'CUSTOM';
-  const rawPatient = getText('Patient') || 'Custom Patient';
+  const detected = detectScannerVendor(filesForDetection, xmlText);
+
+  const orderId = getText('OrderID', 'CaseID', 'RxID') || fallbackOrderId;
+  const orderCode = getText('OrderCode', 'CaseCode') || detected.vendor.toUpperCase();
+  const rawPatient =
+    getText('Patient', 'PatientName', 'PatientFullName') || 'Custom Patient';
   const patientName = rawPatient.includes(',')
     ? rawPatient
         .split(',')
@@ -167,11 +179,14 @@ export function parseIteroXmlString(
         .join(', ')
     : rawPatient;
 
-  const patientId = getText('UniquePatientIdentifier') || `uid-${orderId}`;
-  const doctorName = getText('Doctor') || 'Attending Clinician';
-  const doctorLicense = getText('DoctorLicense') || 'N/A';
-  const doctorId = getText('DoctorID') || 'N/A';
-  const rawAddress = getText('PracticeShipToAddress') || '';
+  const patientId =
+    getText('UniquePatientIdentifier', 'PatientID', 'PatientGUID') || `uid-${orderId}`;
+  const doctorName =
+    getText('Doctor', 'DoctorName', 'UserName', 'Clinician') || 'Attending Clinician';
+  const doctorLicense = getText('DoctorLicense', 'LicenseNumber') || 'N/A';
+  const doctorId = getText('DoctorID', 'ClinicianID') || 'N/A';
+  const rawAddress =
+    getText('PracticeShipToAddress', 'ClinicName', 'PracticeName') || '';
   const clinicName = rawAddress.includes('Clinic')
     ? rawAddress.slice(0, rawAddress.indexOf('Clinic') + 6).trim()
     : rawAddress || 'Dental Clinic';
@@ -179,8 +194,9 @@ export function parseIteroXmlString(
     rawAddress.replace(clinicName, '').replace(/\s+N\/A\s+/g, ', ').trim() ||
     rawAddress;
 
-  const dueDate = getText('DueDate') || new Date().toISOString().slice(0, 10);
-  const exportTime = getText('ExportTime') || new Date().toISOString();
+  const dueDate =
+    getText('DueDate', 'ScanDate', 'CreateDate') || new Date().toISOString().slice(0, 10);
+  const exportTime = getText('ExportTime', 'ModifyDate') || new Date().toISOString();
 
   const upperRangeEl = doc.querySelector('UpperRange');
   const lowerRangeEl = doc.querySelector('LowerRange');
@@ -192,13 +208,17 @@ export function parseIteroXmlString(
   const procEl = doc.querySelector('RxDefines > Procedure > Type');
   const procTypeEl = doc.querySelector('RxDefines > ProcedureType > Type');
   const procedure =
-    procEl?.getAttribute('Name') || getText('CaseTypeName') || 'Invisalign';
+    procEl?.getAttribute('Name') ||
+    getText('CaseTypeName', 'TreatmentType') ||
+    detected.model;
   const procedureType =
-    procTypeEl?.getAttribute('Name') || `${procedure} Aligners`;
+    procTypeEl?.getAttribute('Name') || `${procedure} Digital Impression`;
 
   return {
     orderId,
     orderCode,
+    scannerVendor: detected.vendor,
+    scannerModel: detected.model,
     patientName,
     patientId,
     doctorName,
@@ -211,18 +231,20 @@ export function parseIteroXmlString(
     dueDate,
     procedure,
     procedureType,
-    toothShadeSystem: getText('ToothShadeSystem') || 'VITA Lumin',
+    toothShadeSystem: getText('ToothShadeSystem', 'ShadeSystem') || 'VITA Lumin',
     upperAdaRange: `ADA #${upperFrom} - #${upperTo} (Maxillary Full Arch)`,
     lowerAdaRange: `ADA #${lowerFrom} - #${lowerTo} (Mandibular Full Arch)`,
-    caasVersion: getText('CaaSVersion') || '1.0.0',
-    iteroVersion: getText('iTeroVersion') || '2.19.0',
+    caasVersion: getText('CaaSVersion', 'SoftwareVersion') || '1.0.0',
+    iteroVersion: getText('iTeroVersion', 'ScannerVersion') || detected.model,
   };
 }
 
+// Keep alias for backward compatibility
+export const parseIteroXmlString = parseScannerXmlString;
+
 /**
- * Build a complete DentalCaseBundle from user-selected or dropped files AND persist to IndexedDB
- * Supports dropping an entire iTero export folder (STLs + XMLs + JPGs + PDF + HTML)
- * or individual STL files.
+ * Build a complete DentalCaseBundle from user-selected or dropped files AND persist to IndexedDB.
+ * Supports multi-vendor intraoral scanner exports (iTero, 3Shape TRIOS, Medit, Shining3D, Generic STL/XML/JPG/PDF).
  */
 export async function buildCaseBundleFromFiles(
   fileList: FileList | File[],
@@ -230,18 +252,29 @@ export async function buildCaseBundleFromFiles(
 ): Promise<DentalCaseBundle> {
   const files = Array.from(fileList);
 
-  // Check for upper and lower STL files
+  // Match upper (maxilla) and lower (mandible) STL files across all major scanner conventions
   const stlFiles = files.filter((f) => f.name.toLowerCase().endsWith('.stl'));
   const upperStl =
     stlFiles.find((f) => {
       const n = f.name.toLowerCase();
-      return n.includes('_u.stl') || n.includes('upper') || n.includes('maxilla');
+      return (
+        n.includes('_u.stl') ||
+        n.includes('upper') ||
+        n.includes('maxilla') ||
+        n.includes('antagonist_u')
+      );
     }) || (stlFiles.length === 1 ? stlFiles[0] : undefined);
 
-  const lowerStl = stlFiles.find((f) => {
-    const n = f.name.toLowerCase();
-    return n.includes('_l.stl') || n.includes('lower') || n.includes('mandible');
-  });
+  const lowerStl =
+    stlFiles.find((f) => {
+      const n = f.name.toLowerCase();
+      return (
+        n.includes('_l.stl') ||
+        n.includes('lower') ||
+        n.includes('mandible') ||
+        n.includes('antagonist_l')
+      );
+    }) || (stlFiles.length === 2 && stlFiles[0] === upperStl ? stlFiles[1] : undefined);
 
   // Check for XML metadata files
   const xmlFiles = files.filter((f) => f.name.toLowerCase().endsWith('.xml'));
@@ -264,18 +297,28 @@ export async function buildCaseBundleFromFiles(
     upperStl?.name.match(/^(\d+)_/) ||
     lowerStl?.name.match(/^(\d+)_/) ||
     xmlV50File?.name.match(/#?(\d+)/);
-  const inferredId = idMatch ? idMatch[1] : `custom-${Date.now().toString().slice(-4)}`;
+  const inferredId = idMatch ? idMatch[1] : `ios-${Date.now().toString().slice(-5)}`;
+
+  const detected = detectScannerVendor(files, rawXmlV50 || rawXmlV30 || '');
 
   const metadata: DentalCaseMetadata =
     rawXmlV50 || rawXmlV30
-      ? parseIteroXmlString((rawXmlV50 || rawXmlV30)!, inferredId)
+      ? parseScannerXmlString((rawXmlV50 || rawXmlV30)!, inferredId, files)
       : {
           ...currentBundle.metadata,
           orderId: inferredId,
-          patientName: upperStl?.name.replace(/\.stl$/i, '') || currentBundle.metadata.patientName,
+          orderCode: detected.vendor.toUpperCase(),
+          scannerVendor: detected.vendor,
+          scannerModel: detected.model,
+          procedure: detected.model,
+          procedureType: 'Browser Local STL Import',
+          patientName:
+            upperStl?.name.replace(/(_shell_occlusion_[ul]|_u|_l|\.stl)$/gi, '') ||
+            currentBundle.metadata.patientName,
+          scanDate: new Date().toISOString().slice(0, 10),
         };
 
-  // Check for Clinical Photos (.jpg / .png)
+  // Check for Clinical Photos (.jpg / .png / .webp)
   const imageFiles = files.filter(
     (f) => /\.(jpe?g|png|webp)$/i.test(f.name) && !f.name.toLowerCase().includes('logo')
   );
@@ -291,15 +334,15 @@ export async function buildCaseBundleFromFiles(
   }[] = [
     {
       id: 'overview',
-      match: (n) => !n.includes('penta_'),
+      match: (n) => !n.includes('penta_') && !n.includes('front') && !n.includes('upper') && !n.includes('lower') && !n.includes('right') && !n.includes('left'),
       title: '複合臨床全覽圖 (Overview)',
       viewName: 'Composite Penta View',
-      description: 'iTero Element 系統自動匯總之五方位臨床照片集合總覽圖。',
+      description: '口掃系統匯總之五方位臨床照片集合總覽圖。',
       cameraPreset: 'isometric',
     },
     {
       id: 'front',
-      match: (n) => n.includes('front'),
+      match: (n) => n.includes('front') || n.includes('anterior'),
       title: '正視咬合面 (Frontal View)',
       viewName: 'Frontal Occlusion',
       description: '前牙中線、前牙覆咬與覆蓋及前牙齒列排列檢視。',
@@ -307,7 +350,7 @@ export async function buildCaseBundleFromFiles(
     },
     {
       id: 'upper',
-      match: (n) => n.includes('upper'),
+      match: (n) => n.includes('upper') || n.includes('maxilla'),
       title: '上顎齒列咬合面 (Upper Arch)',
       viewName: 'Maxillary Occlusal',
       description: '上顎牙弓型態、顎面窩溝咬合點以及牙弓寬度。',
@@ -315,7 +358,7 @@ export async function buildCaseBundleFromFiles(
     },
     {
       id: 'lower',
-      match: (n) => n.includes('lower'),
+      match: (n) => n.includes('lower') || n.includes('mandible'),
       title: '下顎齒列咬合面 (Lower Arch)',
       viewName: 'Mandibular Occlusal',
       description: '下顎牙弓對稱性、舌側傾斜度及前牙擁擠分析。',

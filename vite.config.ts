@@ -1,9 +1,16 @@
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
+import path from 'node:path';
 
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
+  resolve: {
+    alias: {
+      '@ios-pages/core': path.resolve(__dirname, 'packages/core/src'),
+      '@ios-pages/viewer': path.resolve(__dirname, 'packages/viewer/src'),
+    },
+  },
   // GitHub Pages base: relative path ensures assets load properly regardless of domain/repo subpath
   base: './',
   build: {

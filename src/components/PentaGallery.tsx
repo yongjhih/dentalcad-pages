@@ -9,6 +9,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Layers,
+  Upload,
 } from 'lucide-react';
 
 interface PentaGalleryProps {
@@ -16,6 +17,7 @@ interface PentaGalleryProps {
   onSyncCameraPreset: (preset: CameraPreset) => void;
   photoTextureMapped?: boolean;
   onTogglePhotoTexture?: () => void;
+  onImportCaseFiles?: (files: FileList) => void;
 }
 
 export const PentaGallery: React.FC<PentaGalleryProps> = ({
@@ -23,6 +25,7 @@ export const PentaGallery: React.FC<PentaGalleryProps> = ({
   onSyncCameraPreset,
   photoTextureMapped = false,
   onTogglePhotoTexture,
+  onImportCaseFiles,
 }) => {
   const [selectedPhoto, setSelectedPhoto] = useState<ClinicalPhoto | null>(null);
   const [zoomLevel, setZoomLevel] = useState<number>(1);
@@ -80,58 +83,87 @@ export const PentaGallery: React.FC<PentaGalleryProps> = ({
         )}
       </div>
 
-      {/* Grid of photos */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        {photos.map((photo) => (
-          <div
-            key={photo.id}
-            onClick={() => handleOpenPhoto(photo)}
-            className="group relative bg-white dark:bg-[#0b0f17] border border-slate-200 dark:border-slate-800 hover:border-sky-500/60 rounded-lg overflow-hidden cursor-pointer transition-all flex flex-col shadow-sm dark:shadow-none"
-          >
-            <div className="aspect-[4/3] bg-slate-100 dark:bg-black/40 overflow-hidden relative">
-              <img
-                src={photo.src}
-                alt={photo.title}
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                loading="lazy"
+      {/* Empty State when no local photos have been uploaded yet */}
+      {photos.length === 0 ? (
+        <div className="border border-dashed border-slate-300 dark:border-slate-700 bg-white dark:bg-[#0b0f17] rounded-lg p-6 text-center space-y-3">
+          <p className="text-xs font-medium text-slate-800 dark:text-slate-200">
+            尚未載入五方位臨床齒列照片 (純瀏覽器零隱私外洩模式)
+          </p>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed max-w-md mx-auto">
+            本系統預設不預載任何本地病患資料。請點擊下方按鈕選擇口掃匯出的五方位臨床照片（包含 front / upper / lower / right / left 之 .jpg 或 .png 與 .stl），即可即時渲染 3D 照片貼圖並儲存於瀏覽器 IndexedDB。
+          </p>
+          {onImportCaseFiles && (
+            <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white text-xs font-medium cursor-pointer transition-colors">
+              <input
+                type="file"
+                multiple
+                accept=".stl,.xml,.jpg,.jpeg,.png,.pdf,.html"
+                className="hidden"
+                onChange={(e) => {
+                  if (e.target.files && e.target.files.length > 0) {
+                    onImportCaseFiles(e.target.files);
+                    e.target.value = '';
+                  }
+                }}
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-30 group-hover:opacity-20 transition-opacity" />
-              <div className="absolute top-1.5 right-1.5 p-1 bg-black/60 rounded text-slate-200 opacity-0 group-hover:opacity-100 transition-opacity">
-                <Maximize2 className="w-3.5 h-3.5" />
+              <Upload className="w-3.5 h-3.5" />
+              <span>選擇本地口掃照片與 STL 檔案</span>
+            </label>
+          )}
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          {photos.map((photo) => (
+            <div
+              key={photo.id}
+              onClick={() => handleOpenPhoto(photo)}
+              className="group relative bg-white dark:bg-[#0b0f17] border border-slate-200 dark:border-slate-800 hover:border-sky-500/60 rounded-lg overflow-hidden cursor-pointer transition-all flex flex-col shadow-sm dark:shadow-none"
+            >
+              <div className="aspect-[4/3] bg-slate-100 dark:bg-black/40 overflow-hidden relative">
+                <img
+                  src={photo.src}
+                  alt={photo.title}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  loading="lazy"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-30 group-hover:opacity-20 transition-opacity" />
+                <div className="absolute top-1.5 right-1.5 p-1 bg-black/60 rounded text-slate-200 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Maximize2 className="w-3.5 h-3.5" />
+                </div>
+              </div>
+
+              <div className="p-2.5 flex-1 flex flex-col justify-between">
+                <div>
+                  <p className="font-medium text-slate-800 dark:text-slate-200 line-clamp-1">
+                    {photo.viewName}
+                  </p>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2">
+                    {photo.description}
+                  </p>
+                </div>
+
+                <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
+                  <span className="font-mono text-[10px] text-slate-400 dark:text-slate-500 truncate">
+                    {photo.fileName}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSyncCameraPreset(photo.cameraPreset);
+                    }}
+                    className="flex items-center gap-1 text-[10px] text-sky-600 dark:text-sky-400 hover:text-sky-700 dark:hover:text-sky-300 font-medium px-1.5 py-0.5 rounded bg-sky-500/10 dark:bg-sky-950/50 border border-sky-500/30 dark:border-sky-800/40"
+                    title="將 3D 模型視角同步至此照片角度"
+                  >
+                    <Compass className="w-3 h-3" />
+                    同步 3D
+                  </button>
+                </div>
               </div>
             </div>
-
-            <div className="p-2.5 flex-1 flex flex-col justify-between">
-              <div>
-                <p className="font-medium text-slate-800 dark:text-slate-200 line-clamp-1">
-                  {photo.viewName}
-                </p>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2">
-                  {photo.description}
-                </p>
-              </div>
-
-              <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
-                <span className="font-mono text-[10px] text-slate-400 dark:text-slate-500 truncate">
-                  {photo.fileName}
-                </span>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onSyncCameraPreset(photo.cameraPreset);
-                  }}
-                  className="flex items-center gap-1 text-[10px] text-sky-600 dark:text-sky-400 hover:text-sky-700 dark:hover:text-sky-300 font-medium px-1.5 py-0.5 rounded bg-sky-500/10 dark:bg-sky-950/50 border border-sky-500/30 dark:border-sky-800/40"
-                  title="將 3D 模型視角同步至此照片角度"
-                >
-                  <Compass className="w-3 h-3" />
-                  同步 3D
-                </button>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* Lightbox Modal */}
       {selectedPhoto && (

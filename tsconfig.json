@@ -18,7 +18,14 @@
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+    "baseUrl": ".",
+    "paths": {
+      "@ios-pages/core": ["./packages/core/src/index.ts"],
+      "@ios-pages/core/*": ["./packages/core/src/*"],
+      "@ios-pages/viewer": ["./packages/viewer/src/index.ts"],
+      "@ios-pages/viewer/*": ["./packages/viewer/src/*"]
+    }
   },
-  "include": ["src"]
+  "include": ["src", "packages"]
 }

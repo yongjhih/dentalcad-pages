@@ -843,6 +843,11 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
 
     const loadStlGeometry = (url: string, key: 'upper' | 'lower') =>
       new Promise<THREE.BufferGeometry>((resolve) => {
+        if (!url || url.startsWith('procedural://')) {
+          setLoadProgress((p) => ({ ...p, [key]: 100 }));
+          resolve(createProceduralDentalArchGeometry(key === 'upper'));
+          return;
+        }
         loader.load(
           url,
           (geom) => {
@@ -861,7 +866,6 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
             }
           },
           () => {
-            // Fallback to procedural 14-tooth dental arch when raw STL files are not deployed (e.g. GitHub Pages)
             resolve(createProceduralDentalArchGeometry(key === 'upper'));
           }
         );
@@ -1530,11 +1534,23 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
         </div>
       </div>
 
-      {/* Floating Bottom Right: Drag & Drop Dropzone info */}
-      <div className="absolute bottom-4 right-4 z-30 hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-white/90 dark:bg-[#0f172a]/90 border border-slate-200 dark:border-slate-800 rounded-md text-[11px] text-slate-600 dark:text-slate-400 backdrop-blur shadow-sm">
+      {/* Floating Bottom Right: Clickable Browser Upload & Drag-and-Drop Trigger */}
+      <label className="absolute bottom-4 right-4 z-30 hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-white/95 dark:bg-[#0f172a]/95 hover:bg-sky-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 rounded-md text-[11px] text-slate-700 dark:text-slate-300 backdrop-blur shadow-sm cursor-pointer transition-colors">
+        <input
+          type="file"
+          multiple
+          accept=".stl,.xml,.jpg,.jpeg,.png,.pdf,.html"
+          className="hidden"
+          onChange={(e) => {
+            if (e.target.files && e.target.files.length > 0 && onCustomFilesDrop) {
+              onCustomFilesDrop(e.target.files);
+              e.target.value = '';
+            }
+          }}
+        />
         <Upload className="w-3.5 h-3.5 text-sky-500 dark:text-sky-400" />
-        <span>可直接拖曳新案例資料包 (.stl / .xml / .jpg) 即時抽換</span>
-      </div>
+        <span>點擊選擇或拖曳本地口掃檔案 (.stl / .xml / .jpg) 渲染並存入瀏覽器</span>
+      </label>
     </div>
   );
 };

@@ -4,6 +4,14 @@ export type CameraPreset = 'front' | 'upper' | 'lower' | 'right' | 'left' | 'iso
 
 export type ThemeMode = 'dark' | 'light';
 
+export type ScannerVendor =
+  | 'itero'
+  | '3shape'
+  | 'medit'
+  | 'shining3d'
+  | 'carestream'
+  | 'generic';
+
 export type ArticulationMode =
   | 'hinge'
   | 'protrusion'
@@ -135,6 +143,8 @@ export interface DentalCaseAssets {
 export interface DentalCaseMetadata {
   orderId: string;
   orderCode: string;
+  scannerVendor?: ScannerVendor;
+  scannerModel?: string;
   patientName: string;
   patientId: string;
   doctorName: string;

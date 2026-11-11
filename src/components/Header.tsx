@@ -45,17 +45,17 @@ export const Header: React.FC<HeaderProps> = ({
       {/* Brand & Dynamic Case Selector */}
       <div className="flex items-center space-x-3 min-w-0">
         <div className="flex items-center space-x-2 flex-shrink-0">
-          <img
-            src={assets.logoUrl || './images/itero_element_logo.png'}
-            alt="iTero Element Logo"
-            className="w-7 h-7 object-contain rounded"
-            onError={(e) => {
-              e.currentTarget.style.display = 'none';
-            }}
-          />
-          <span className="font-semibold text-slate-900 dark:text-slate-100 text-sm tracking-tight">
-            iTero OrthoCAD
-          </span>
+          <div className="w-7 h-7 rounded bg-sky-500/15 dark:bg-sky-950/80 border border-sky-500/40 dark:border-sky-800/70 flex items-center justify-center text-sky-600 dark:text-sky-400 font-mono text-xs font-bold">
+            IOS
+          </div>
+          <div className="flex flex-col leading-none">
+            <span className="font-semibold text-slate-900 dark:text-slate-100 text-sm tracking-tight">
+              IOS Pages
+            </span>
+            <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400">
+              Universal OrthoCAD 3D
+            </span>
+          </div>
         </div>
 
         <div className="h-4 w-px bg-slate-200 dark:bg-slate-800 hidden sm:block" />

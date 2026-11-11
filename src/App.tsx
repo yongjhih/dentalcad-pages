@@ -4,15 +4,11 @@ import {
   fetchCaseManifest,
   buildCaseBundleFromFiles,
   updateCaseStlInIndexedDB,
-} from './data/caseData';
-import {
   loadAllCasesFromIndexedDB,
   deleteCaseFromIndexedDB,
   updateStoredCaseMeshStats,
   saveLastActiveCaseId,
   getLastActiveCaseId,
-} from './utils/caseStorage';
-import {
   ViewportSettings,
   CameraPreset,
   DentalCaseBundle,
@@ -22,19 +18,19 @@ import {
   OrthoArchMetrics,
   CaliperMeasurement,
   Point3D,
-} from './types/dental';
-import { DEFAULT_ARTICULATOR_SETTINGS } from './utils/articulatorKinematics';
-import {
+  DEFAULT_ARTICULATOR_SETTINGS,
   DEFAULT_ORTHO_ARCH_METRICS,
   createCaliperMeasurement,
-} from './utils/archMeasurements';
-import { Header } from './components/Header';
-import { DentalViewer3D } from './components/DentalViewer3D';
-import { CaseDossier } from './components/CaseDossier';
-import { PentaGallery } from './components/PentaGallery';
-import { ArticulatorPanel } from './components/ArticulatorPanel';
-import { CadToolsPanel } from './components/CadToolsPanel';
-import { XmlInspector } from './components/XmlInspector';
+} from '@ios-pages/core';
+import {
+  Header,
+  DentalViewer3D,
+  CaseDossier,
+  PentaGallery,
+  ArticulatorPanel,
+  CadToolsPanel,
+  XmlInspector,
+} from '@ios-pages/viewer';
 import {
   FileText,
   Image as ImageIcon,
@@ -429,6 +425,7 @@ export const App: React.FC = () => {
                     photoTextureMapped: !s.photoTextureMapped,
                   }))
                 }
+                onImportCaseFiles={handleImportCaseFiles}
               />
             )}
             {activeTab === 'tools' && (

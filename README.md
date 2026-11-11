@@ -1,105 +1,93 @@
-# iTero OrthoCAD 3D & Case Viewer
+# IOS Pages — Universal Intraoral Scanner 3D CAD & Articulator
 
-一個符合 **Impeccable** 規範與 **shadcn/ui** 設計語言的臨床級牙科 3D CAD 與病例檢視系統。透過 **Three.js** 在瀏覽器中即時渲染高精度牙弓 STL 數位模型（包含上顎與下顎真確咬合對位），並完整整合五方位臨床攝影（Penta Gallery）與 iTero 數位處方資料。
+一個符合 **Impeccable** 規範與 **shadcn/ui** 設計語言的**跨品牌口掃機通用 (Universal Intraoral Scanner, IOS) 臨床 3D CAD 與咬合運動模擬系統**。支援 **Align iTero**、**3Shape TRIOS**、**Medit i-Series**、**Shining 3D Aoralscan**、**Carestream** 及各類標準 `.stl` 牙弓模型，透過 **Three.js** 在純瀏覽器環境中即時進行 6-DOF 下顎生理運動模擬、咬合接觸熱力圖 (Occlusogram)、五方位臨床照片 3D 正交投影貼圖與 3D 數位游標尺測距。
 
-![iTero OrthoCAD 3D](public/cases/297077963/gallery_overview.jpg)
-
-## 資料與視圖分離架構 (Data Separation & Swapping)
-
-本專案將所有臨床案例數據（STL 模型、XML 處方、五方位照片、PDF/HTML）與 UI 渲染層完全解耦，支援以下三種方式隨時抽換或擴充資料：
-
-### 方式一：自動目錄掃描與建置 (`npm run sync-data`)
-1. 將新的 iTero 匯出檔案直接放入**專案根目錄**或建立 **`data/<任意案例資料夾>/`**（包含 `*_shell_occlusion_u.stl`、`*_shell_occlusion_l.stl`、`itero_export_*_v50.xml`、`gallery_*.jpg`、`iTero_Rx_*.pdf`）。
-2. 執行 `npm run sync-data`（執行 `npm run dev` 或 `npm run build` 時也會自動觸發）：
-   - 腳本 [scripts/sync-data.mjs](scripts/sync-data.mjs) 會自動解析 XML 欄位、計算二進位 STL 的真實三角面數與毫米邊界尺寸（W × D × H）。
-   - 自動在 `public/cases/<OrderID>/` 建立標準化資產連結，並產出 `public/cases/manifest.json` 案例清單。
-3. 網頁頂部導覽列提供**案例下拉選單**，並支援網址參數直接指定案例（例如 `?case=297077963`）。
-
-### 方式二：直接修改靜態清單 (`public/cases/manifest.json`)
-- 前端啟動時會動態請求 `./cases/manifest.json`。在純靜態伺服器或 GitHub Pages 上，只需替換 `public/cases/<OrderID>/` 內的檔案或更新 `manifest.json`，無須重新編譯前端程式碼即可新增或切換案例。
-
-### 方式三：瀏覽器即時拖曳 / 匯入整包資料 (Runtime Hot-Swap)
-- 點擊頂部導覽列的 **「抽換案例資料」** 按鈕，或直接將新案例的檔案組（可同時選取 `.xml` + `.stl` + `.jpg` + `.pdf`）拖曳至 3D 畫布。
-- 內建瀏覽器端解析器 ([src/data/caseData.ts](src/data/caseData.ts)) 會在記憶體中即時解析 XML 處方、重算 STL 法向量與包圍盒尺寸、更新五方位臨床相簿與 3D 咬合檢視，完全不經過任何外部伺服器。
-
-## 核心功能
-
-### 1. 3D 牙弓咬合檢視器 (Three.js WebGL)
-- **真確咬合對位**：自動依據 iTero 掃描儀咬合矩陣對位上顎（Maxilla, ~31.9 萬三角面）與下顎（Mandible, ~29.9 萬三角面），總計逾 61.9 萬三角形幾何網格，流暢 60 FPS 渲染。
-- **咬合間隙開離滑桿 (Occlusion Separation)**：支援由緊密咬合（0 mm）至垂直分開（+35 mm），方便同時檢查上下牙弓咬合面（Occlusal table）與接觸點。
-- **五種臨床光學材質 (Shaders)**：
-  - **臨床琺瑯質 (Enamel)**：模擬真實牙科光學折射率（IOR 1.55）與清漆光澤（Clearcoat）。
-  - **石膏模型 (Plaster)**：高漫射啞光骨白質感，凸顯牙齒窩溝與形態學特徵。
-  - **法向量圖 (Normals)**：RGB 色彩對應幾何面法線斜率，分析咬合引導斜面。
-  - **拓撲線框 (Wireframe)**：直接檢視 3D 網格密度與三角形細分結構。
-  - **半透明 X 光 (Translucent)**：半透明穿透檢視齒列長軸與內外側重疊。
-- **標準牙科視角切換**：正視咬合面（Frontal）、上顎面（Upper Arch）、下顎面（Lower Arch）、右側頰面（Right Buccal）、左側頰面（Left Buccal）、立體等角（Isometric）。
-- **剖面剖切 (Cross-Section Clipping)**：支援 X / Y / Z 三軸剖切滑桿，即時剖析牙齒內部截面與厚度。
-- **外部 STL 拖曳預覽 (Drag & Drop Ingestion)**：支援將自訂牙科 `.stl` 檔案拖入畫布或上傳，純前端本機解析，無資料外洩風險。
-- **高解析畫面截圖 (Snapshot)**：一鍵輸出當前 3D 牙弓畫面（PNG）。
-
-### 2. 五方位臨床攝影 (Penta Gallery)
-- 內建由 iTero Element 產生的五方位臨床照片與總覽圖：
-  - 正視咬合面 (`penta_front.jpg`)
-  - 上顎齒列面 (`penta_upper.jpg`)
-  - 下顎齒列面 (`penta_lower.jpg`)
-  - 右側頰面咬合 (`penta_patientright.jpg`)
-  - 左側頰面咬合 (`penta_patientleft.jpg`)
-  - 複合全覽圖 (`gallery_overview.jpg`)
-- 點擊開啟高解析燈箱（Lightbox），支援平移、縮放，並提供 **「同步 3D 視角」** 功能，一鍵將 3D 模型轉至對應照片的角度。
-
-### 3. 臨床處方箋與病例檔案 (Case Dossier)
-- 完整呈現 Order ID (`#297077963`)、Order Code (`0ACP263H`)、醫師執照、機構地址、ADA 牙位代碼（#1–16, #17–32）。
-- **隱私遮罩開關 (HIPAA Anonymize Toggle)**：一鍵切換病患姓名遮罩保護模式，方便臨床教學或案例公開演示。
-- 內嵌原始檔案下載與預覽連結：
-  - 處方箋 PDF (`iTero_Rx_297077963.pdf`)
-  - 處方 HTML 網頁 (`Rx_297077963.html`)
-  - 原始 STL 檔 (`297077963_shell_occlusion_u.stl`, `297077963_shell_occlusion_l.stl`)
-
-### 4. iTero XML 原始數據檢視器 (XmlInspector)
-- 語法高亮展示 `itero_export_#297077963_v50.xml` 原始檔案，提供一鍵複製與原始檔案下載。
+- **線上展示 (GitHub Pages)**：https://yongjhih.github.io/itero-pages/
 
 ---
 
-## 技術棧
+## 🔒 純瀏覽器上傳與零隱私外洩架構 (Zero Local Preload / Browser-Only Ingestion)
 
-- **框架**：React 18 + TypeScript + Vite
-- **3D 引擎**：Three.js (`STLLoader`, `OrbitControls`, `ACESFilmicToneMapping`)
-- **樣式與介面**：Tailwind CSS (shadcn/ui 深色工作站風格) + Lucide Icons
-- **設計規範**：符合 Impeccable 4.6+ 工藝規範（高對比、等寬數據排版、無無用漸層、無多餘卡片巢狀）
+為確保通用性與病患醫療隱私 (HIPAA / 零個資外洩)：
+1. **不預載任何本地病患資料**：儲存庫與建置產物 (`dist/`) 不打包、不讀取任何本地端病患 `.stl`、`.xml` 或臨床照片。預設啟動時以程序化生成之 **14 顆全牙列標準示範牙弓 (`DEMO-ARCH-01`)** 提供即時 3D 沙盒體驗。
+2. **純瀏覽器選擇 / 拖曳上傳渲染**：
+   - 點擊頂部導覽列 **「抽換並存入瀏覽器」**、3D 視窗右下角上傳按鈕，或直接將口掃匯出檔案組（`.stl` + `.xml` + `.jpg/.png` + `.pdf`）拖曳至 3D 畫布。
+   - 內建跨品牌解析器會自動識別口掃廠牌（iTero / 3Shape TRIOS / Medit / Shining3D / Generic STL）、解析處方與座標變換矩陣，並直接於瀏覽器記憶體渲染。
+3. **瀏覽器 IndexedDB 本地持久化 (`OrthoCAD_CaseDB`)**：
+   - 上傳的檔案以原始二進位 `Blob` 儲存於使用者本機瀏覽器的 **IndexedDB**，不會上傳至任何外部伺服器，下次開啟網頁仍可直接切換檢視。
+4. **預設啟用全方位隱私匿名遮罩**：
+   - 預設自動遮罩 **病患姓名 (Patient)**、**主治醫師 (Practitioner)**、**醫療機構 (Clinic)** 與 **原始 XML 標籤**。
 
 ---
 
-## 本機開發與建置
+## 📦 模組化 Package 架構（支援第三方專案引用與二次開發）
+
+本專案採用 Monorepo Workspaces 模組化設計，將核心演算法與 React 3D 視覺組件解耦為獨立套件，方便其他專案直接引用進行二次開發：
+
+```text
+packages/
+├── core/     (@ios-pages/core)   # 無 UI 依賴之純 TypeScript + Three.js 牙科 CAD 核心引擎與多廠牌口掃解析器
+└── viewer/   (@ios-pages/viewer) # 可複用之 React + Three.js 3D 牙弓檢視器、咬合器面板與臨床工具組件
+```
+
+### 1. `@ios-pages/core` — 牙科 3D 運動學、熱力圖與口掃解析核心套件
+提供純函式與 Three.js Shader / Geometry 工具，不依賴 React，可在任意前端框架（React / Vue / Svelte / Vanilla TS）中引用：
+- **`@ios-pages/core/kinematics`**：6-DOF 顳顎關節 (TMJ) 生理軸旋轉 + 髁頭滑動運動學、Posselt 曲線預設與自訂三次貝茲曲線 (`computeMandibularKinematics`, `sampleArticulationTrajectory`, `evalCubicBezier`)
+- **`@ios-pages/core/occlusogram`**：上下顎咬合面高程圖 (`buildOcclusalElevationMap`)、即時對咬接觸統計 (`computeOcclusogramStats`) 與 GPU GLSL 咬合接觸熱力圖材質 (`createOcclusogramMaterial`)
+- **`@ios-pages/core/metrics`**：自動牙弓診斷指標（尖牙間寬 U3-U3、大臼齒間寬 U6-U6、Overjet、Overbite）與 3D 數位游標尺 (`computeOrthoArchMetrics`, `createCaliperMeasurement`)
+- **`@ios-pages/core/shaders`**：五方位臨床照片正交投影至 3D 模型之自訂 GLSL Shader (`loadPentaViewTextures`, `createPentaTexturedMaterial`)
+- **`@ios-pages/core/geometry`**：零外部檔案依賴之程序化 14 顆全牙列 3D 網格生成器 (`createProceduralDentalArchGeometry`)
+- **`@ios-pages/core/parsers`**：跨品牌口掃檔案解析器，自動識別 iTero、3Shape TRIOS、Medit、Shining3D 與通用 STL/XML (`buildCaseBundleFromFiles`, `detectScannerVendor`, `parseScannerXmlString`)
+- **`@ios-pages/core/storage` & `@ios-pages/core/privacy`**：瀏覽器 IndexedDB 持久化 (`saveCaseRecordToIndexedDB`, `loadAllCasesFromIndexedDB`) 與醫療個資去識別化 (`getDisplayMetadata`, `anonymizeXmlString`)
+
+#### 二次開發引用範例 (`@ios-pages/core`)
+```ts
+import {
+  DEFAULT_ARTICULATOR_SETTINGS,
+  computeMandibularKinematics,
+  createProceduralDentalArchGeometry,
+  detectScannerVendor,
+} from '@ios-pages/core';
+
+// 1. 生成程序化上下顎 3D BufferGeometry
+const upperGeom = createProceduralDentalArchGeometry(true);
+const lowerGeom = createProceduralDentalArchGeometry(false);
+
+// 2. 計算下顎在開口 65% 時的 6-DOF 剛體變換矩陣与前牙切端軌跡
+const state = computeMandibularKinematics({
+  ...DEFAULT_ARTICULATOR_SETTINGS,
+  mode: 'hinge',
+  progress: 0.65,
+});
+```
+
+### 2. `@ios-pages/viewer` — React 3D 口掃工作站 UI 組件套件
+提供開箱即用的 React 臨床檢視組件：
+- `DentalViewer3D`：支援多材質、五方照片貼圖投影、即時 Occlusogram 熱力圖、3D 運動軌跡 Gizmo 與 3D 游標尺點選測距的 WebGL 視窗
+- `ArticulatorPanel`：6-DOF 虛擬咬合器、互動式 Bezier 運動曲線編輯器、熱力圖統計與 3D 游標尺控制面板
+- `PentaGallery`：五方位臨床攝影燈箱與 3D 視角一鍵同步組件
+- `CaseDossier` / `CadToolsPanel` / `XmlInspector`：齒科數位規格、剖面剖切控制與原始 XML 檢視組件
+
+#### 二次開發引用範例 (`@ios-pages/viewer`)
+```tsx
+import { DentalViewer3D, ArticulatorPanel } from '@ios-pages/viewer';
+import { DEFAULT_ARTICULATOR_SETTINGS } from '@ios-pages/core';
+```
+
+---
+
+## 本機開發與測試
 
 ```bash
 # 1. 安裝依賴
 npm install
 
-# 2. 啟動開發伺服器
+# 2. 執行單元測試與整合測試 (Vitest + Testing Library)
+npm test
+
+# 3. 啟動開發伺服器
 npm run dev
 
-# 3. 靜態建置 (輸出至 dist/)
+# 4. 靜態建置 (輸出至 dist/)
 npm run build
-
-# 4. 本地預覽建置成果
-npm run preview
 ```
-
----
-
-## GitHub Pages 部署設定
-
-本專案已配置完整的 GitHub Actions 自動部署工作流程 (`.github/workflows/deploy.yml`)。
-
-只需在 GitHub 儲存庫中進行一次性設定：
-1. 前往 GitHub 儲存庫頁面：`Settings` -> `Pages`
-2. 在 **Build and deployment** > **Source** 選擇 **`GitHub Actions`**。
-3. 將代碼推送到 `main` 分支：
-   ```bash
-   git add .
-   git commit -m "feat: complete impeccable 3D OrthoCAD dental viewer for GitHub Pages"
-   git push origin main
-   ```
-4. GitHub Actions 將自動建置並發布至：
-   `https://yongjhih.github.io/itero-pages/`
