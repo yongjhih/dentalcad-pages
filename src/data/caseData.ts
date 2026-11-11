@@ -12,6 +12,7 @@ import {
   getCaseRecordFromIndexedDB,
   hydrateCaseBundleFromRecord,
 } from '../utils/caseStorage';
+import { expandUploadedFilesWithZip } from '../utils/zipExtractor';
 
 const DEMO_SAMPLE_XML = `<?xml version="1.0" encoding="UTF-8"?>
 <DentalCADExport Version="1.0" Vendor="Universal-Scanner">
@@ -242,7 +243,9 @@ export async function buildCaseBundleFromFiles(
   fileList: FileList | File[],
   currentBundle: DentalCaseBundle
 ): Promise<DentalCaseBundle> {
-  const files = Array.from(fileList);
+  const rawInputFiles = Array.from(fileList);
+  const zipArchiveFile = rawInputFiles.find((f) => f.name.toLowerCase().endsWith('.zip'));
+  const files = await expandUploadedFilesWithZip(rawInputFiles);
 
   const stlFiles = files.filter((f) => f.name.toLowerCase().endsWith('.stl'));
   const isUpperName = (n: string) =>
@@ -286,7 +289,8 @@ export async function buildCaseBundleFromFiles(
   const idMatch =
     upperStl?.name.match(/^(\d+)_/) ||
     lowerStl?.name.match(/^(\d+)_/) ||
-    xmlV50File?.name.match(/#?(\d+)/);
+    xmlV50File?.name.match(/#?(\d+)/) ||
+    zipArchiveFile?.name.match(/(\d{5,})/);
   const inferredId = idMatch ? idMatch[1] : `dcad-${Date.now().toString().slice(-5)}`;
 
   const detected = detectScannerVendor(files, rawXmlV50 || rawXmlV30 || '');

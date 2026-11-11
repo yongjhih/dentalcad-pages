@@ -339,7 +339,7 @@ export const CadToolsPanel: React.FC<CadToolsPanelProps> = ({
               type="file"
               ref={bundleInputRef}
               multiple
-              accept=".stl,.xml,.jpg,.jpeg,.png,.pdf,.html,model/stl,application/sla,application/vnd.ms-pki.stl,application/octet-stream,image/*,application/pdf,text/xml,application/xml"
+              accept=".zip,.stl,.xml,.jpg,.jpeg,.png,.pdf,.html,application/zip,application/x-zip-compressed,model/stl,application/sla,application/vnd.ms-pki.stl,application/octet-stream,image/*,application/pdf,text/xml,application/xml"
               className="hidden"
               onChange={(e) => {
                 if (e.target.files && e.target.files.length > 0) {

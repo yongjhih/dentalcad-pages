@@ -24,6 +24,8 @@ import {
   createCaliperMeasurement,
   LOCALE_STORAGE_KEY,
   tr,
+  parseUrlDataParameter,
+  ParsedUrlDataParam,
 } from '@dentalcad-pages/core';
 import {
   Header,
@@ -41,6 +43,10 @@ import {
   Code,
   Activity,
   Upload,
+  Link as LinkIcon,
+  Copy,
+  Check,
+  X,
 } from 'lucide-react';
 
 type TabType = 'dossier' | 'articulator' | 'gallery' | 'tools' | 'xml';
@@ -124,11 +130,20 @@ export const App: React.FC = () => {
   // Case Registry state (builtin manifest + browser IndexedDB persisted cases)
   const [cases, setCases] = useState<DentalCaseBundle[]>([DEFAULT_CASE_BUNDLE]);
   const [activeCaseId, setActiveCaseId] = useState<string>(DEFAULT_CASE_BUNDLE.id);
+  const [pendingUrlDataParam, setPendingUrlDataParam] = useState<ParsedUrlDataParam | null>(null);
+  const [copiedUrlPath, setCopiedUrlPath] = useState<boolean>(false);
+  const urlParamFileInputRef = useRef<HTMLInputElement>(null);
 
-  // Load both manifest.json AND persisted IndexedDB cases on startup
+  // Select case and remember in localStorage
+  const handleSelectCase = useCallback((caseId: string) => {
+    setActiveCaseId(caseId);
+    saveLastActiveCaseId(caseId);
+  }, []);
+
+  // Load both manifest.json, persisted IndexedDB cases, AND ?url= query parameter on startup
   useEffect(() => {
     Promise.all([fetchCaseManifest(), loadAllCasesFromIndexedDB()]).then(
-      ([manifest, storedCases]) => {
+      async ([manifest, storedCases]) => {
         const storedIds = new Set(storedCases.map((c) => c.id));
         const builtinCases = manifest.cases.filter((c) => !storedIds.has(c.id));
         const mergedCases = [...storedCases, ...builtinCases];
@@ -136,7 +151,52 @@ export const App: React.FC = () => {
 
         const urlParams = new URLSearchParams(window.location.search);
         const requestedCase = urlParams.get('case');
+        const rawUrlParam = urlParams.get('url');
         const lastSavedCaseId = getLastActiveCaseId();
+
+        // Handle ?url="..." query parameter (e.g. ?url="/Users/.../Export_297077963.zip" or https://.../case.zip)
+        if (rawUrlParam) {
+          const parsedUrl = parseUrlDataParameter(rawUrlParam);
+
+          // 1. If the inferred case ID is already persisted in browser IndexedDB, activate it immediately!
+          const existingMatch = parsedUrl.inferredCaseId
+            ? mergedCases.find((c) => c.id === parsedUrl.inferredCaseId)
+            : undefined;
+          if (existingMatch) {
+            handleSelectCase(existingMatch.id);
+            return;
+          }
+
+          // 2. If it is a remote HTTP/HTTPS URL (or localhost HTTP relay), attempt direct fetch + ZIP unpack
+          if (parsedUrl.isRemoteHttpUrl) {
+            try {
+              const resp = await fetch(parsedUrl.cleanedUrlOrPath);
+              if (resp.ok) {
+                const blob = await resp.blob();
+                const fetchedFile = new File([blob], parsedUrl.fileName, {
+                  type: blob.type || 'application/octet-stream',
+                });
+                const imported = await buildCaseBundleFromFiles(
+                  [fetchedFile],
+                  DEFAULT_CASE_BUNDLE
+                );
+                setCases((prev) => [
+                  imported,
+                  ...prev.filter((c) => c.id !== imported.id),
+                ]);
+                handleSelectCase(imported.id);
+                return;
+              }
+            } catch {
+              // Fall through to interactive local/manual picker banner
+            }
+          }
+
+          // 3. Local filesystem path (/Users/..., file://...) or blocked CORS URL:
+          // Browser security sandbox blocks silent reading of local disk paths without user gesture,
+          // so present a 1-click pre-targeted loader banner for that exact path/ZIP.
+          setPendingUrlDataParam(parsedUrl);
+        }
 
         if (requestedCase && mergedCases.some((c) => c.id === requestedCase)) {
           setActiveCaseId(requestedCase);
@@ -149,13 +209,7 @@ export const App: React.FC = () => {
         }
       }
     );
-  }, []);
-
-  // Select case and remember in localStorage
-  const handleSelectCase = useCallback((caseId: string) => {
-    setActiveCaseId(caseId);
-    saveLastActiveCaseId(caseId);
-  }, []);
+  }, [handleSelectCase]);
 
   const activeCase = useMemo(
     () => cases.find((c) => c.id === activeCaseId) || cases[0] || DEFAULT_CASE_BUNDLE,
@@ -282,7 +336,7 @@ export const App: React.FC = () => {
     articulator: { ...DEFAULT_ARTICULATOR_SETTINGS },
   });
 
-  // Import an entire new case bundle (e.g. .stl + .xml + .jpg + .pdf) at runtime and persist to IndexedDB
+  // Import an entire new case bundle (e.g. .zip or .stl + .xml + .jpg + .pdf) at runtime and persist to IndexedDB
   const handleImportCaseFiles = async (fileList: FileList) => {
     const newBundle = await buildCaseBundleFromFiles(fileList, activeCase);
     setCases((prev) => {
@@ -290,6 +344,7 @@ export const App: React.FC = () => {
       return [newBundle, ...filtered];
     });
     handleSelectCase(newBundle.id);
+    setPendingUrlDataParam(null);
   };
 
   // Replace only upper or lower STL on the current active case and persist to IndexedDB
@@ -335,6 +390,108 @@ export const App: React.FC = () => {
         onToggleLocale={handleToggleLocale}
       />
 
+      {/* Smart ?url= Local Path / ZIP Quick Loader Banner */}
+      {pendingUrlDataParam && (
+        <div
+          data-testid="url-param-loader-banner"
+          className="bg-sky-500/10 dark:bg-sky-950/80 border-b border-sky-500/40 dark:border-sky-800/80 px-3 sm:px-4 py-2 flex flex-wrap items-center justify-between gap-2 text-xs z-30 flex-shrink-0"
+        >
+          <div className="flex items-center gap-2 min-w-0">
+            <LinkIcon className="w-4 h-4 text-sky-600 dark:text-sky-400 flex-shrink-0" />
+            <div className="min-w-0">
+              <div className="font-medium text-slate-900 dark:text-slate-100 flex items-center gap-1.5 flex-wrap">
+                <span>
+                  {tr(
+                    locale,
+                    '偵測到網址指定載入檔案：',
+                    'URL target data detected:'
+                  )}
+                </span>
+                <code className="px-1.5 py-0.5 rounded bg-white/80 dark:bg-slate-900 border border-sky-500/30 font-mono text-[11px] text-sky-700 dark:text-sky-300 truncate max-w-xs sm:max-w-md">
+                  {pendingUrlDataParam.cleanedUrlOrPath}
+                </code>
+              </div>
+              <p className="text-[11px] text-slate-600 dark:text-slate-400 truncate">
+                {tr(
+                  locale,
+                  '瀏覽器安全沙盒限制網頁直接讀取本機路徑；請點選下方按鈕授權載入該 ZIP/STL（自動解壓並存入 IndexedDB，下次開啟相同網址即可直接秒開！）',
+                  'Browser security requires 1 click to read local disk paths. Select the ZIP/STL once to unpack & cache in IndexedDB for instant loading next time.'
+                )}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            <input
+              ref={urlParamFileInputRef}
+              data-testid="url-param-file-input"
+              type="file"
+              multiple
+              accept=".zip,.stl,.xml,.jpg,.jpeg,.png,.pdf,.html,application/zip,application/x-zip-compressed,model/stl,application/sla,application/vnd.ms-pki.stl,application/octet-stream,image/*,application/pdf,text/xml,application/xml"
+              className="hidden"
+              onChange={(e) => {
+                if (e.target.files && e.target.files.length > 0) {
+                  handleImportCaseFiles(e.target.files);
+                  e.target.value = '';
+                }
+              }}
+            />
+            <button
+              type="button"
+              data-testid="url-param-copy-path-btn"
+              onClick={() => {
+                navigator.clipboard?.writeText(pendingUrlDataParam.cleanedUrlOrPath).catch(() => {});
+                setCopiedUrlPath(true);
+                setTimeout(() => setCopiedUrlPath(false), 2000);
+              }}
+              className="px-2.5 py-1 rounded bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-medium flex items-center gap-1 transition-colors"
+              title="複製完整本地路徑（於 macOS 檔案對話框按 ⌘+Shift+G 貼上即可直達）"
+            >
+              {copiedUrlPath ? (
+                <>
+                  <Check className="w-3.5 h-3.5 text-emerald-500" />
+                  <span>{tr(locale, '已複製路徑', 'Path Copied')}</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="w-3.5 h-3.5 text-sky-500" />
+                  <span>{tr(locale, '複製路徑 (⌘+Shift+G)', 'Copy Path')}</span>
+                </>
+              )}
+            </button>
+
+            <button
+              type="button"
+              data-testid="url-param-pick-btn"
+              onClick={() => {
+                navigator.clipboard?.writeText(pendingUrlDataParam.cleanedUrlOrPath).catch(() => {});
+                urlParamFileInputRef.current?.click();
+              }}
+              className="px-3 py-1 rounded bg-sky-600 hover:bg-sky-500 text-white font-semibold flex items-center gap-1 shadow-sm transition-colors"
+            >
+              <Upload className="w-3.5 h-3.5" />
+              <span>
+                {tr(
+                  locale,
+                  `選擇 ${pendingUrlDataParam.fileName} 載入`,
+                  `Load ${pendingUrlDataParam.fileName}`
+                )}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              data-testid="url-param-dismiss-btn"
+              onClick={() => setPendingUrlDataParam(null)}
+              className="p-1 rounded text-slate-500 hover:text-slate-900 dark:hover:text-white"
+              title="關閉提示"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Main CAD Workspace Layout */}
       <main className="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
         {/* Left: 3D Dental CAD Viewport Canvas */}
@@ -378,7 +535,7 @@ export const App: React.FC = () => {
             data-testid="mobile-bundle-file-input"
             type="file"
             multiple
-            accept=".stl,.xml,.jpg,.jpeg,.png,.pdf,.html,model/stl,application/sla,application/vnd.ms-pki.stl,application/octet-stream,image/*,application/pdf,text/xml,application/xml"
+            accept=".zip,.stl,.xml,.jpg,.jpeg,.png,.pdf,.html,application/zip,application/x-zip-compressed,model/stl,application/sla,application/vnd.ms-pki.stl,application/octet-stream,image/*,application/pdf,text/xml,application/xml"
             className="hidden"
             onChange={(e) => {
               if (e.target.files && e.target.files.length > 0) {

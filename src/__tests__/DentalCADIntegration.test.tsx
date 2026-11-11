@@ -1,7 +1,13 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { App } from '../App';
-import { detectScannerVendor, parseScannerXmlString } from '@dentalcad-pages/core';
+import {
+  detectScannerVendor,
+  parseScannerXmlString,
+  parseUrlDataParameter,
+  createUncompressedZipBuffer,
+  extractDentalFilesFromZip,
+} from '@dentalcad-pages/core';
 
 describe('DentalCAD Pages Application Integration Tests', () => {
   beforeEach(() => {
@@ -186,5 +192,53 @@ describe('DentalCAD Pages Application Integration Tests', () => {
     expect(screen.queryByText('下顎運動行程')).not.toBeInTheDocument();
     fireEvent.click(hudToggleBtn);
     expect(screen.getByText('下顎運動行程')).toBeInTheDocument();
+  });
+
+  it('extracts dental files (.stl, .xml, .jpg) from .zip archives and resolves ?url= parameters', async () => {
+    // 1. Test ?url= parameter parsing (with wrapped double quotes and local macOS path)
+    const parsed = parseUrlDataParameter(
+      '"/Users/yongjhih/Downloads/Export_99887766.zip"'
+    );
+    expect(parsed.cleanedUrlOrPath).toBe('/Users/yongjhih/Downloads/Export_99887766.zip');
+    expect(parsed.fileName).toBe('Export_99887766.zip');
+    expect(parsed.inferredCaseId).toBe('99887766');
+    expect(parsed.isLocalFilePath).toBe(true);
+    expect(parsed.isRemoteHttpUrl).toBe(false);
+
+    // 2. Test in-memory ZIP extraction of .stl, .xml, and .jpg while ignoring __MACOSX resource forks
+    const zipBuffer = createUncompressedZipBuffer([
+      { name: 'Export_99887766/99887766_shell_occlusion_u.stl', content: 'solid upper' },
+      { name: 'Export_99887766/99887766_shell_occlusion_l.stl', content: 'solid lower' },
+      {
+        name: 'Export_99887766/99887766_v50.xml',
+        content: '<DentalCAD><OrderID>99887766</OrderID></DentalCAD>',
+      },
+      { name: '__MACOSX/Export_99887766/._99887766_shell_occlusion_u.stl', content: 'junk' },
+    ]);
+
+    const extracted = await extractDentalFilesFromZip(zipBuffer);
+    expect(extracted.map((f) => f.name)).toEqual([
+      '99887766_shell_occlusion_u.stl',
+      '99887766_shell_occlusion_l.stl',
+      '99887766_v50.xml',
+    ]);
+
+    // 3. Test ?url= local path banner rendering when opening with ?url="/Users/.../Export_99887766.zip"
+    const originalUrl = window.location.href;
+    window.history.replaceState(
+      {},
+      '',
+      '/?url=%22/Users/yongjhih/Downloads/Export_99887766.zip%22'
+    );
+
+    render(<App />);
+    const banner = await screen.findByTestId('url-param-loader-banner');
+    expect(banner).toBeInTheDocument();
+    expect(banner).toHaveTextContent('/Users/yongjhih/Downloads/Export_99887766.zip');
+    expect(screen.getByTestId('url-param-pick-btn')).toHaveTextContent(
+      '選擇 Export_99887766.zip 載入'
+    );
+
+    window.history.replaceState({}, '', originalUrl);
   });
 });
