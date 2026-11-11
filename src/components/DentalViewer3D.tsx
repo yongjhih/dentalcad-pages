@@ -46,7 +46,6 @@ import {
   Compass,
   Upload,
   AlertCircle,
-  Image as ImageIcon,
   Play,
   Pause,
   Flame,
@@ -1861,35 +1860,8 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
                 />
               </div>
 
-              {/* 5-View Photo Texture & Occlusogram Quick Toggles */}
-              <div className="flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-800/80 gap-2">
-                <button
-                  type="button"
-                  data-testid="hud-photo-texture-btn"
-                  onClick={() =>
-                    onSettingsChange((prev) => {
-                      const nextMapped = !(prev.photoTextureMapped || prev.shadingMode === 'texture');
-                      return {
-                        ...prev,
-                        photoTextureMapped: nextMapped,
-                        shadingMode: nextMapped
-                          ? 'texture'
-                          : prev.shadingMode === 'texture'
-                          ? 'enamel'
-                          : prev.shadingMode,
-                      };
-                    })
-                  }
-                  className={`flex-1 px-2.5 py-1 rounded text-[11px] font-medium transition-colors border flex items-center justify-center gap-1.5 ${
-                    settings.photoTextureMapped || settings.shadingMode === 'texture'
-                      ? 'bg-sky-500 border-sky-600 text-white shadow-sm'
-                      : 'bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400'
-                  }`}
-                >
-                  <ImageIcon className="w-3.5 h-3.5" />
-                  <span>{tr(locale, '五方照片貼圖', '5-View Texture')}</span>
-                </button>
-
+              {/* Occlusogram Quick Toggle */}
+              <div className="flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-800/80">
                 <button
                   type="button"
                   data-testid="hud-occlusogram-btn"
@@ -1899,7 +1871,7 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
                       occlusogramEnabled: !prev.occlusogramEnabled,
                     }))
                   }
-                  className={`flex-1 px-2.5 py-1 rounded text-[11px] font-medium transition-colors border flex items-center justify-center gap-1.5 ${
+                  className={`w-full px-2.5 py-1 rounded text-[11px] font-medium transition-colors border flex items-center justify-center gap-1.5 ${
                     settings.occlusogramEnabled
                       ? 'bg-rose-600 border-rose-500 text-white shadow-sm'
                       : 'bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400'

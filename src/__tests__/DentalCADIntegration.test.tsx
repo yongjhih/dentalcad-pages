@@ -337,15 +337,12 @@ describe('DentalCAD Pages Application Integration Tests', () => {
     expect(sidebar).not.toHaveClass('hidden');
   });
 
-  it('exposes MCP Pages link, covpages link, and interactive Ask AI assistant drawer', async () => {
+  it('keeps header clean without redundant MCP/coverage buttons, and supports interactive Ask AI assistant drawer', async () => {
     render(<App />);
 
-    // Verify MCP and covpages links in Header
-    const mcpLink = screen.getByTestId('header-mcp-link');
-    expect(mcpLink).toHaveAttribute('href', 'mcp.html');
-
-    const covLink = screen.getByTestId('header-covpages-link');
-    expect(covLink).toHaveAttribute('href', 'covpages/');
+    // Verify MCP and covpages links are removed from header to keep layout clean
+    expect(screen.queryByTestId('header-mcp-link')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('header-covpages-link')).not.toBeInTheDocument();
 
     // Open Ask AI drawer
     const askAiBtn = screen.getByTestId('header-ask-ai-btn');

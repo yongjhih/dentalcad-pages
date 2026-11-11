@@ -10,8 +10,6 @@ import {
   Moon,
   Globe,
   Sparkles,
-  Terminal,
-  BarChart2,
 } from 'lucide-react';
 import { DentalCaseBundle, ThemeMode, LocaleMode } from '../types/dental';
 import { getDisplayMetadata } from '../utils/anonymize';
@@ -256,36 +254,6 @@ export const Header: React.FC<HeaderProps> = ({
             <span>Ask AI</span>
           </button>
         )}
-
-        {/* MCP Pages Endpoint Link */}
-        <a
-          href="mcp.html"
-          data-testid="header-mcp-link"
-          className="hidden md:inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-mono bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
-          title={tr(
-            locale,
-            '開啟本站 MCP Pages 工具端點 (mcp.html)',
-            'Open WebMCP Tools Page (mcp.html)'
-          )}
-        >
-          <Terminal className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400" />
-          <span>MCP</span>
-        </a>
-
-        {/* Covpages Test Coverage Report Link */}
-        <a
-          href="covpages/"
-          data-testid="header-covpages-link"
-          className="hidden lg:inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-mono bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
-          title={tr(
-            locale,
-            '開啟 covpages 測試覆蓋率報告 (covpages/)',
-            'Open covpages Test Coverage Report (covpages/)'
-          )}
-        >
-          <BarChart2 className="w-3.5 h-3.5 text-purple-500 dark:text-purple-400" />
-          <span>{tr(locale, '覆蓋率', 'Coverage')}</span>
-        </a>
 
         {/* GitHub link */}
         <a
