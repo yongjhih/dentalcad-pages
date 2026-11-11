@@ -339,7 +339,7 @@ export const CadToolsPanel: React.FC<CadToolsPanelProps> = ({
               type="file"
               ref={bundleInputRef}
               multiple
-              accept=".stl,.xml,.jpg,.jpeg,.png,.pdf,.html"
+              accept=".stl,.xml,.jpg,.jpeg,.png,.pdf,.html,model/stl,application/sla,application/vnd.ms-pki.stl,application/octet-stream,image/*,application/pdf,text/xml,application/xml"
               className="hidden"
               onChange={(e) => {
                 if (e.target.files && e.target.files.length > 0) {
@@ -349,6 +349,7 @@ export const CadToolsPanel: React.FC<CadToolsPanelProps> = ({
               }}
             />
             <button
+              type="button"
               onClick={() => bundleInputRef.current?.click()}
               className="w-full py-2 px-3 rounded-lg bg-sky-500/15 dark:bg-sky-950/60 hover:bg-sky-500/25 dark:hover:bg-sky-900/70 border border-sky-500/40 dark:border-sky-800/70 text-sky-800 dark:text-sky-200 flex items-center justify-center gap-1.5 transition-colors font-medium"
             >
@@ -363,7 +364,7 @@ export const CadToolsPanel: React.FC<CadToolsPanelProps> = ({
             <input
               type="file"
               ref={upperFileInputRef}
-              accept=".stl"
+              accept=".stl,model/stl,application/sla,application/vnd.ms-pki.stl,application/octet-stream"
               className="hidden"
               onChange={(e) => {
                 if (e.target.files && e.target.files[0]) {
@@ -373,6 +374,7 @@ export const CadToolsPanel: React.FC<CadToolsPanelProps> = ({
               }}
             />
             <button
+              type="button"
               onClick={() => upperFileInputRef.current?.click()}
               className="w-full py-2 px-3 rounded-lg bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white flex items-center justify-center gap-1.5 transition-colors shadow-sm dark:shadow-none"
             >
@@ -385,7 +387,7 @@ export const CadToolsPanel: React.FC<CadToolsPanelProps> = ({
             <input
               type="file"
               ref={lowerFileInputRef}
-              accept=".stl"
+              accept=".stl,model/stl,application/sla,application/vnd.ms-pki.stl,application/octet-stream"
               className="hidden"
               onChange={(e) => {
                 if (e.target.files && e.target.files[0]) {
@@ -395,6 +397,7 @@ export const CadToolsPanel: React.FC<CadToolsPanelProps> = ({
               }}
             />
             <button
+              type="button"
               onClick={() => lowerFileInputRef.current?.click()}
               className="w-full py-2 px-3 rounded-lg bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white flex items-center justify-center gap-1.5 transition-colors shadow-sm dark:shadow-none"
             >

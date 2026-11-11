@@ -3,7 +3,7 @@ import {
   Shield,
   ShieldAlert,
   FileText,
-  FolderOpen,
+  Upload,
   ChevronDown,
   Trash2,
   Database,
@@ -47,18 +47,18 @@ export const Header: React.FC<HeaderProps> = ({
   const displayMeta = getDisplayMetadata(activeCase.metadata, anonymizePatient);
 
   return (
-    <header className="h-14 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-[#090d16] px-4 flex items-center justify-between flex-shrink-0 z-20 gap-2 transition-colors">
+    <header className="min-h-14 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-[#090d16] px-2.5 sm:px-4 py-1.5 flex items-center justify-between flex-shrink-0 z-20 gap-1.5 sm:gap-2 transition-colors">
       {/* Brand & Dynamic Case Selector */}
-      <div className="flex items-center space-x-3 min-w-0">
-        <div className="flex items-center space-x-2 flex-shrink-0">
+      <div className="flex items-center space-x-2 sm:space-x-3 min-w-0">
+        <div className="flex items-center space-x-1.5 sm:space-x-2 flex-shrink-0">
           <div className="w-7 h-7 rounded bg-sky-500/15 dark:bg-sky-950/80 border border-sky-500/40 dark:border-sky-800/70 flex items-center justify-center text-sky-600 dark:text-sky-400 font-mono text-[11px] font-bold">
             CAD
           </div>
           <div className="flex flex-col leading-none">
-            <span className="font-semibold text-slate-900 dark:text-slate-100 text-sm tracking-tight">
+            <span className="font-semibold text-slate-900 dark:text-slate-100 text-xs sm:text-sm tracking-tight whitespace-nowrap">
               DentalCAD Pages
             </span>
-            <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400">
+            <span className="hidden sm:inline text-[10px] font-mono text-slate-500 dark:text-slate-400">
               3D Dental Workstation
             </span>
           </div>
@@ -67,13 +67,13 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="h-4 w-px bg-slate-200 dark:bg-slate-800 hidden sm:block" />
 
         {/* Case Switcher Dropdown (Focused on Order ID & Procedure, not Patient Name) */}
-        <div className="relative flex items-center gap-1.5">
-          <div className="relative flex items-center">
+        <div className="relative flex items-center gap-1 min-w-0">
+          <div className="relative flex items-center min-w-0">
             <select
               aria-label="選擇臨床案例"
               value={activeCase.id}
               onChange={(e) => onSelectCase(e.target.value)}
-              className="appearance-none bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-800 hover:border-slate-400 dark:hover:border-slate-700 text-xs text-slate-800 dark:text-slate-200 font-mono rounded pl-2.5 pr-7 py-1 cursor-pointer transition-colors tabular-nums"
+              className="appearance-none max-w-[112px] sm:max-w-[210px] md:max-w-xs truncate bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-800 hover:border-slate-400 dark:hover:border-slate-700 text-xs text-slate-800 dark:text-slate-200 font-mono rounded pl-2 pr-6 py-1 cursor-pointer transition-colors tabular-nums"
             >
               {cases.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -82,7 +82,7 @@ export const Header: React.FC<HeaderProps> = ({
                 </option>
               ))}
             </select>
-            <ChevronDown className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400 pointer-events-none absolute right-2" />
+            <ChevronDown className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400 pointer-events-none absolute right-1.5" />
           </div>
 
           {activeCase.source === 'custom' && (
@@ -124,14 +124,15 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      {/* Actions: Data Import, Anonymize Toggle, PDF, Locale, Theme & GitHub */}
-      <div className="flex items-center space-x-2 flex-shrink-0">
-        {/* Load External Case Bundle Button */}
+      {/* Actions: Data Import (Always visible on Mobile & Desktop), Anonymize Toggle, PDF, Locale, Theme & GitHub */}
+      <div className="flex items-center space-x-1.5 sm:space-x-2 flex-shrink-0">
+        {/* Load External Case Bundle Button (Mobile-friendly with visible label) */}
         <input
           ref={bundleInputRef}
+          data-testid="header-file-input"
           type="file"
           multiple
-          accept=".stl,.xml,.jpg,.jpeg,.png,.pdf,.html"
+          accept=".stl,.xml,.jpg,.jpeg,.png,.pdf,.html,model/stl,application/sla,application/vnd.ms-pki.stl,application/octet-stream,image/*,application/pdf,text/xml,application/xml"
           className="hidden"
           onChange={(e) => {
             if (e.target.files && e.target.files.length > 0) {
@@ -141,24 +142,28 @@ export const Header: React.FC<HeaderProps> = ({
           }}
         />
         <button
+          type="button"
+          data-testid="header-upload-btn"
           onClick={() => bundleInputRef.current?.click()}
-          className="flex items-center space-x-1.5 px-2.5 py-1 rounded text-xs bg-sky-500/15 dark:bg-sky-950/60 hover:bg-sky-500/25 dark:hover:bg-sky-900/70 border border-sky-500/40 dark:border-sky-800/70 text-sky-700 dark:text-sky-200 transition-colors font-medium"
+          className="flex items-center space-x-1 sm:space-x-1.5 px-2.5 py-1.5 sm:py-1 rounded text-xs bg-sky-600 hover:bg-sky-500 text-white shadow-sm transition-colors font-medium"
           title={tr(
             locale,
-            '選取其他案例的 STL / XML / JPG / PDF 檔案組，即時抽換並自動存入瀏覽器 IndexedDB',
-            'Select local STL / XML / JPG / PDF scanner files to render and persist in browser IndexedDB'
+            '選取手機或電腦中的 STL / XML / JPG / PDF 口掃檔案，即時渲染並自動存入瀏覽器 IndexedDB',
+            'Select STL / XML / JPG / PDF scanner files from phone or desktop to render and persist in browser IndexedDB'
           )}
         >
-          <FolderOpen className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
+          <Upload className="w-3.5 h-3.5 flex-shrink-0" />
+          <span className="sm:hidden">{tr(locale, '上傳檔案', 'Upload')}</span>
           <span className="hidden sm:inline">
-            {tr(locale, '抽換並存入瀏覽器', 'Upload Scan Bundle')}
+            {tr(locale, '上傳口掃檔案', 'Upload Scan Bundle')}
           </span>
         </button>
 
         {/* Privacy Anonymize Toggle (Default Active) */}
         <button
+          type="button"
           onClick={onToggleAnonymize}
-          className={`flex items-center space-x-1.5 px-2.5 py-1 rounded text-xs transition-colors border ${
+          className={`flex items-center space-x-1 sm:space-x-1.5 px-2 sm:px-2.5 py-1 rounded text-xs transition-colors border ${
             anonymizePatient
               ? 'bg-amber-500/15 dark:bg-amber-950/50 border-amber-500/40 dark:border-amber-800/60 text-amber-800 dark:text-amber-300 hover:bg-amber-500/25 dark:hover:bg-amber-900/60'
               : 'bg-slate-100 dark:bg-slate-900 border-slate-300 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-800'
@@ -174,7 +179,7 @@ export const Header: React.FC<HeaderProps> = ({
           ) : (
             <Shield className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
           )}
-          <span>
+          <span className="hidden md:inline">
             {anonymizePatient
               ? tr(locale, '匿名已啟用', 'Anonymized')
               : tr(locale, '顯示原始個資', 'Raw PHI Visible')}
@@ -198,6 +203,7 @@ export const Header: React.FC<HeaderProps> = ({
         {/* English / Traditional Chinese Language Switcher */}
         {onToggleLocale && (
           <button
+            type="button"
             data-testid="locale-toggle-btn"
             onClick={onToggleLocale}
             className="flex items-center gap-1 px-2 py-1 rounded text-xs font-mono bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
@@ -214,6 +220,7 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Light / Dark Theme Toggle */}
         <button
+          type="button"
           onClick={onToggleTheme}
           className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
           title={theme === 'dark' ? '切換為亮色佈景 (Light Mode)' : '切換為暗色佈景 (Dark Mode)'}
@@ -236,7 +243,7 @@ export const Header: React.FC<HeaderProps> = ({
           href="https://github.com/yongjhih/dentalcad-pages"
           target="_blank"
           rel="noopener noreferrer"
-          className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-colors"
+          className="hidden sm:inline-flex p-1.5 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-colors"
           title="檢視 GitHub 倉庫原始碼"
         >
           <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24" aria-hidden="true">

@@ -245,27 +245,28 @@ export async function buildCaseBundleFromFiles(
   const files = Array.from(fileList);
 
   const stlFiles = files.filter((f) => f.name.toLowerCase().endsWith('.stl'));
+  const isUpperName = (n: string) =>
+    n.includes('_u.stl') ||
+    n.includes('upper') ||
+    n.includes('maxilla') ||
+    n.includes('antagonist_u');
+  const isLowerName = (n: string) =>
+    n.includes('_l.stl') ||
+    n.includes('lower') ||
+    n.includes('mandible') ||
+    n.includes('antagonist_l');
+
+  const explicitUpper = stlFiles.find((f) => isUpperName(f.name.toLowerCase()));
+  const explicitLower = stlFiles.find((f) => isLowerName(f.name.toLowerCase()));
+
   const upperStl =
-    stlFiles.find((f) => {
-      const n = f.name.toLowerCase();
-      return (
-        n.includes('_u.stl') ||
-        n.includes('upper') ||
-        n.includes('maxilla') ||
-        n.includes('antagonist_u')
-      );
-    }) || (stlFiles.length === 1 ? stlFiles[0] : undefined);
+    explicitUpper ||
+    (stlFiles.length === 1 && !explicitLower ? stlFiles[0] : undefined) ||
+    (stlFiles.length >= 2 ? stlFiles.find((f) => f !== explicitLower) : undefined);
 
   const lowerStl =
-    stlFiles.find((f) => {
-      const n = f.name.toLowerCase();
-      return (
-        n.includes('_l.stl') ||
-        n.includes('lower') ||
-        n.includes('mandible') ||
-        n.includes('antagonist_l')
-      );
-    }) || (stlFiles.length === 2 && stlFiles[0] === upperStl ? stlFiles[1] : undefined);
+    explicitLower ||
+    (stlFiles.length >= 2 ? stlFiles.find((f) => f !== upperStl) : undefined);
 
   const xmlFiles = files.filter((f) => f.name.toLowerCase().endsWith('.xml'));
   const xmlV50File =

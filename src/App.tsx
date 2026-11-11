@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   DEFAULT_CASE_BUNDLE,
   fetchCaseManifest,
@@ -40,9 +40,11 @@ import {
   Sliders,
   Code,
   Activity,
+  Upload,
 } from 'lucide-react';
 
 type TabType = 'dossier' | 'articulator' | 'gallery' | 'tools' | 'xml';
+type MobileLayoutMode = 'split' | '3d' | 'panel';
 
 const FALLBACK_STATS: MeshGeometryStats = {
   upperTriangles: 0,
@@ -251,6 +253,12 @@ export const App: React.FC = () => {
   // Active right pane tab (default to Articulator & Occlusogram)
   const [activeTab, setActiveTab] = useState<TabType>('articulator');
 
+  // Mobile layout ratio mode ('split' | '3d' | 'panel') for small screens
+  const [mobileLayoutMode, setMobileLayoutMode] = useState<MobileLayoutMode>('split');
+  const mobileBundleInputRef = useRef<HTMLInputElement>(null);
+  const mobileUpperInputRef = useRef<HTMLInputElement>(null);
+  const mobileLowerInputRef = useRef<HTMLInputElement>(null);
+
   // Camera presets
   const [cameraPreset, setCameraPreset] = useState<CameraPreset>('front');
 
@@ -311,7 +319,7 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen w-screen overflow-hidden bg-slate-50 dark:bg-[#090d16] text-slate-900 dark:text-slate-100 font-sans transition-colors">
+    <div className="flex flex-col h-screen supports-[height:100dvh]:h-[100dvh] w-screen overflow-hidden bg-slate-50 dark:bg-[#090d16] text-slate-900 dark:text-slate-100 font-sans transition-colors">
       {/* Top Navigation Bar */}
       <Header
         cases={cases}
@@ -330,7 +338,15 @@ export const App: React.FC = () => {
       {/* Main CAD Workspace Layout */}
       <main className="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
         {/* Left: 3D Dental CAD Viewport Canvas */}
-        <section className="flex-1 relative h-[50vh] lg:h-full overflow-hidden border-b lg:border-b-0 lg:border-r border-slate-200 dark:border-slate-800">
+        <section
+          className={`relative overflow-hidden border-b lg:border-b-0 lg:border-r border-slate-200 dark:border-slate-800 lg:flex-1 lg:h-full transition-all ${
+            mobileLayoutMode === '3d'
+              ? 'h-[66dvh]'
+              : mobileLayoutMode === 'panel'
+              ? 'h-[26dvh]'
+              : 'h-[45dvh]'
+          }`}
+        >
           <DentalViewer3D
             upperStlUrl={activeCase.assets.upperStlUrl}
             lowerStlUrl={activeCase.assets.lowerStlUrl}
@@ -351,8 +367,111 @@ export const App: React.FC = () => {
           />
         </section>
 
+        {/* Mobile Quick Upload & Viewport Layout Bar (Dedicated Touch-Friendly Upload & Split Controls) */}
+        <div
+          data-testid="mobile-quick-bar"
+          className="lg:hidden flex items-center justify-between gap-1.5 px-2.5 py-1.5 bg-white dark:bg-[#0b101b] border-b border-slate-200 dark:border-slate-800 flex-shrink-0 overflow-x-auto"
+        >
+          {/* Hidden Mobile File Inputs */}
+          <input
+            ref={mobileBundleInputRef}
+            data-testid="mobile-bundle-file-input"
+            type="file"
+            multiple
+            accept=".stl,.xml,.jpg,.jpeg,.png,.pdf,.html,model/stl,application/sla,application/vnd.ms-pki.stl,application/octet-stream,image/*,application/pdf,text/xml,application/xml"
+            className="hidden"
+            onChange={(e) => {
+              if (e.target.files && e.target.files.length > 0) {
+                handleImportCaseFiles(e.target.files);
+                e.target.value = '';
+              }
+            }}
+          />
+          <input
+            ref={mobileUpperInputRef}
+            data-testid="mobile-upper-file-input"
+            type="file"
+            accept=".stl,model/stl,application/sla,application/vnd.ms-pki.stl,application/octet-stream"
+            className="hidden"
+            onChange={(e) => {
+              if (e.target.files && e.target.files[0]) {
+                handleCustomStlSelected(e.target.files[0], undefined);
+                e.target.value = '';
+              }
+            }}
+          />
+          <input
+            ref={mobileLowerInputRef}
+            data-testid="mobile-lower-file-input"
+            type="file"
+            accept=".stl,model/stl,application/sla,application/vnd.ms-pki.stl,application/octet-stream"
+            className="hidden"
+            onChange={(e) => {
+              if (e.target.files && e.target.files[0]) {
+                handleCustomStlSelected(undefined, e.target.files[0]);
+                e.target.value = '';
+              }
+            }}
+          />
+
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <button
+              type="button"
+              data-testid="mobile-upload-bundle-btn"
+              onClick={() => mobileBundleInputRef.current?.click()}
+              className="flex items-center gap-1 px-2.5 py-1 rounded bg-sky-600 hover:bg-sky-500 text-white text-[11px] font-medium shadow-sm whitespace-nowrap transition-colors"
+            >
+              <Upload className="w-3 h-3" />
+              <span>{tr(locale, '選擇檔案上傳 (.stl/.jpg)', 'Upload Files (.stl/.jpg)')}</span>
+            </button>
+            <button
+              type="button"
+              data-testid="mobile-upload-upper-btn"
+              onClick={() => mobileUpperInputRef.current?.click()}
+              className="flex items-center gap-1 px-2 py-1 rounded bg-amber-500/15 dark:bg-amber-950/60 border border-amber-500/40 text-amber-800 dark:text-amber-300 text-[11px] font-medium whitespace-nowrap transition-colors"
+            >
+              <Upload className="w-3 h-3" />
+              <span>{tr(locale, '上顎 STL', 'Upper STL')}</span>
+            </button>
+            <button
+              type="button"
+              data-testid="mobile-upload-lower-btn"
+              onClick={() => mobileLowerInputRef.current?.click()}
+              className="flex items-center gap-1 px-2 py-1 rounded bg-sky-500/15 dark:bg-sky-950/60 border border-sky-500/40 text-sky-800 dark:text-sky-300 text-[11px] font-medium whitespace-nowrap transition-colors"
+            >
+              <Upload className="w-3 h-3" />
+              <span>{tr(locale, '下顎 STL', 'Lower STL')}</span>
+            </button>
+          </div>
+
+          {/* Mobile Viewport Height Switcher */}
+          <div className="flex items-center gap-0.5 bg-slate-100 dark:bg-slate-900 p-0.5 rounded border border-slate-200 dark:border-slate-800 flex-shrink-0">
+            {(
+              [
+                { id: '3d', label: tr(locale, '3D 放大', '3D Max') },
+                { id: 'split', label: tr(locale, '分割', 'Split') },
+                { id: 'panel', label: tr(locale, '面板放大', 'Panel') },
+              ] as { id: MobileLayoutMode; label: string }[]
+            ).map((mode) => (
+              <button
+                key={mode.id}
+                type="button"
+                data-testid={`mobile-layout-${mode.id}`}
+                onClick={() => setMobileLayoutMode(mode.id)}
+                className={`px-2 py-0.5 rounded text-[10px] font-medium whitespace-nowrap transition-colors ${
+                  mobileLayoutMode === mode.id
+                    ? 'bg-sky-500 text-white shadow-sm'
+                    : 'text-slate-600 dark:text-slate-400'
+                }`}
+              >
+                {mode.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Right: Clinical Dossier, Articulator, 5-View Gallery, Tools, & XML Tabs */}
-        <aside className="w-full lg:w-[490px] xl:w-[550px] flex-shrink-0 flex flex-col h-[50vh] lg:h-full bg-slate-50 dark:bg-[#0c1220] overflow-hidden transition-colors">
+        <aside className="w-full lg:w-[490px] xl:w-[550px] flex-shrink-0 flex flex-col flex-1 lg:h-full bg-slate-50 dark:bg-[#0c1220] overflow-hidden transition-colors">
           {/* Tab Selection Bar */}
           <div className="flex border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-[#090d16] px-2 pt-2 flex-shrink-0 gap-1 overflow-x-auto transition-colors">
             <button

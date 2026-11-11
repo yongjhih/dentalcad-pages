@@ -52,6 +52,8 @@ import {
   Flame,
   Ruler,
   Trash2,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 
 interface DentalViewer3DProps {
@@ -150,6 +152,7 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
   const [fps, setFps] = useState<number>(60);
   const [triangleStats, setTriangleStats] = useState({ upper: 0, lower: 0 });
   const [isDragOver, setIsDragOver] = useState<boolean>(false);
+  const [hudCollapsed, setHudCollapsed] = useState<boolean>(false);
 
   // Dynamic dental occlusion center computed from loaded STL bounding boxes
   const centerTarget = useRef(new THREE.Vector3(1.29, -18.36, 1.24));
@@ -1113,7 +1116,7 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
-      className={`relative w-full h-full min-h-[480px] cad-grid-bg overflow-hidden select-none ${
+      className={`relative w-full h-full min-h-[240px] lg:min-h-[480px] cad-grid-bg overflow-hidden select-none ${
         settings.caliperToolActive ? 'cursor-crosshair' : ''
       }`}
     >
@@ -1154,9 +1157,9 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
 
       {/* 3D Caliper Active / Measurements Floating Banner */}
       {(settings.caliperToolActive || caliperMeasurements.length > 0 || pendingCaliperPoint) && (
-        <div className="absolute top-16 left-4 z-30 bg-white/95 dark:bg-[#0f172a]/95 border border-amber-500/50 text-slate-900 dark:text-slate-100 px-3 py-1.5 rounded-lg text-xs flex items-center gap-2.5 shadow-md backdrop-blur">
+        <div className="absolute top-24 sm:top-16 left-2.5 sm:left-4 z-30 bg-white/95 dark:bg-[#0f172a]/95 border border-amber-500/50 text-slate-900 dark:text-slate-100 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs flex items-center gap-2 shadow-md backdrop-blur max-w-[calc(100%-1.25rem)]">
           <Ruler className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
-          <span className="font-medium">
+          <span className="font-medium truncate">
             {settings.caliperToolActive
               ? pendingCaliperPoint
                 ? '請點選第二點 (Point B) 完成測距'
@@ -1164,7 +1167,7 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
               : `已標記 ${caliperMeasurements.length} 組 3D 測距`}
           </span>
           {caliperMeasurements.length > 0 && (
-            <span className="font-mono font-semibold text-amber-600 dark:text-amber-400 tabular-nums border-l border-slate-200 dark:border-slate-700 pl-2">
+            <span className="font-mono font-semibold text-amber-600 dark:text-amber-400 tabular-nums border-l border-slate-200 dark:border-slate-700 pl-2 flex-shrink-0">
               {caliperMeasurements[0].distanceMm.toFixed(2)} mm
             </span>
           )}
@@ -1177,7 +1180,7 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
                 setPendingCaliperPoint(null);
                 onClearCaliperMeasurements?.();
               }}
-              className="px-2 py-0.5 rounded bg-rose-500/15 hover:bg-rose-500/25 text-rose-600 dark:text-rose-300 border border-rose-500/30 text-[11px] font-medium flex items-center gap-1 transition-colors"
+              className="px-2 py-0.5 rounded bg-rose-500/15 hover:bg-rose-500/25 text-rose-600 dark:text-rose-300 border border-rose-500/30 text-[11px] font-medium flex items-center gap-1 transition-colors flex-shrink-0"
               title="直接清除 3D 視窗中的所有測距線與標記點"
             >
               <Trash2 className="w-3 h-3" />
@@ -1198,11 +1201,11 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
         </div>
       )}
 
-      {/* Floating Top Controls: Camera Presets */}
-      <div className="absolute top-4 left-4 z-30 flex items-center flex-wrap gap-1.5 bg-white/90 dark:bg-[#0f172a]/90 border border-slate-200 dark:border-slate-800 p-1 rounded-lg backdrop-blur shadow-md">
-        <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 px-2 py-1 flex items-center gap-1">
+      {/* Floating Top Controls: Camera Presets (Horizontally scrollable on mobile) */}
+      <div className="absolute top-2.5 sm:top-4 left-2.5 sm:left-4 right-2.5 sm:right-auto z-30 flex items-center flex-nowrap sm:flex-wrap overflow-x-auto gap-1 sm:gap-1.5 bg-white/90 dark:bg-[#0f172a]/90 border border-slate-200 dark:border-slate-800 p-1 rounded-lg backdrop-blur shadow-md">
+        <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 px-1.5 sm:px-2 py-1 flex items-center gap-1 flex-shrink-0">
           <Compass className="w-3.5 h-3.5 text-sky-500 dark:text-sky-400" />
-          視角
+          <span className="hidden xs:inline">視角</span>
         </span>
         {(
           [
@@ -1216,11 +1219,12 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
         ).map((preset) => (
           <button
             key={preset.id}
+            type="button"
             onClick={() => {
               onPresetSelect(preset.id);
               applyCameraPreset(preset.id);
             }}
-            className={`px-2.5 py-1 text-xs rounded transition-colors ${
+            className={`px-2 sm:px-2.5 py-1 text-xs rounded transition-colors whitespace-nowrap flex-shrink-0 ${
               activePreset === preset.id
                 ? 'bg-sky-500 text-white font-medium shadow-sm'
                 : 'text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/80'
@@ -1232,8 +1236,9 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
       </div>
 
       {/* Floating Top Right: Action Utilities */}
-      <div className="absolute top-4 right-4 z-30 flex items-center space-x-1.5 bg-white/90 dark:bg-[#0f172a]/90 border border-slate-200 dark:border-slate-800 p-1 rounded-lg backdrop-blur shadow-md">
+      <div className="absolute top-12 sm:top-4 right-2.5 sm:right-4 z-30 flex items-center space-x-1 sm:space-x-1.5 bg-white/90 dark:bg-[#0f172a]/90 border border-slate-200 dark:border-slate-800 p-1 rounded-lg backdrop-blur shadow-md">
         <button
+          type="button"
           onClick={() =>
             onSettingsChange((prev) => ({
               ...prev,
@@ -1252,6 +1257,7 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
         </button>
 
         <button
+          type="button"
           onClick={() =>
             onSettingsChange((prev) => ({
               ...prev,
@@ -1271,6 +1277,7 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
 
         {(caliperMeasurements.length > 0 || pendingCaliperPoint) && (
           <button
+            type="button"
             onClick={() => {
               pendingCaliperPointRef.current = null;
               setPendingCaliperPoint(null);
@@ -1285,6 +1292,7 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
         )}
 
         <button
+          type="button"
           onClick={handleResetCamera}
           title="重設視角至正面咬合"
           className="p-1.5 text-slate-600 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-colors"
@@ -1292,6 +1300,7 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
           <RotateCcw className="w-4 h-4" />
         </button>
         <button
+          type="button"
           onClick={handleCaptureScreenshot}
           title="截取當前 3D 畫面 (PNG)"
           className="p-1.5 text-slate-600 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-colors"
@@ -1299,6 +1308,7 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
           <Camera className="w-4 h-4" />
         </button>
         <button
+          type="button"
           onClick={toggleFullscreen}
           title={isFullscreen ? '結束全螢幕' : '全螢幕檢視'}
           className="p-1.5 text-slate-600 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-colors"
@@ -1307,16 +1317,19 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
         </button>
       </div>
 
-      {/* Floating Bottom Left: Arch Toggles, Articulation Simulator & Texture Controls */}
-      <div className="absolute bottom-4 left-4 z-30 flex flex-col gap-2 max-w-md">
-        <div className="bg-white/95 dark:bg-[#0f172a]/95 border border-slate-200 dark:border-slate-800 p-3 rounded-lg backdrop-blur shadow-lg text-xs space-y-2.5">
-          <div className="flex items-center justify-between gap-4">
-            <span className="font-medium text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-              <Layers className="w-3.5 h-3.5 text-sky-500 dark:text-sky-400" />
-              {tr(locale, '咬合運動模擬與牙弓檢視', 'Articulation & Arch Control')}
+      {/* Floating Bottom Left: Arch Toggles, Articulation Simulator & Texture Controls (Collapsible on Mobile) */}
+      <div className="absolute bottom-2.5 sm:bottom-4 left-2.5 sm:left-4 right-2.5 sm:right-auto z-30 flex flex-col gap-1.5 sm:gap-2 max-w-full sm:max-w-md">
+        <div className="bg-white/95 dark:bg-[#0f172a]/95 border border-slate-200 dark:border-slate-800 p-2.5 sm:p-3 rounded-lg backdrop-blur shadow-lg text-xs space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <span className="font-medium text-slate-700 dark:text-slate-300 flex items-center gap-1.5 truncate">
+              <Layers className="w-3.5 h-3.5 text-sky-500 dark:text-sky-400 flex-shrink-0" />
+              <span className="truncate">
+                {tr(locale, '咬合運動模擬與牙弓檢視', 'Articulation & Arch Control')}
+              </span>
             </span>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 flex-shrink-0">
               <button
+                type="button"
                 onClick={() =>
                   onSettingsChange((prev) => ({
                     ...prev,
@@ -1333,6 +1346,7 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
                 {tr(locale, '上顎 (U)', 'Upper (U)')}
               </button>
               <button
+                type="button"
                 onClick={() =>
                   onSettingsChange((prev) => ({
                     ...prev,
@@ -1348,174 +1362,200 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
                 {settings.showLower ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
                 {tr(locale, '下顎 (L)', 'Lower (L)')}
               </button>
+              <button
+                type="button"
+                data-testid="viewport-hud-toggle"
+                onClick={() => setHudCollapsed((v) => !v)}
+                className="p-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-slate-700 transition-colors"
+                title={
+                  hudCollapsed
+                    ? tr(locale, '展開 3D 浮動控制面板', 'Expand 3D HUD Controls')
+                    : tr(locale, '收合 3D 浮動控制面板（釋放手機視野）', 'Collapse 3D HUD Controls')
+                }
+              >
+                {hudCollapsed ? (
+                  <ChevronUp className="w-3.5 h-3.5" />
+                ) : (
+                  <ChevronDown className="w-3.5 h-3.5" />
+                )}
+              </button>
             </div>
           </div>
 
-          {/* Quick Articulation Mode Pills */}
-          <div className="flex items-center gap-1 flex-wrap">
-            {(
-              [
-                { id: 'hinge', label: tr(locale, '生理樞軸', 'Hinge') },
-                { id: 'protrusion', label: tr(locale, '前突', 'Protrusion') },
-                { id: 'lateral_left', label: tr(locale, '左側方', 'Lat L') },
-                { id: 'lateral_right', label: tr(locale, '右側方', 'Lat R') },
-                { id: 'chewing', label: tr(locale, '咀嚼循環', 'Chewing') },
-                { id: 'parallel', label: tr(locale, '平行', 'Parallel') },
-              ] as { id: ArticulationMode; label: string }[]
-            ).map((m) => (
-              <button
-                key={m.id}
-                onClick={() =>
-                  onSettingsChange((prev) => ({
-                    ...prev,
-                    articulator: {
-                      ...prev.articulator,
-                      mode: m.id,
-                    },
-                  }))
-                }
-                className={`px-2 py-0.5 rounded text-[10px] font-medium border transition-colors ${
-                  settings.articulator.mode === m.id
-                    ? 'bg-sky-500 text-white border-sky-600'
-                    : 'bg-slate-100 dark:bg-slate-800/90 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'
-                }`}
-              >
-                {m.label}
-              </button>
-            ))}
-          </div>
+          {!hudCollapsed && (
+            <>
+              {/* Quick Articulation Mode Pills */}
+              <div className="flex items-center gap-1 flex-wrap">
+                {(
+                  [
+                    { id: 'hinge', label: tr(locale, '生理樞軸', 'Hinge') },
+                    { id: 'protrusion', label: tr(locale, '前突', 'Protrusion') },
+                    { id: 'lateral_left', label: tr(locale, '左側方', 'Lat L') },
+                    { id: 'lateral_right', label: tr(locale, '右側方', 'Lat R') },
+                    { id: 'chewing', label: tr(locale, '咀嚼循環', 'Chewing') },
+                    { id: 'parallel', label: tr(locale, '平行', 'Parallel') },
+                  ] as { id: ArticulationMode; label: string }[]
+                ).map((m) => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() =>
+                      onSettingsChange((prev) => ({
+                        ...prev,
+                        articulator: {
+                          ...prev.articulator,
+                          mode: m.id,
+                        },
+                      }))
+                    }
+                    className={`px-2 py-0.5 rounded text-[10px] font-medium border transition-colors ${
+                      settings.articulator.mode === m.id
+                        ? 'bg-sky-500 text-white border-sky-600'
+                        : 'bg-slate-100 dark:bg-slate-800/90 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                    }`}
+                  >
+                    {m.label}
+                  </button>
+                ))}
+              </div>
 
-          {/* Articulation Progress Slider & Play Button */}
-          <div className="space-y-1">
-            <div className="flex justify-between items-center text-[11px] text-slate-500 dark:text-slate-400">
-              <div className="flex items-center gap-1.5">
-                <button
-                  onClick={() =>
+              {/* Articulation Progress Slider & Play Button */}
+              <div className="space-y-1">
+                <div className="flex justify-between items-center text-[11px] text-slate-500 dark:text-slate-400">
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onSettingsChange((prev) => ({
+                          ...prev,
+                          articulator: {
+                            ...prev.articulator,
+                            isPlaying: !prev.articulator.isPlaying,
+                          },
+                        }))
+                      }
+                      className="p-1 rounded bg-sky-500 text-white hover:bg-sky-600 transition-colors"
+                      title={settings.articulator.isPlaying ? '暫停咬合運動' : '自動播放咬合運動'}
+                    >
+                      {settings.articulator.isPlaying ? (
+                        <Pause className="w-3 h-3" />
+                      ) : (
+                        <Play className="w-3 h-3" />
+                      )}
+                    </button>
+                    <span>{tr(locale, '下顎運動行程', 'Excursion Progress')}</span>
+                  </div>
+                  <span className="font-mono text-sky-600 dark:text-sky-400 tabular-nums">
+                    {settings.articulator.progress === 0
+                      ? tr(locale, '中心咬合 CO (0%)', 'Centric CO (0%)')
+                      : `${Math.round(settings.articulator.progress * 100)}% · ${currentKinematics.incisalOpeningMm.toFixed(1)}mm / ${currentKinematics.rotationAngleDeg.toFixed(1)}°`}
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  value={settings.articulator.progress}
+                  onChange={(e) => {
+                    const p = parseFloat(e.target.value);
                     onSettingsChange((prev) => ({
                       ...prev,
+                      occlusionSeparation: Math.round(p * 35),
                       articulator: {
                         ...prev.articulator,
-                        isPlaying: !prev.articulator.isPlaying,
+                        progress: p,
+                        isPlaying: false,
                       },
-                    }))
-                  }
-                  className="p-1 rounded bg-sky-500 text-white hover:bg-sky-600 transition-colors"
-                  title={settings.articulator.isPlaying ? '暫停咬合運動' : '自動播放咬合運動'}
-                >
-                  {settings.articulator.isPlaying ? (
-                    <Pause className="w-3 h-3" />
-                  ) : (
-                    <Play className="w-3 h-3" />
-                  )}
-                </button>
-                <span>{tr(locale, '下顎運動行程', 'Excursion Progress')}</span>
+                    }));
+                  }}
+                  className="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-sky-500"
+                />
               </div>
-              <span className="font-mono text-sky-600 dark:text-sky-400 tabular-nums">
-                {settings.articulator.progress === 0
-                  ? tr(locale, '中心咬合 CO (0%)', 'Centric CO (0%)')
-                  : `${Math.round(settings.articulator.progress * 100)}% · ${currentKinematics.incisalOpeningMm.toFixed(1)}mm / ${currentKinematics.rotationAngleDeg.toFixed(1)}°`}
-              </span>
-            </div>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.01"
-              value={settings.articulator.progress}
-              onChange={(e) => {
-                const p = parseFloat(e.target.value);
-                onSettingsChange((prev) => ({
-                  ...prev,
-                  occlusionSeparation: Math.round(p * 35),
-                  articulator: {
-                    ...prev.articulator,
-                    progress: p,
-                    isPlaying: false,
-                  },
-                }));
-              }}
-              className="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-sky-500"
-            />
-          </div>
 
-          {/* 5-View Photo Texture & Occlusogram Quick Toggles */}
-          <div className="flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-800/80 gap-2">
-            <button
-              onClick={() =>
-                onSettingsChange((prev) => ({
-                  ...prev,
-                  photoTextureMapped: !prev.photoTextureMapped,
-                  occlusogramEnabled: !prev.photoTextureMapped ? false : prev.occlusogramEnabled,
-                }))
-              }
-              className={`flex-1 px-2.5 py-1 rounded text-[11px] font-medium transition-colors border flex items-center justify-center gap-1.5 ${
-                settings.photoTextureMapped && !settings.occlusogramEnabled
-                  ? 'bg-sky-500 border-sky-600 text-white shadow-sm'
-                  : 'bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400'
-              }`}
-            >
-              <ImageIcon className="w-3.5 h-3.5" />
-              <span>{tr(locale, '五方照片貼圖', '5-View Texture')}</span>
-            </button>
-
-            <button
-              onClick={() =>
-                onSettingsChange((prev) => ({
-                  ...prev,
-                  occlusogramEnabled: !prev.occlusogramEnabled,
-                }))
-              }
-              className={`flex-1 px-2.5 py-1 rounded text-[11px] font-medium transition-colors border flex items-center justify-center gap-1.5 ${
-                settings.occlusogramEnabled
-                  ? 'bg-rose-600 border-rose-500 text-white shadow-sm'
-                  : 'bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400'
-              }`}
-            >
-              <Flame className="w-3.5 h-3.5" />
-              <span>{tr(locale, '咬合熱力圖', 'Occlusogram')}</span>
-            </button>
-          </div>
-
-          {/* Quick shading pills */}
-          <div className="flex items-center justify-between pt-1.5 border-t border-slate-200 dark:border-slate-800/80 gap-1.5">
-            <span className="text-[11px] text-slate-500 dark:text-slate-400">
-              {tr(locale, '材質', 'Shader')}
-            </span>
-            <div className="flex items-center gap-1">
-              {[
-                { id: 'enamel', label: tr(locale, '琺瑯質', 'Enamel') },
-                { id: 'plaster', label: tr(locale, '石膏', 'Plaster') },
-                { id: 'normal', label: tr(locale, '法線', 'Normals') },
-                { id: 'wireframe', label: tr(locale, '線框', 'Wire') },
-                { id: 'translucent', label: tr(locale, '半透', 'X-Ray') },
-              ].map((m) => (
+              {/* 5-View Photo Texture & Occlusogram Quick Toggles */}
+              <div className="flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-800/80 gap-2">
                 <button
-                  key={m.id}
+                  type="button"
                   onClick={() =>
                     onSettingsChange((prev) => ({
                       ...prev,
-                      photoTextureMapped: false,
-                      occlusogramEnabled: false,
-                      shadingMode: m.id as ViewportSettings['shadingMode'],
+                      photoTextureMapped: !prev.photoTextureMapped,
+                      occlusogramEnabled: !prev.photoTextureMapped ? false : prev.occlusogramEnabled,
                     }))
                   }
-                  className={`px-1.5 py-0.5 rounded text-[10px] transition-colors ${
-                    !settings.photoTextureMapped &&
-                    !settings.occlusogramEnabled &&
-                    settings.shadingMode === m.id
-                      ? 'bg-sky-500/15 dark:bg-slate-700 text-sky-700 dark:text-sky-300 font-medium'
-                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                  className={`flex-1 px-2.5 py-1 rounded text-[11px] font-medium transition-colors border flex items-center justify-center gap-1.5 ${
+                    settings.photoTextureMapped && !settings.occlusogramEnabled
+                      ? 'bg-sky-500 border-sky-600 text-white shadow-sm'
+                      : 'bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400'
                   }`}
                 >
-                  {m.label}
+                  <ImageIcon className="w-3.5 h-3.5" />
+                  <span>{tr(locale, '五方照片貼圖', '5-View Texture')}</span>
                 </button>
-              ))}
-            </div>
-          </div>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    onSettingsChange((prev) => ({
+                      ...prev,
+                      occlusogramEnabled: !prev.occlusogramEnabled,
+                    }))
+                  }
+                  className={`flex-1 px-2.5 py-1 rounded text-[11px] font-medium transition-colors border flex items-center justify-center gap-1.5 ${
+                    settings.occlusogramEnabled
+                      ? 'bg-rose-600 border-rose-500 text-white shadow-sm'
+                      : 'bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+                  }`}
+                >
+                  <Flame className="w-3.5 h-3.5" />
+                  <span>{tr(locale, '咬合熱力圖', 'Occlusogram')}</span>
+                </button>
+              </div>
+
+              {/* Quick shading pills */}
+              <div className="flex items-center justify-between pt-1.5 border-t border-slate-200 dark:border-slate-800/80 gap-1.5">
+                <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                  {tr(locale, '材質', 'Shader')}
+                </span>
+                <div className="flex items-center gap-1">
+                  {[
+                    { id: 'enamel', label: tr(locale, '琺瑯質', 'Enamel') },
+                    { id: 'plaster', label: tr(locale, '石膏', 'Plaster') },
+                    { id: 'normal', label: tr(locale, '法線', 'Normals') },
+                    { id: 'wireframe', label: tr(locale, '線框', 'Wire') },
+                    { id: 'translucent', label: tr(locale, '半透', 'X-Ray') },
+                  ].map((m) => (
+                    <button
+                      key={m.id}
+                      type="button"
+                      onClick={() =>
+                        onSettingsChange((prev) => ({
+                          ...prev,
+                          photoTextureMapped: false,
+                          occlusogramEnabled: false,
+                          shadingMode: m.id as ViewportSettings['shadingMode'],
+                        }))
+                      }
+                      className={`px-1.5 py-0.5 rounded text-[10px] transition-colors ${
+                        !settings.photoTextureMapped &&
+                        !settings.occlusogramEnabled &&
+                        settings.shadingMode === m.id
+                          ? 'bg-sky-500/15 dark:bg-slate-700 text-sky-700 dark:text-sky-300 font-medium'
+                          : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                      }`}
+                    >
+                      {m.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Real-time CAD Mesh & System Stats Badge */}
-        <div className="flex items-center gap-3 px-3 py-1.5 bg-white/90 dark:bg-[#090d16]/80 border border-slate-200 dark:border-slate-800/80 rounded-md text-[10px] text-slate-500 dark:text-slate-400 font-mono tabular-nums shadow-sm">
+        <div className="hidden sm:flex items-center gap-3 px-3 py-1.5 bg-white/90 dark:bg-[#090d16]/80 border border-slate-200 dark:border-slate-800/80 rounded-md text-[10px] text-slate-500 dark:text-slate-400 font-mono tabular-nums shadow-sm">
           <span>
             {tr(locale, '上顎', 'Maxilla')}:{' '}
             <strong className="text-slate-800 dark:text-slate-200 font-semibold">
@@ -1540,12 +1580,16 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
         </div>
       </div>
 
-      {/* Floating Bottom Right: Clickable Browser Upload & Drag-and-Drop Trigger */}
-      <label className="absolute bottom-4 right-4 z-30 hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-white/95 dark:bg-[#0f172a]/95 hover:bg-sky-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 rounded-md text-[11px] text-slate-700 dark:text-slate-300 backdrop-blur shadow-sm cursor-pointer transition-colors">
+      {/* Floating Upload & Drag-and-Drop Trigger (Visible on BOTH Mobile and Desktop) */}
+      <label
+        data-testid="viewport-upload-label"
+        className="absolute top-12 left-2.5 sm:top-auto sm:left-auto sm:bottom-4 sm:right-4 z-30 flex items-center gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 bg-sky-600 sm:bg-white/95 sm:dark:bg-[#0f172a]/95 hover:bg-sky-500 sm:hover:bg-sky-50 sm:dark:hover:bg-slate-800 border border-sky-500 sm:border-slate-200 sm:dark:border-slate-800 rounded-md text-[11px] font-medium sm:font-normal text-white sm:text-slate-700 sm:dark:text-slate-300 backdrop-blur shadow-md sm:shadow-sm cursor-pointer transition-colors"
+      >
         <input
+          data-testid="viewport-file-input"
           type="file"
           multiple
-          accept=".stl,.xml,.jpg,.jpeg,.png,.pdf,.html"
+          accept=".stl,.xml,.jpg,.jpeg,.png,.pdf,.html,model/stl,application/sla,application/vnd.ms-pki.stl,application/octet-stream,image/*,application/pdf,text/xml,application/xml"
           className="hidden"
           onChange={(e) => {
             if (e.target.files && e.target.files.length > 0 && onCustomFilesDrop) {
@@ -1554,8 +1598,11 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
             }
           }}
         />
-        <Upload className="w-3.5 h-3.5 text-sky-500 dark:text-sky-400" />
-        <span>
+        <Upload className="w-3.5 h-3.5 text-white sm:text-sky-500 sm:dark:text-sky-400 flex-shrink-0" />
+        <span className="sm:hidden">
+          {tr(locale, '選擇檔案上傳 (.stl/.jpg)', 'Upload Files (.stl/.jpg)')}
+        </span>
+        <span className="hidden sm:inline">
           {tr(
             locale,
             '點擊選擇或拖曳本地口掃檔案 (.stl / .xml / .jpg) 渲染並存入瀏覽器',

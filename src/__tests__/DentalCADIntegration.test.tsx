@@ -155,4 +155,36 @@ describe('DentalCAD Pages Application Integration Tests', () => {
     fireEvent.click(screen.getByTestId('clear-caliper-btn'));
     expect(screen.queryAllByTestId('caliper-measurement-item')).toHaveLength(0);
   });
+
+  it('provides mobile-friendly upload buttons, viewport HUD collapse toggle, and mobile split layout controls', async () => {
+    render(<App />);
+
+    // Verify Header upload button and file input are accessible
+    const headerUploadBtn = screen.getByTestId('header-upload-btn');
+    expect(headerUploadBtn).toBeInTheDocument();
+    expect(headerUploadBtn).toHaveTextContent(/上傳檔案/);
+
+    // Verify 3D Viewport upload trigger is rendered (not hidden on mobile)
+    const viewportUploadLabel = screen.getByTestId('viewport-upload-label');
+    expect(viewportUploadLabel).toBeInTheDocument();
+
+    // Verify Mobile Quick Upload & Layout Bar buttons are present
+    expect(screen.getByTestId('mobile-quick-bar')).toBeInTheDocument();
+    expect(screen.getByTestId('mobile-upload-bundle-btn')).toBeInTheDocument();
+    expect(screen.getByTestId('mobile-upload-upper-btn')).toBeInTheDocument();
+    expect(screen.getByTestId('mobile-upload-lower-btn')).toBeInTheDocument();
+
+    // Verify Mobile Viewport Layout ratio switcher works (3D Max / Split / Panel)
+    fireEvent.click(screen.getByTestId('mobile-layout-3d'));
+    fireEvent.click(screen.getByTestId('mobile-layout-panel'));
+    fireEvent.click(screen.getByTestId('mobile-layout-split'));
+
+    // Verify 3D Viewport floating HUD can be collapsed and expanded on mobile
+    const hudToggleBtn = screen.getByTestId('viewport-hud-toggle');
+    expect(screen.getByText('下顎運動行程')).toBeInTheDocument();
+    fireEvent.click(hudToggleBtn);
+    expect(screen.queryByText('下顎運動行程')).not.toBeInTheDocument();
+    fireEvent.click(hudToggleBtn);
+    expect(screen.getByText('下顎運動行程')).toBeInTheDocument();
+  });
 });
