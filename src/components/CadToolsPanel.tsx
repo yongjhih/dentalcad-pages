@@ -1,6 +1,7 @@
 import React, { useRef } from 'react';
-import { ViewportSettings, ShadingMode, DentalCaseBundle } from '../types/dental';
+import { ViewportSettings, ShadingMode, DentalCaseBundle, LocaleMode } from '../types/dental';
 import { getDisplayMetadata } from '../utils/anonymize';
+import { tr } from '../utils/i18n';
 import {
   Scissors,
   Palette,
@@ -24,6 +25,7 @@ interface CadToolsPanelProps {
   onSelectCase?: (caseId: string) => void;
   onDeleteCustomCase?: (caseId: string) => void;
   anonymizePatient?: boolean;
+  locale?: LocaleMode;
 }
 
 export const CadToolsPanel: React.FC<CadToolsPanelProps> = ({
@@ -36,6 +38,7 @@ export const CadToolsPanel: React.FC<CadToolsPanelProps> = ({
   onSelectCase,
   onDeleteCustomCase,
   anonymizePatient = true,
+  locale = 'zh-TW',
 }) => {
   const upperFileInputRef = useRef<HTMLInputElement>(null);
   const lowerFileInputRef = useRef<HTMLInputElement>(null);
@@ -77,7 +80,13 @@ export const CadToolsPanel: React.FC<CadToolsPanelProps> = ({
       <div className="space-y-3">
         <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
           <ImageIcon className="w-4 h-4 text-sky-500 dark:text-sky-400" />
-          <span>五方攝影照片貼圖渲染 (Photo Texture Mapping)</span>
+          <span>
+            {tr(
+              locale,
+              '五方攝影照片貼圖渲染 (Photo Texture Mapping)',
+              '5-View Photo Texture Projection'
+            )}
+          </span>
         </h2>
 
         <div className="bg-white dark:bg-[#0b0f17] border border-slate-200 dark:border-slate-800 p-3 rounded-lg flex items-center justify-between gap-3 shadow-sm dark:shadow-none">

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { ClinicalPhoto, CameraPreset } from '../types/dental';
+import { ClinicalPhoto, CameraPreset, LocaleMode } from '../types/dental';
+import { tr } from '../utils/i18n';
 import {
   Maximize2,
   X,
@@ -18,6 +19,7 @@ interface PentaGalleryProps {
   photoTextureMapped?: boolean;
   onTogglePhotoTexture?: () => void;
   onImportCaseFiles?: (files: FileList) => void;
+  locale?: LocaleMode;
 }
 
 export const PentaGallery: React.FC<PentaGalleryProps> = ({
@@ -26,6 +28,7 @@ export const PentaGallery: React.FC<PentaGalleryProps> = ({
   photoTextureMapped = false,
   onTogglePhotoTexture,
   onImportCaseFiles,
+  locale = 'zh-TW',
 }) => {
   const [selectedPhoto, setSelectedPhoto] = useState<ClinicalPhoto | null>(null);
   const [zoomLevel, setZoomLevel] = useState<number>(1);
@@ -61,10 +64,14 @@ export const PentaGallery: React.FC<PentaGalleryProps> = ({
       <div className="flex items-start justify-between gap-2 flex-wrap">
         <div>
           <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">
-            五方位臨床齒列照片
+            {tr(locale, '五方位臨床齒列照片', '5-View Intraoral Clinical Photography')}
           </h2>
           <p className="text-slate-500 dark:text-slate-400 mt-0.5">
-            iTero Element 系統擷取之標準臨床攝影與五方位咬合記錄 (Penta Gallery)
+            {tr(
+              locale,
+              '口掃系統擷取之標準臨床攝影與五方位咬合記錄 (Penta Gallery)',
+              'Standard 5-view occlusal photography & 3D orthographic texture projection'
+            )}
           </p>
         </div>
 
@@ -78,7 +85,11 @@ export const PentaGallery: React.FC<PentaGalleryProps> = ({
             }`}
           >
             <Layers className="w-3.5 h-3.5" />
-            <span>{photoTextureMapped ? '3D 照片貼圖：已啟用' : '套用照片貼圖至 3D 模型'}</span>
+            <span>
+              {photoTextureMapped
+                ? tr(locale, '3D 照片貼圖：已啟用', '3D Photo Texture: ON')
+                : tr(locale, '套用照片貼圖至 3D 模型', 'Map Photos onto 3D Arch')}
+            </span>
           </button>
         )}
       </div>

@@ -1,16 +1,19 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Copy, Check, FileCode, Download } from 'lucide-react';
-import { DentalCaseBundle } from '../types/dental';
+import { DentalCaseBundle, LocaleMode } from '../types/dental';
 import { anonymizeXmlString } from '../utils/anonymize';
+import { tr } from '../utils/i18n';
 
 interface XmlInspectorProps {
   caseBundle: DentalCaseBundle;
   anonymizePatient?: boolean;
+  locale?: LocaleMode;
 }
 
 export const XmlInspector: React.FC<XmlInspectorProps> = ({
   caseBundle,
   anonymizePatient = true,
+  locale = 'zh-TW',
 }) => {
   const [xmlVersion, setXmlVersion] = useState<'v50' | 'v30'>('v50');
   const [xmlContent, setXmlContent] = useState<string>('');
@@ -70,10 +73,16 @@ export const XmlInspector: React.FC<XmlInspectorProps> = ({
         <div>
           <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
             <FileCode className="w-4 h-4 text-sky-500 dark:text-sky-400" />
-            <span>iTero 匯出 Metadata (XML)</span>
+            <span>
+              {tr(locale, '口掃匯出 Metadata (XML)', 'Scanner Export Metadata (XML)')}
+            </span>
           </h2>
           <p className="text-slate-500 dark:text-slate-400 mt-0.5">
-            包含咬合變換矩陣 (ActualUsedTransforms)、ADA 牙位代碼及處方物件關聯。
+            {tr(
+              locale,
+              '包含咬合變換矩陣 (ActualUsedTransforms)、ADA 牙位代碼及處方物件關聯。',
+              'Contains occlusal transformation matrices (ActualUsedTransforms), ADA tooth ranges, and Rx metadata.'
+            )}
           </p>
         </div>
 

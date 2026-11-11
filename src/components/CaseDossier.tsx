@@ -1,6 +1,7 @@
 import React from 'react';
-import { DentalCaseBundle, MeshGeometryStats } from '../types/dental';
+import { DentalCaseBundle, MeshGeometryStats, LocaleMode } from '../types/dental';
 import { getDisplayMetadata } from '../utils/anonymize';
+import { tr } from '../utils/i18n';
 import {
   User,
   Stethoscope,
@@ -18,6 +19,7 @@ interface CaseDossierProps {
   meshStats: MeshGeometryStats;
   anonymizePatient: boolean;
   onToggleAnonymize?: () => void;
+  locale?: LocaleMode;
 }
 
 export const CaseDossier: React.FC<CaseDossierProps> = ({
@@ -25,6 +27,7 @@ export const CaseDossier: React.FC<CaseDossierProps> = ({
   meshStats,
   anonymizePatient,
   onToggleAnonymize,
+  locale = 'zh-TW',
 }) => {
   const { assets } = caseBundle;
   const metadata = getDisplayMetadata(caseBundle.metadata, anonymizePatient);
@@ -35,10 +38,12 @@ export const CaseDossier: React.FC<CaseDossierProps> = ({
       <div className="space-y-3">
         <div className="flex items-center justify-between flex-wrap gap-2">
           <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">
-            3D 齒列網格與掃描技術規格
+            {tr(locale, '3D 齒列網格與掃描技術規格', '3D Dental Mesh & Scanner Specifications')}
           </h2>
           <span className="text-xs font-mono font-normal text-emerald-700 dark:text-emerald-400 bg-emerald-500/15 dark:bg-emerald-950/60 border border-emerald-500/40 dark:border-emerald-800/60 px-2 py-0.5 rounded">
-            {caseBundle.source === 'custom' ? 'IndexedDB 案例' : '數位印模完成'}
+            {caseBundle.source === 'custom'
+              ? tr(locale, 'IndexedDB 案例', 'IndexedDB Case')
+              : tr(locale, '數位印模完成', 'Sandbox Ready')}
           </span>
         </div>
 

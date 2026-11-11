@@ -9,9 +9,11 @@ import {
   Database,
   Sun,
   Moon,
+  Globe,
 } from 'lucide-react';
-import { DentalCaseBundle, ThemeMode } from '../types/dental';
+import { DentalCaseBundle, ThemeMode, LocaleMode } from '../types/dental';
 import { getDisplayMetadata } from '../utils/anonymize';
+import { tr } from '../utils/i18n';
 
 interface HeaderProps {
   cases: DentalCaseBundle[];
@@ -23,6 +25,8 @@ interface HeaderProps {
   onToggleAnonymize: () => void;
   theme: ThemeMode;
   onToggleTheme: () => void;
+  locale?: LocaleMode;
+  onToggleLocale?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -35,6 +39,8 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleAnonymize,
   theme,
   onToggleTheme,
+  locale = 'zh-TW',
+  onToggleLocale,
 }) => {
   const bundleInputRef = useRef<HTMLInputElement>(null);
   const { assets } = activeCase;
@@ -82,10 +88,14 @@ export const Header: React.FC<HeaderProps> = ({
           {activeCase.source === 'custom' && (
             <span
               className="hidden lg:inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-500/15 dark:bg-emerald-950/60 border border-emerald-500/40 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-300 text-[11px]"
-              title="此案例已持久化儲存於瀏覽器 IndexedDB，下次開啟網頁仍可直接檢視"
+              title={tr(
+                locale,
+                '此案例已持久化儲存於瀏覽器 IndexedDB，下次開啟網頁仍可直接檢視',
+                'Case persisted in browser IndexedDB for offline access'
+              )}
             >
               <Database className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
-              <span>已存於 IndexedDB</span>
+              <span>{tr(locale, '已存於 IndexedDB', 'Saved in IndexedDB')}</span>
             </span>
           )}
 
@@ -93,7 +103,11 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               onClick={() => onDeleteCustomCase(activeCase.id)}
               className="p-1 rounded bg-red-100 dark:bg-red-950/50 hover:bg-red-200 dark:hover:bg-red-900/70 border border-red-300 dark:border-red-800/60 text-red-600 dark:text-red-300 transition-colors"
-              title="從瀏覽器 IndexedDB 移除此自訂案例"
+              title={tr(
+                locale,
+                '從瀏覽器 IndexedDB 移除此自訂案例',
+                'Remove custom case from browser IndexedDB'
+              )}
             >
               <Trash2 className="w-3.5 h-3.5" />
             </button>
@@ -105,12 +119,12 @@ export const Header: React.FC<HeaderProps> = ({
             {displayMeta.procedureType}
           </span>
           <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700/60 text-[11px]">
-            掃描: {displayMeta.scanDate}
+            {tr(locale, '掃描', 'Scan')}: {displayMeta.scanDate}
           </span>
         </div>
       </div>
 
-      {/* Actions: Data Import, Anonymize Toggle, PDF, Theme & GitHub */}
+      {/* Actions: Data Import, Anonymize Toggle, PDF, Locale, Theme & GitHub */}
       <div className="flex items-center space-x-2 flex-shrink-0">
         {/* Load External Case Bundle Button */}
         <input
@@ -129,10 +143,16 @@ export const Header: React.FC<HeaderProps> = ({
         <button
           onClick={() => bundleInputRef.current?.click()}
           className="flex items-center space-x-1.5 px-2.5 py-1 rounded text-xs bg-sky-500/15 dark:bg-sky-950/60 hover:bg-sky-500/25 dark:hover:bg-sky-900/70 border border-sky-500/40 dark:border-sky-800/70 text-sky-700 dark:text-sky-200 transition-colors font-medium"
-          title="選取其他案例的 STL / XML / JPG / PDF 檔案組，即時抽換並自動存入瀏覽器 IndexedDB"
+          title={tr(
+            locale,
+            '選取其他案例的 STL / XML / JPG / PDF 檔案組，即時抽換並自動存入瀏覽器 IndexedDB',
+            'Select local STL / XML / JPG / PDF scanner files to render and persist in browser IndexedDB'
+          )}
         >
           <FolderOpen className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
-          <span className="hidden sm:inline">抽換並存入瀏覽器</span>
+          <span className="hidden sm:inline">
+            {tr(locale, '抽換並存入瀏覽器', 'Upload Scan Bundle')}
+          </span>
         </button>
 
         {/* Privacy Anonymize Toggle (Default Active) */}
@@ -154,7 +174,11 @@ export const Header: React.FC<HeaderProps> = ({
           ) : (
             <Shield className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
           )}
-          <span>{anonymizePatient ? '匿名已啟用' : '顯示原始個資'}</span>
+          <span>
+            {anonymizePatient
+              ? tr(locale, '匿名已啟用', 'Anonymized')
+              : tr(locale, '顯示原始個資', 'Raw PHI Visible')}
+          </span>
         </button>
 
         {/* Prescription PDF Link */}
@@ -167,8 +191,25 @@ export const Header: React.FC<HeaderProps> = ({
             title={`開啟處方 PDF (${assets.rxPdfFileName || 'Rx.pdf'})`}
           >
             <FileText className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
-            <span>處方箋 PDF</span>
+            <span>{tr(locale, '處方箋 PDF', 'Rx PDF')}</span>
           </a>
+        )}
+
+        {/* English / Traditional Chinese Language Switcher */}
+        {onToggleLocale && (
+          <button
+            data-testid="locale-toggle-btn"
+            onClick={onToggleLocale}
+            className="flex items-center gap-1 px-2 py-1 rounded text-xs font-mono bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
+            title={
+              locale === 'zh-TW'
+                ? 'Switch interface language to English (EN)'
+                : '切換介面語系為繁體中文 (zh-TW)'
+            }
+          >
+            <Globe className="w-3.5 h-3.5 text-sky-500 dark:text-sky-400" />
+            <span>{locale === 'zh-TW' ? 'EN' : '中文'}</span>
+          </button>
         )}
 
         {/* Light / Dark Theme Toggle */}
@@ -180,12 +221,12 @@ export const Header: React.FC<HeaderProps> = ({
           {theme === 'dark' ? (
             <>
               <Sun className="w-3.5 h-3.5 text-amber-400" />
-              <span className="hidden md:inline">亮色</span>
+              <span className="hidden md:inline">{tr(locale, '亮色', 'Light')}</span>
             </>
           ) : (
             <>
               <Moon className="w-3.5 h-3.5 text-sky-600" />
-              <span className="hidden md:inline">暗色</span>
+              <span className="hidden md:inline">{tr(locale, '暗色', 'Dark')}</span>
             </>
           )}
         </button>

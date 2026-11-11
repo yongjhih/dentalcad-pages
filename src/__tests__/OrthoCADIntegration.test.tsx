@@ -64,6 +64,27 @@ describe('IOS Pages Application Integration Tests', () => {
     expect(localStorage.getItem('orthocad_theme')).toBe('dark');
   });
 
+  it('switches between Traditional Chinese (zh-TW) and English (en) locales', () => {
+    render(<App />);
+
+    expect(screen.getByText('iTero 虛擬咬合器與下顎運動模擬')).toBeInTheDocument();
+
+    const localeBtn = screen.getByTestId('locale-toggle-btn');
+    fireEvent.click(localeBtn);
+
+    expect(document.documentElement.lang).toBe('en');
+    expect(
+      screen.getByText('Virtual Articulator & 6-DOF Mandibular Kinematics')
+    ).toBeInTheDocument();
+    expect(screen.getByTestId('tab-articulator')).toHaveTextContent(
+      'Articulator & Occlusogram'
+    );
+
+    fireEvent.click(localeBtn);
+    expect(document.documentElement.lang).toBe('zh-TW');
+    expect(screen.getByText('iTero 虛擬咬合器與下顎運動模擬')).toBeInTheDocument();
+  });
+
   it('simulates 6-DOF mandibular articulation and updates trajectory when curve & condylar parameters change', () => {
     render(<App />);
 

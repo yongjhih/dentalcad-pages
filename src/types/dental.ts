@@ -4,6 +4,8 @@ export type CameraPreset = 'front' | 'upper' | 'lower' | 'right' | 'left' | 'iso
 
 export type ThemeMode = 'dark' | 'light';
 
+export type LocaleMode = 'en' | 'zh-TW';
+
 export type ScannerVendor =
   | 'itero'
   | '3shape'

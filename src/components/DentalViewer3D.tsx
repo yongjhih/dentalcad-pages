@@ -13,7 +13,9 @@ import {
   OrthoArchMetrics,
   Point3D,
   CaliperMeasurement,
+  LocaleMode,
 } from '../types/dental';
+import { tr } from '../utils/i18n';
 import {
   LoadedPentaTextures,
   loadPentaViewTextures,
@@ -68,6 +70,7 @@ interface DentalViewer3DProps {
   onAddCaliperMeasurement?: (pointA: Point3D, pointB: Point3D) => void;
   onClearCaliperMeasurements?: () => void;
   onCustomFilesDrop?: (files: FileList) => void;
+  locale?: LocaleMode;
 }
 
 export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
@@ -86,6 +89,7 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
   onAddCaliperMeasurement,
   onClearCaliperMeasurements,
   onCustomFilesDrop,
+  locale = 'zh-TW',
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
@@ -1309,7 +1313,7 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
           <div className="flex items-center justify-between gap-4">
             <span className="font-medium text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
               <Layers className="w-3.5 h-3.5 text-sky-500 dark:text-sky-400" />
-              咬合運動模擬與牙弓檢視
+              {tr(locale, '咬合運動模擬與牙弓檢視', 'Articulation & Arch Control')}
             </span>
             <div className="flex items-center gap-1">
               <button
@@ -1326,7 +1330,7 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
                 }`}
               >
                 {settings.showUpper ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
-                上顎 (U)
+                {tr(locale, '上顎 (U)', 'Upper (U)')}
               </button>
               <button
                 onClick={() =>
@@ -1342,7 +1346,7 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
                 }`}
               >
                 {settings.showLower ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
-                下顎 (L)
+                {tr(locale, '下顎 (L)', 'Lower (L)')}
               </button>
             </div>
           </div>
@@ -1351,12 +1355,12 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
           <div className="flex items-center gap-1 flex-wrap">
             {(
               [
-                { id: 'hinge', label: '生理樞軸' },
-                { id: 'protrusion', label: '前突' },
-                { id: 'lateral_left', label: '左側方' },
-                { id: 'lateral_right', label: '右側方' },
-                { id: 'chewing', label: '咀嚼循環' },
-                { id: 'parallel', label: '平行' },
+                { id: 'hinge', label: tr(locale, '生理樞軸', 'Hinge') },
+                { id: 'protrusion', label: tr(locale, '前突', 'Protrusion') },
+                { id: 'lateral_left', label: tr(locale, '左側方', 'Lat L') },
+                { id: 'lateral_right', label: tr(locale, '右側方', 'Lat R') },
+                { id: 'chewing', label: tr(locale, '咀嚼循環', 'Chewing') },
+                { id: 'parallel', label: tr(locale, '平行', 'Parallel') },
               ] as { id: ArticulationMode; label: string }[]
             ).map((m) => (
               <button
@@ -1404,12 +1408,12 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
                     <Play className="w-3 h-3" />
                   )}
                 </button>
-                <span>下顎運動行程</span>
+                <span>{tr(locale, '下顎運動行程', 'Excursion Progress')}</span>
               </div>
               <span className="font-mono text-sky-600 dark:text-sky-400 tabular-nums">
                 {settings.articulator.progress === 0
-                  ? '中心咬合 CO (0%)'
-                  : `${Math.round(settings.articulator.progress * 100)}% · 切端 ${currentKinematics.incisalOpeningMm.toFixed(1)}mm / ${currentKinematics.rotationAngleDeg.toFixed(1)}°`}
+                  ? tr(locale, '中心咬合 CO (0%)', 'Centric CO (0%)')
+                  : `${Math.round(settings.articulator.progress * 100)}% · ${currentKinematics.incisalOpeningMm.toFixed(1)}mm / ${currentKinematics.rotationAngleDeg.toFixed(1)}°`}
               </span>
             </div>
             <input
@@ -1434,7 +1438,7 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
             />
           </div>
 
-          {/* 5-View Photo Texture & iTero Occlusogram Quick Toggles */}
+          {/* 5-View Photo Texture & Occlusogram Quick Toggles */}
           <div className="flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-800/80 gap-2">
             <button
               onClick={() =>
@@ -1451,7 +1455,7 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
               }`}
             >
               <ImageIcon className="w-3.5 h-3.5" />
-              <span>五方照片貼圖</span>
+              <span>{tr(locale, '五方照片貼圖', '5-View Texture')}</span>
             </button>
 
             <button
@@ -1468,20 +1472,22 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
               }`}
             >
               <Flame className="w-3.5 h-3.5" />
-              <span>iTero 咬合熱力圖</span>
+              <span>{tr(locale, '咬合熱力圖', 'Occlusogram')}</span>
             </button>
           </div>
 
           {/* Quick shading pills */}
           <div className="flex items-center justify-between pt-1.5 border-t border-slate-200 dark:border-slate-800/80 gap-1.5">
-            <span className="text-[11px] text-slate-500 dark:text-slate-400">材質</span>
+            <span className="text-[11px] text-slate-500 dark:text-slate-400">
+              {tr(locale, '材質', 'Shader')}
+            </span>
             <div className="flex items-center gap-1">
               {[
-                { id: 'enamel', label: '琺瑯質' },
-                { id: 'plaster', label: '石膏' },
-                { id: 'normal', label: '法線' },
-                { id: 'wireframe', label: '線框' },
-                { id: 'translucent', label: '半透' },
+                { id: 'enamel', label: tr(locale, '琺瑯質', 'Enamel') },
+                { id: 'plaster', label: tr(locale, '石膏', 'Plaster') },
+                { id: 'normal', label: tr(locale, '法線', 'Normals') },
+                { id: 'wireframe', label: tr(locale, '線框', 'Wire') },
+                { id: 'translucent', label: tr(locale, '半透', 'X-Ray') },
               ].map((m) => (
                 <button
                   key={m.id}
@@ -1511,21 +1517,21 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
         {/* Real-time CAD Mesh & System Stats Badge */}
         <div className="flex items-center gap-3 px-3 py-1.5 bg-white/90 dark:bg-[#090d16]/80 border border-slate-200 dark:border-slate-800/80 rounded-md text-[10px] text-slate-500 dark:text-slate-400 font-mono tabular-nums shadow-sm">
           <span>
-            上顎:{' '}
+            {tr(locale, '上顎', 'Maxilla')}:{' '}
             <strong className="text-slate-800 dark:text-slate-200 font-semibold">
               {triangleStats.upper.toLocaleString()}
             </strong>{' '}
             Δ
           </span>
           <span>
-            下顎:{' '}
+            {tr(locale, '下顎', 'Mandible')}:{' '}
             <strong className="text-slate-800 dark:text-slate-200 font-semibold">
               {triangleStats.lower.toLocaleString()}
             </strong>{' '}
             Δ
           </span>
           <span>
-            總計:{' '}
+            {tr(locale, '總計', 'Total')}:{' '}
             <strong className="text-sky-600 dark:text-sky-300 font-semibold">
               {(triangleStats.upper + triangleStats.lower).toLocaleString()}
             </strong>
@@ -1549,7 +1555,13 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
           }}
         />
         <Upload className="w-3.5 h-3.5 text-sky-500 dark:text-sky-400" />
-        <span>點擊選擇或拖曳本地口掃檔案 (.stl / .xml / .jpg) 渲染並存入瀏覽器</span>
+        <span>
+          {tr(
+            locale,
+            '點擊選擇或拖曳本地口掃檔案 (.stl / .xml / .jpg) 渲染並存入瀏覽器',
+            'Click or drop local IOS scan files (.stl / .xml / .jpg) to render in browser'
+          )}
+        </span>
       </label>
     </div>
   );

@@ -6,7 +6,9 @@ import {
   OcclusogramStats,
   OrthoArchMetrics,
   CaliperMeasurement,
+  LocaleMode,
 } from '../types/dental';
+import { tr } from '../utils/i18n';
 import {
   ARTICULATION_CURVE_PRESETS,
   computeMandibularKinematics,
@@ -34,6 +36,7 @@ interface ArticulatorPanelProps {
   caliperMeasurements: CaliperMeasurement[];
   onClearCaliperMeasurements: () => void;
   onAddPresetCaliperMeasurement: () => void;
+  locale?: LocaleMode;
 }
 
 export const ArticulatorPanel: React.FC<ArticulatorPanelProps> = ({
@@ -44,6 +47,7 @@ export const ArticulatorPanel: React.FC<ArticulatorPanelProps> = ({
   caliperMeasurements,
   onClearCaliperMeasurements,
   onAddPresetCaliperMeasurement,
+  locale = 'zh-TW',
 }) => {
   const { articulator } = settings;
   const svgRef = useRef<SVGSVGElement>(null);
@@ -109,12 +113,36 @@ export const ArticulatorPanel: React.FC<ArticulatorPanelProps> = ({
   };
 
   const movementModes: { id: ArticulationMode; label: string; sub: string }[] = [
-    { id: 'hinge', label: '生理樞軸開合', sub: 'TMJ 旋轉 + 髁導滑動' },
-    { id: 'protrusion', label: '前突切導運動', sub: 'Protrusive Guidance' },
-    { id: 'lateral_left', label: '左側方運動', sub: 'Left Working / Bennett' },
-    { id: 'lateral_right', label: '右側方運動', sub: 'Right Working / Bennett' },
-    { id: 'chewing', label: '咀嚼循環模擬', sub: 'Tear-Drop Mastication' },
-    { id: 'parallel', label: '垂直平行開離', sub: 'Parallel CAD Z-Split' },
+    {
+      id: 'hinge',
+      label: tr(locale, '生理樞軸開合', 'TMJ Hinge & Glide'),
+      sub: tr(locale, 'TMJ 旋轉 + 髁導滑動', 'TMJ Rotation + Condylar Slip'),
+    },
+    {
+      id: 'protrusion',
+      label: tr(locale, '前突切導運動', 'Protrusive Guidance'),
+      sub: 'Anterior Incisal Guidance',
+    },
+    {
+      id: 'lateral_left',
+      label: tr(locale, '左側方運動', 'Left Lateral Excursion'),
+      sub: 'Left Working / Bennett',
+    },
+    {
+      id: 'lateral_right',
+      label: tr(locale, '右側方運動', 'Right Lateral Excursion'),
+      sub: 'Right Working / Bennett',
+    },
+    {
+      id: 'chewing',
+      label: tr(locale, '咀嚼循環模擬', 'Chewing Envelope'),
+      sub: 'Tear-Drop Mastication',
+    },
+    {
+      id: 'parallel',
+      label: tr(locale, '垂直平行開離', 'Parallel Z-Split'),
+      sub: 'Parallel CAD Z-Split',
+    },
   ];
 
   // SVG coordinate helper for Bezier view (viewBox 0 0 280 180, plot area [28..252] x [18..154])
@@ -149,7 +177,13 @@ export const ArticulatorPanel: React.FC<ArticulatorPanelProps> = ({
         <div className="flex items-center justify-between">
           <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
             <Activity className="w-4 h-4 text-sky-500 dark:text-sky-400" />
-            <span>iTero 虛擬咬合器與下顎運動模擬</span>
+            <span>
+              {tr(
+                locale,
+                'iTero 虛擬咬合器與下顎運動模擬',
+                'Virtual Articulator & 6-DOF Mandibular Kinematics'
+              )}
+            </span>
           </h2>
           <span className="px-2 py-0.5 rounded bg-sky-500/10 text-sky-600 dark:text-sky-300 border border-sky-500/30 font-mono text-[10px]">
             6-DOF Kinematics
@@ -740,7 +774,13 @@ export const ArticulatorPanel: React.FC<ArticulatorPanelProps> = ({
         <div className="flex items-center justify-between">
           <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
             <Flame className="w-4 h-4 text-rose-500" />
-            <span>iTero Occlusogram 咬合接觸熱力圖</span>
+            <span>
+              {tr(
+                locale,
+                'iTero Occlusogram 咬合接觸熱力圖',
+                'Occlusogram Bite Contact Heatmap'
+              )}
+            </span>
           </h2>
           <button
             type="button"
@@ -757,7 +797,9 @@ export const ArticulatorPanel: React.FC<ArticulatorPanelProps> = ({
                 : 'bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300'
             }`}
           >
-            {settings.occlusogramEnabled ? '熱力圖已開啟' : '開啟咬合熱力圖'}
+            {settings.occlusogramEnabled
+              ? tr(locale, '熱力圖已開啟', 'Heatmap Active')
+              : tr(locale, '開啟咬合熱力圖', 'Enable Occlusogram')}
           </button>
         </div>
 
@@ -834,7 +876,13 @@ export const ArticulatorPanel: React.FC<ArticulatorPanelProps> = ({
         <div className="flex items-center justify-between">
           <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
             <Ruler className="w-4 h-4 text-sky-500 dark:text-sky-400" />
-            <span>OrthoCAD 牙弓分析與 3D 數位游標尺</span>
+            <span>
+              {tr(
+                locale,
+                'OrthoCAD 牙弓分析與 3D 數位游標尺',
+                'OrthoCAD Arch Biometrics & 3D Digital Caliper'
+              )}
+            </span>
           </h2>
           <div className="flex items-center gap-1">
             <button
@@ -852,7 +900,9 @@ export const ArticulatorPanel: React.FC<ArticulatorPanelProps> = ({
                   : 'bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300'
               }`}
             >
-              {settings.caliperToolActive ? '3D 點選測距中' : '啟用 3D 游標尺'}
+              {settings.caliperToolActive
+                ? tr(locale, '3D 點選測距中', '3D Caliper Active')
+                : tr(locale, '啟用 3D 游標尺', 'Enable 3D Caliper')}
             </button>
           </div>
         </div>

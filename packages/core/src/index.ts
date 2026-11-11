@@ -7,3 +7,5 @@ export * from '../../../src/utils/proceduralArch';
 export * from '../../../src/data/caseData';
 export * from '../../../src/utils/caseStorage';
 export * from '../../../src/utils/anonymize';
+export * from '../../../src/utils/i18n';
+

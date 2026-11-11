@@ -1,6 +1,7 @@
 {
   "name": "@ios-pages/viewer",
   "version": "1.0.0",
+  "license": "Apache-2.0",
   "description": "Reusable React + Three.js 3D Dental CAD Viewport, 6-DOF Articulator Panel, Occlusogram, Penta Gallery, and Case Dossier UI components",
   "type": "module",
   "main": "./src/index.ts",

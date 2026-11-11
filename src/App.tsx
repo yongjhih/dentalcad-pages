@@ -14,6 +14,7 @@ import {
   DentalCaseBundle,
   MeshGeometryStats,
   ThemeMode,
+  LocaleMode,
   OcclusogramStats,
   OrthoArchMetrics,
   CaliperMeasurement,
@@ -21,6 +22,8 @@ import {
   DEFAULT_ARTICULATOR_SETTINGS,
   DEFAULT_ORTHO_ARCH_METRICS,
   createCaliperMeasurement,
+  LOCALE_STORAGE_KEY,
+  tr,
 } from '@ios-pages/core';
 import {
   Header,
@@ -90,6 +93,30 @@ export const App: React.FC = () => {
 
   const handleToggleTheme = useCallback(() => {
     setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
+  }, []);
+
+  // Language / Locale state (Traditional Chinese 'zh-TW' & English 'en')
+  const [locale, setLocale] = useState<LocaleMode>(() => {
+    try {
+      const saved = localStorage.getItem(LOCALE_STORAGE_KEY);
+      if (saved === 'en' || saved === 'zh-TW') return saved;
+    } catch {
+      // ignore
+    }
+    return 'zh-TW';
+  });
+
+  useEffect(() => {
+    document.documentElement.lang = locale;
+    try {
+      localStorage.setItem(LOCALE_STORAGE_KEY, locale);
+    } catch {
+      // ignore
+    }
+  }, [locale]);
+
+  const handleToggleLocale = useCallback(() => {
+    setLocale((prev) => (prev === 'zh-TW' ? 'en' : 'zh-TW'));
   }, []);
 
   // Case Registry state (builtin manifest + browser IndexedDB persisted cases)
@@ -296,6 +323,8 @@ export const App: React.FC = () => {
         onToggleAnonymize={() => setAnonymizePatient((v) => !v)}
         theme={theme}
         onToggleTheme={handleToggleTheme}
+        locale={locale}
+        onToggleLocale={handleToggleLocale}
       />
 
       {/* Main CAD Workspace Layout */}
@@ -318,6 +347,7 @@ export const App: React.FC = () => {
             onAddCaliperMeasurement={handleAddCaliperMeasurement}
             onClearCaliperMeasurements={handleClearCaliperMeasurements}
             onCustomFilesDrop={handleImportCaseFiles}
+            locale={locale}
           />
         </section>
 
@@ -335,7 +365,7 @@ export const App: React.FC = () => {
               }`}
             >
               <Activity className="w-3.5 h-3.5" />
-              <span>咬合模擬與熱力圖</span>
+              <span>{tr(locale, '咬合模擬與熱力圖', 'Articulator & Occlusogram')}</span>
             </button>
 
             <button
@@ -348,7 +378,7 @@ export const App: React.FC = () => {
               }`}
             >
               <ImageIcon className="w-3.5 h-3.5" />
-              <span>五方位攝影</span>
+              <span>{tr(locale, '五方位攝影', '5-View Photos')}</span>
             </button>
 
             <button
@@ -361,7 +391,7 @@ export const App: React.FC = () => {
               }`}
             >
               <Sliders className="w-3.5 h-3.5" />
-              <span>材質與剖面</span>
+              <span>{tr(locale, '材質與剖面', 'Shaders & Clipping')}</span>
             </button>
 
             <button
@@ -374,7 +404,7 @@ export const App: React.FC = () => {
               }`}
             >
               <FileText className="w-3.5 h-3.5" />
-              <span>規格與歸檔</span>
+              <span>{tr(locale, '規格與歸檔', 'Specs & Archive')}</span>
             </button>
 
             <button
@@ -387,7 +417,7 @@ export const App: React.FC = () => {
               }`}
             >
               <Code className="w-3.5 h-3.5" />
-              <span>原始 XML</span>
+              <span>{tr(locale, '原始 XML', 'Raw XML')}</span>
             </button>
           </div>
 
@@ -399,6 +429,7 @@ export const App: React.FC = () => {
                 meshStats={meshStats}
                 anonymizePatient={anonymizePatient}
                 onToggleAnonymize={() => setAnonymizePatient((v) => !v)}
+                locale={locale}
               />
             )}
             {activeTab === 'articulator' && (
@@ -410,6 +441,7 @@ export const App: React.FC = () => {
                 caliperMeasurements={caliperMeasurements}
                 onClearCaliperMeasurements={handleClearCaliperMeasurements}
                 onAddPresetCaliperMeasurement={handleAddPresetCaliperMeasurement}
+                locale={locale}
               />
             )}
             {activeTab === 'gallery' && (
@@ -426,6 +458,7 @@ export const App: React.FC = () => {
                   }))
                 }
                 onImportCaseFiles={handleImportCaseFiles}
+                locale={locale}
               />
             )}
             {activeTab === 'tools' && (
@@ -439,12 +472,14 @@ export const App: React.FC = () => {
                 onSelectCase={handleSelectCase}
                 onDeleteCustomCase={handleDeleteCustomCase}
                 anonymizePatient={anonymizePatient}
+                locale={locale}
               />
             )}
             {activeTab === 'xml' && (
               <XmlInspector
                 caseBundle={activeCase}
                 anonymizePatient={anonymizePatient}
+                locale={locale}
               />
             )}
           </div>

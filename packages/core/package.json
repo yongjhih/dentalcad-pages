@@ -1,6 +1,7 @@
 {
   "name": "@ios-pages/core",
   "version": "1.0.0",
+  "license": "Apache-2.0",
   "description": "Universal Intraoral Scanner (iTero, 3Shape TRIOS, Medit, Shining3D, STL) 3D CAD kinematics, Occlusogram, arch biometrics, 5-view photo projection shader, and browser IndexedDB engine",
   "type": "module",
   "main": "./src/index.ts",
@@ -15,7 +16,8 @@
     "./geometry": "./src/geometry.ts",
     "./parsers": "./src/parsers.ts",
     "./storage": "./src/storage.ts",
-    "./privacy": "./src/privacy.ts"
+    "./privacy": "./src/privacy.ts",
+    "./i18n": "./src/i18n.ts"
   },
   "peerDependencies": {
     "three": "^0.170.0"
