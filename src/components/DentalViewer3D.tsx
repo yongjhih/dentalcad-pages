@@ -598,11 +598,12 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
         pos.set(c.x, c.y - 130, c.z);
         break;
       case 'upper':
-        // Slight anterior (-Y) offset avoids Z-axis gimbal lock while keeping Z-up consistent with OrbitControls
-        pos.set(c.x, c.y - 24, c.z + 135);
+        // Maxillary occlusal table faces -Z (downward); looking up from below at the upper biting surface
+        pos.set(c.x, c.y - 24, c.z - 135);
         break;
       case 'lower':
-        pos.set(c.x, c.y - 24, c.z - 135);
+        // Mandibular occlusal table faces +Z (upward); looking down from above at the lower biting surface
+        pos.set(c.x, c.y - 24, c.z + 135);
         break;
       case 'right':
         pos.set(c.x - 130, c.y, c.z);

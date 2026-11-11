@@ -46,8 +46,19 @@ export function computeImageContentUVRect(img: HTMLImageElement): THREE.Vector4 
         const g = data[idx + 1];
         const b = data[idx + 2];
         const a = data[idx + 3];
-        // Non-white and non-transparent pixel
-        if (a > 20 && (r < 245 || g < 245 || b < 245)) {
+
+        if (a <= 20) continue;
+
+        const maxC = Math.max(r, Math.max(g, b));
+        const minC = Math.min(r, Math.min(g, b));
+        const diff = maxC - minC;
+
+        // Light neutral background (pure white, near-white, or neutral light grey like #edf2f7)
+        const isLightNeutralBg = minC > 215 && diff < 16;
+        // Dark neutral background (black contrastor / oral cavity dark shadow)
+        const isDarkNeutralBg = maxC < 30 && diff < 10;
+
+        if (!isLightNeutralBg && !isDarkNeutralBg) {
           if (x < minX) minX = x;
           if (x > maxX) maxX = x;
           if (y < minY) minY = y;
@@ -292,13 +303,22 @@ export function createPentaTexturedMaterial(params: {
       varying vec3 vStlPos;
       varying vec3 vStlNormal;
 
-      // Return foreground weight (0 if white background pixel, 1 if valid dental pixel)
-      float pentaForegroundMask(vec3 col, vec2 uv, vec4 rect) {
-        if (uv.x < rect.x || uv.x > rect.y || uv.y < rect.z || uv.y > rect.w) {
+      // Return foreground weight (0 if transparent/white background pixel, 1 if valid dental pixel)
+      float pentaForegroundMask(vec4 col, vec2 uv, vec4 rect) {
+        if (uv.x < rect.x - 0.005 || uv.x > rect.y + 0.005 || uv.y < rect.z - 0.005 || uv.y > rect.w + 0.005) {
           return 0.0;
         }
-        float minChannel = min(col.r, min(col.g, col.b));
-        return 1.0 - smoothstep(0.90, 0.965, minChannel);
+        if (col.a < 0.1) {
+          return 0.0;
+        }
+        float maxC = max(col.r, max(col.g, col.b));
+        float minC = min(col.r, min(col.g, col.b));
+        float diff = maxC - minC;
+        // White/light-neutral background attenuation
+        float lightBg = smoothstep(0.88, 0.98, minC) * (1.0 - smoothstep(0.04, 0.14, diff));
+        // Dark neutral background attenuation
+        float darkBg = (1.0 - smoothstep(0.06, 0.18, maxC)) * (1.0 - smoothstep(0.03, 0.08, diff));
+        return clamp((1.0 - lightBg - darkBg) * col.a, 0.0, 1.0);
       }
       ` +
       shader.fragmentShader.replace(
@@ -343,15 +363,20 @@ export function createPentaTexturedMaterial(params: {
             mix(uRectLeft.z, uRectLeft.w, nComb.z)
           );
 
-          vec3 colOcc = texture2D(uTexOcclusal, uvOcclusal).rgb;
-          vec3 colFront = texture2D(uTexFront, uvFront).rgb;
-          vec3 colRight = texture2D(uTexRight, uvRight).rgb;
-          vec3 colLeft = texture2D(uTexLeft, uvLeft).rgb;
+          vec4 texOcc = texture2D(uTexOcclusal, uvOcclusal);
+          vec4 texFront = texture2D(uTexFront, uvFront);
+          vec4 texRight = texture2D(uTexRight, uvRight);
+          vec4 texLeft = texture2D(uTexLeft, uvLeft);
 
-          float maskOcc = pentaForegroundMask(colOcc, uvOcclusal, uRectOcclusal);
-          float maskFront = pentaForegroundMask(colFront, uvFront, uRectFront);
-          float maskRight = pentaForegroundMask(colRight, uvRight, uRectRight);
-          float maskLeft = pentaForegroundMask(colLeft, uvLeft, uRectLeft);
+          vec3 colOcc = texOcc.rgb;
+          vec3 colFront = texFront.rgb;
+          vec3 colRight = texRight.rgb;
+          vec3 colLeft = texLeft.rgb;
+
+          float maskOcc = pentaForegroundMask(texOcc, uvOcclusal, uRectOcclusal);
+          float maskFront = pentaForegroundMask(texFront, uvFront, uRectFront);
+          float maskRight = pentaForegroundMask(texRight, uvRight, uRectRight);
+          float maskLeft = pentaForegroundMask(texLeft, uvLeft, uRectLeft);
 
           // Determine outward labial/buccal orientation from palatal/lingual arch center (0, -14)
           vec2 archCenter = vec2(0.0, -14.0);
@@ -359,23 +384,29 @@ export function createPentaTexturedMaterial(params: {
           vec2 horizNorm = normalize(N.xy + vec2(0.0001));
           float outward = smoothstep(0.05, 0.45, dot(radialDir, horizNorm));
 
-          // Guard against closed-bite overlap near the occlusal plane (Z ≈ 0) in side/front views
-          float archZMask = uIsUpper > 0.5
-            ? smoothstep(-0.2, 2.5, P.z)
-            : smoothstep(0.2, -2.2, P.z);
+          // Occlusal zone: teeth crowns & cusps (Z < 8 for upper, Z > -8 for lower).
+          // Prevents occlusal fissure drawings from projecting onto the flat base cut of the alveolar model.
+          float isOcclusalZone = uIsUpper > 0.5
+            ? (1.0 - smoothstep(5.0, 10.0, P.z))
+            : smoothstep(-10.0, -5.0, P.z);
 
-          // Directional weights (Anterior is -Y so labial normal has -N.y > 0)
-          float wFront = pow(max(0.0, -N.y), 1.5) * outward * smoothstep(-18.0, -32.0, P.y) * archZMask * maskFront;
-          float wRight = pow(max(0.0, -N.x), 1.5) * outward * smoothstep(-4.0, -14.0, P.x) * archZMask * maskRight;
-          float wLeft  = pow(max(0.0,  N.x), 1.5) * outward * smoothstep( 4.0,  14.0, P.x) * archZMask * maskLeft;
-          float wOcc   = (pow(abs(N.z), 0.9) + (1.0 - outward * archZMask) * 1.15 + 0.18) * maskOcc;
+          // Directional weights:
+          // Front: Anterior is -Y (labial faces -Y so -N.y > 0)
+          float wFront = pow(max(0.0, -N.y), 1.6) * outward * (1.0 - smoothstep(-35.0, -18.0, P.y)) * maskFront;
+          // Right Buccal: Patient Right is -X (buccal faces -X so -N.x > 0)
+          float wRight = pow(max(0.0, -N.x), 1.5) * outward * (1.0 - smoothstep(-16.0, -4.0, P.x)) * smoothstep(-42.0, -22.0, P.y) * maskRight;
+          // Left Buccal: Patient Left is +X (buccal faces +X so N.x > 0)
+          float wLeft  = pow(max(0.0,  N.x), 1.5) * outward * smoothstep(4.0, 16.0, P.x) * smoothstep(-42.0, -22.0, P.y) * maskLeft;
+          // Occlusal: Top/bottom occlusal table + lingual/palatal anatomy
+          float wOcc   = (pow(abs(N.z), 1.2) * 1.5 + max(0.0, 0.75 - outward) * 1.2 + 0.08) * isOcclusalZone * maskOcc;
 
           float totalW = wFront + wRight + wLeft + wOcc;
-          vec3 fallbackColor = vec3(0.88, 0.78, 0.74);
+          vec3 gingivaBaseColor = vec3(0.82, 0.44, 0.50);
+          vec3 fallbackColor = isOcclusalZone > 0.5 ? vec3(0.92, 0.88, 0.82) : gingivaBaseColor;
 
           vec3 blended = totalW > 0.001
             ? (colFront * wFront + colRight * wRight + colLeft * wLeft + colOcc * wOcc) / totalW
-            : (maskOcc > 0.01 ? colOcc : fallbackColor);
+            : (maskOcc > 0.01 && isOcclusalZone > 0.1 ? colOcc : fallbackColor);
 
           diffuseColor.rgb = blended;
         }

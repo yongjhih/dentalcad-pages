@@ -453,12 +453,19 @@ export function createOcclusogramMaterial(params: {
       uniform vec3 uCombMin;
       uniform vec3 uCombMax;
 
-      float pentaForegroundMask(vec3 col, vec2 uv, vec4 rect) {
-        if (uv.x < rect.x || uv.x > rect.y || uv.y < rect.z || uv.y > rect.w) {
+      float pentaForegroundMask(vec4 col, vec2 uv, vec4 rect) {
+        if (uv.x < rect.x - 0.005 || uv.x > rect.y + 0.005 || uv.y < rect.z - 0.005 || uv.y > rect.w + 0.005) {
           return 0.0;
         }
-        float minChannel = min(col.r, min(col.g, col.b));
-        return 1.0 - smoothstep(0.90, 0.965, minChannel);
+        if (col.a < 0.1) {
+          return 0.0;
+        }
+        float maxC = max(col.r, max(col.g, col.b));
+        float minC = min(col.r, min(col.g, col.b));
+        float diff = maxC - minC;
+        float lightBg = smoothstep(0.88, 0.98, minC) * (1.0 - smoothstep(0.04, 0.14, diff));
+        float darkBg = (1.0 - smoothstep(0.06, 0.18, maxC)) * (1.0 - smoothstep(0.03, 0.08, diff));
+        return clamp((1.0 - lightBg - darkBg) * col.a, 0.0, 1.0);
       }
       `
       : '';
@@ -481,32 +488,45 @@ export function createOcclusogramMaterial(params: {
           vec2 uvRight = vec2(mix(uRectRight.y, uRectRight.x, nComb.y), mix(uRectRight.z, uRectRight.w, nComb.z));
           vec2 uvLeft  = vec2(mix(uRectLeft.x, uRectLeft.y, nComb.y), mix(uRectLeft.z, uRectLeft.w, nComb.z));
 
-          vec3 colOcc = texture2D(uTexOcclusal, uvOcclusal).rgb;
-          vec3 colFront = texture2D(uTexFront, uvFront).rgb;
-          vec3 colRight = texture2D(uTexRight, uvRight).rgb;
-          vec3 colLeft = texture2D(uTexLeft, uvLeft).rgb;
+          vec4 texOcc = texture2D(uTexOcclusal, uvOcclusal);
+          vec4 texFront = texture2D(uTexFront, uvFront);
+          vec4 texRight = texture2D(uTexRight, uvRight);
+          vec4 texLeft = texture2D(uTexLeft, uvLeft);
 
-          float maskOcc = pentaForegroundMask(colOcc, uvOcclusal, uRectOcclusal);
-          float maskFront = pentaForegroundMask(colFront, uvFront, uRectFront);
-          float maskRight = pentaForegroundMask(colRight, uvRight, uRectRight);
-          float maskLeft = pentaForegroundMask(colLeft, uvLeft, uRectLeft);
+          vec3 colOcc = texOcc.rgb;
+          vec3 colFront = texFront.rgb;
+          vec3 colRight = texRight.rgb;
+          vec3 colLeft = texLeft.rgb;
+
+          float maskOcc = pentaForegroundMask(texOcc, uvOcclusal, uRectOcclusal);
+          float maskFront = pentaForegroundMask(texFront, uvFront, uRectFront);
+          float maskRight = pentaForegroundMask(texRight, uvRight, uRectRight);
+          float maskLeft = pentaForegroundMask(texLeft, uvLeft, uRectLeft);
 
           vec2 archCenter = vec2(0.0, -14.0);
           vec2 radialDir = normalize(P.xy - archCenter + vec2(0.0001));
           vec2 horizNorm = normalize(N.xy + vec2(0.0001));
           float outward = smoothstep(0.05, 0.45, dot(radialDir, horizNorm));
 
-          float archZMask = uIsUpper > 0.5 ? smoothstep(-0.2, 2.5, P.z) : smoothstep(0.2, -2.2, P.z);
-          float wFront = pow(max(0.0, -N.y), 1.5) * outward * smoothstep(-18.0, -32.0, P.y) * archZMask * maskFront;
-          float wRight = pow(max(0.0, -N.x), 1.5) * outward * smoothstep(-4.0, -14.0, P.x) * archZMask * maskRight;
-          float wLeft  = pow(max(0.0,  N.x), 1.5) * outward * smoothstep( 4.0,  14.0, P.x) * archZMask * maskLeft;
-          float wOcc   = (pow(abs(N.z), 0.9) + (1.0 - outward * archZMask) * 1.15 + 0.18) * maskOcc;
+          float isOcclusalZone = uIsUpper > 0.5
+            ? (1.0 - smoothstep(5.0, 10.0, P.z))
+            : smoothstep(-10.0, -5.0, P.z);
+
+          float wFront = pow(max(0.0, -N.y), 1.6) * outward * (1.0 - smoothstep(-35.0, -18.0, P.y)) * maskFront;
+          float wRight = pow(max(0.0, -N.x), 1.5) * outward * (1.0 - smoothstep(-16.0, -4.0, P.x)) * smoothstep(-42.0, -22.0, P.y) * maskRight;
+          float wLeft  = pow(max(0.0,  N.x), 1.5) * outward * smoothstep(4.0, 16.0, P.x) * smoothstep(-42.0, -22.0, P.y) * maskLeft;
+          float wOcc   = (pow(abs(N.z), 1.2) * 1.5 + max(0.0, 0.75 - outward) * 1.2 + 0.08) * isOcclusalZone * maskOcc;
 
           float totalW = wFront + wRight + wLeft + wOcc;
+          vec3 gingivaBaseColor = vec3(0.82, 0.44, 0.50);
+          vec3 fallbackColor = isOcclusalZone > 0.5 ? vec3(0.92, 0.88, 0.82) : gingivaBaseColor;
+
           if (totalW > 0.001) {
             diffuseColor.rgb = (colFront * wFront + colRight * wRight + colLeft * wLeft + colOcc * wOcc) / totalW;
-          } else if (maskOcc > 0.01) {
+          } else if (maskOcc > 0.01 && isOcclusalZone > 0.1) {
             diffuseColor.rgb = colOcc;
+          } else {
+            diffuseColor.rgb = fallbackColor;
           }
         }
       `

@@ -48,9 +48,6 @@ function createFrontalViewSvg(): string {
     </filter>
   </defs>
 
-  <!-- Background -->
-  <rect width="800" height="600" fill="url(#bgFront)"/>
-
   <!-- Upper Gingiva -->
   <path d="M 170 190 C 230 140, 570 140, 630 190 C 600 240, 560 230, 530 235 C 500 230, 470 235, 440 235 C 410 230, 390 230, 360 235 C 330 235, 300 230, 270 235 C 240 230, 200 240, 170 190 Z" fill="url(#gingivaUpper)"/>
 
@@ -123,8 +120,6 @@ function createUpperOcclusalViewSvg(): string {
       <feDropShadow dx="0" dy="2" stdDeviation="4" flood-opacity="0.14"/>
     </filter>
   </defs>
-
-  <rect width="800" height="650" fill="url(#bgUpper)"/>
 
   <!-- Palatal Vault & Rugae -->
   <path d="M 230 460 C 220 280, 290 170, 400 170 C 510 170, 580 280, 570 460 C 520 480, 280 480, 230 460 Z" fill="url(#palateGrad)"/>
@@ -216,8 +211,6 @@ function createLowerOcclusalViewSvg(): string {
     </filter>
   </defs>
 
-  <rect width="800" height="650" fill="url(#bgLower)"/>
-
   <!-- Lingual Floor & Attached Gingiva -->
   <path d="M 240 180 C 235 350, 300 460, 400 460 C 500 460, 565 350, 560 180 C 510 160, 290 160, 240 180 Z" fill="url(#lingualFloor)"/>
 
@@ -307,8 +300,6 @@ function createRightBuccalViewSvg(): string {
     </filter>
   </defs>
 
-  <rect width="800" height="600" fill="url(#bgRight)"/>
-
   <!-- Upper Gingival Scallop -->
   <path d="M 120 180 C 260 160, 600 160, 680 180 C 650 240, 600 230, 560 235 C 510 230, 460 235, 420 235 C 380 230, 330 235, 290 235 C 250 230, 160 240, 120 180 Z" fill="url(#gingivaBuccalUp)"/>
 
@@ -381,8 +372,6 @@ function createLeftBuccalViewSvg(): string {
       <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.12"/>
     </filter>
   </defs>
-
-  <rect width="800" height="600" fill="url(#bgLeft)"/>
 
   <!-- Upper Gingival Scallop -->
   <path d="M 680 180 C 540 160, 200 160, 120 180 C 150 240, 200 230, 240 235 C 290 230, 340 235, 380 235 C 420 230, 470 235, 510 235 C 550 230, 640 240, 680 180 Z" fill="url(#gingivaBuccalUpL)"/>
