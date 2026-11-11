@@ -46,58 +46,44 @@ export const Header: React.FC<HeaderProps> = ({
   const displayMeta = getDisplayMetadata(activeCase.metadata, anonymizePatient);
 
   return (
-    <header className="min-h-14 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-[#090d16] px-2.5 sm:px-4 py-1.5 flex items-center justify-between flex-shrink-0 z-20 gap-1.5 sm:gap-2 transition-colors">
+    <header className="min-h-12 sm:min-h-14 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-[#090d16] px-2 sm:px-4 py-1.5 flex flex-wrap items-center justify-between flex-shrink-0 z-20 gap-x-2 gap-y-1.5 transition-colors">
       {/* Brand & Dynamic Case Selector */}
-      <div className="flex items-center space-x-2 sm:space-x-3 min-w-0">
-        <div className="flex items-center space-x-1.5 sm:space-x-2 flex-shrink-0">
-          <div className="w-7 h-7 rounded bg-sky-500/15 dark:bg-sky-950/80 border border-sky-500/40 dark:border-sky-800/70 flex items-center justify-center text-sky-600 dark:text-sky-400 font-mono text-[11px] font-bold">
+      <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0 flex-1 overflow-hidden">
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          <div className="w-6 h-6 sm:w-7 sm:h-7 rounded bg-sky-500/15 dark:bg-sky-950/80 border border-sky-500/40 dark:border-sky-800/70 flex items-center justify-center text-sky-600 dark:text-sky-400 font-mono text-[10px] sm:text-[11px] font-bold">
             CAD
           </div>
           <div className="flex flex-col leading-none">
             <span className="font-semibold text-slate-900 dark:text-slate-100 text-xs sm:text-sm tracking-tight whitespace-nowrap">
-              DentalCAD Pages
+              <span className="sm:hidden">DentalCAD</span>
+              <span className="hidden sm:inline">DentalCAD Pages</span>
             </span>
-            <span className="hidden sm:inline text-[10px] font-mono text-slate-500 dark:text-slate-400">
+            <span className="hidden md:inline text-[10px] font-mono text-slate-500 dark:text-slate-400">
               3D Dental Workstation
             </span>
           </div>
         </div>
 
-        <div className="h-4 w-px bg-slate-200 dark:bg-slate-800 hidden sm:block" />
+        <div className="h-4 w-px bg-slate-200 dark:bg-slate-800 hidden sm:block flex-shrink-0" />
 
         {/* Case Switcher Dropdown (Focused on Order ID & Procedure, not Patient Name) */}
-        <div className="relative flex items-center gap-1 min-w-0">
-          <div className="relative flex items-center min-w-0">
-            <select
-              aria-label={tr(locale, '選擇臨床案例', 'Select clinical case')}
-              value={activeCase.id}
-              onChange={(e) => onSelectCase(e.target.value)}
-              className="appearance-none max-w-[112px] sm:max-w-[210px] md:max-w-xs truncate bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-800 hover:border-slate-400 dark:hover:border-slate-700 text-xs text-slate-800 dark:text-slate-200 font-mono rounded pl-2 pr-6 py-1 cursor-pointer transition-colors tabular-nums"
-            >
-              {cases.map((c) => (
-                <option key={c.id} value={c.id}>
-                  #{c.metadata.orderId} · {c.metadata.procedure}
-                </option>
-              ))}
-            </select>
-            <ChevronDown className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400 pointer-events-none absolute right-1.5" />
-          </div>
-
-          {activeCase.source === 'custom' && onDeleteCustomCase && (
-            <button
-              type="button"
-              data-testid="header-clear-saved-btn"
-              onClick={() => onDeleteCustomCase(activeCase.id)}
-              className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-red-100 dark:bg-red-950/50 hover:bg-red-200 dark:hover:bg-red-900/70 border border-red-300 dark:border-red-800/60 text-red-600 dark:text-red-300 transition-colors whitespace-nowrap"
-              title={tr(locale, '清除此案例存檔', 'Clear saved case')}
-            >
-              <Trash2 className="w-3.5 h-3.5 flex-shrink-0" />
-              <span>{tr(locale, '清除存檔', 'Clear Saved')}</span>
-            </button>
-          )}
+        <div className="relative flex items-center min-w-0 flex-1 max-w-[140px] sm:max-w-[220px] md:max-w-xs">
+          <select
+            aria-label={tr(locale, '選擇臨床案例', 'Select clinical case')}
+            value={activeCase.id}
+            onChange={(e) => onSelectCase(e.target.value)}
+            className="appearance-none w-full min-w-0 truncate bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-800 hover:border-slate-400 dark:hover:border-slate-700 text-xs text-slate-800 dark:text-slate-200 font-mono rounded pl-2 pr-5 py-1 cursor-pointer transition-colors tabular-nums"
+          >
+            {cases.map((c) => (
+              <option key={c.id} value={c.id}>
+                #{c.metadata.orderId} · {c.metadata.procedure}
+              </option>
+            ))}
+          </select>
+          <ChevronDown className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400 pointer-events-none absolute right-1" />
         </div>
 
-        <div className="hidden xl:flex items-center space-x-1.5">
+        <div className="hidden xl:flex items-center space-x-1.5 flex-shrink-0">
           <span className="px-2 py-0.5 rounded bg-sky-500/15 dark:bg-sky-950/70 text-sky-700 dark:text-sky-300 border border-sky-500/30 dark:border-sky-800/60 text-[11px] font-medium">
             {displayMeta.procedureType}
           </span>
@@ -107,8 +93,20 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      {/* Actions: Data Import (Always visible on Mobile & Desktop), Anonymize Toggle, PDF, Locale, Theme & GitHub */}
-      <div className="flex items-center space-x-1.5 sm:space-x-2 flex-shrink-0">
+      {/* Actions: Clear Saved (when custom), Load, Anonymize Toggle, PDF, Locale, Theme & GitHub */}
+      <div className="flex items-center gap-1 sm:gap-1.5 flex-shrink-0 ml-auto">
+        {activeCase.source === 'custom' && onDeleteCustomCase && (
+          <button
+            type="button"
+            data-testid="header-clear-saved-btn"
+            onClick={() => onDeleteCustomCase(activeCase.id)}
+            className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-red-100 dark:bg-red-950/50 hover:bg-red-200 dark:hover:bg-red-900/70 border border-red-300 dark:border-red-800/60 text-red-600 dark:text-red-300 transition-colors whitespace-nowrap flex-shrink-0"
+            title={tr(locale, '清除此案例存檔', 'Clear saved case')}
+          >
+            <Trash2 className="w-3.5 h-3.5 flex-shrink-0" />
+            <span>{tr(locale, '清除存檔', 'Clear Saved')}</span>
+          </button>
+        )}
         {/* Load External Case Bundle Button (Mobile-friendly with visible label) */}
         <input
           ref={bundleInputRef}

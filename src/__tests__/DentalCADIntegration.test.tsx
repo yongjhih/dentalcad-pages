@@ -309,4 +309,31 @@ describe('DentalCAD Pages Application Integration Tests', () => {
 
     window.history.replaceState({}, '', originalUrl);
   });
+
+  it('supports collapsing and expanding the right sidebar panel on both desktop and mobile', () => {
+    render(<App />);
+
+    const sidebar = screen.getByTestId('right-sidebar-panel');
+    expect(sidebar).not.toHaveClass('hidden');
+    expect(screen.queryByTestId('sidebar-expand-btn')).not.toBeInTheDocument();
+
+    // Collapse sidebar via desktop/tab-bar button
+    fireEvent.click(screen.getByTestId('sidebar-collapse-btn'));
+    expect(sidebar).toHaveClass('hidden');
+
+    const expandBtn = screen.getByTestId('sidebar-expand-btn');
+    expect(expandBtn).toBeInTheDocument();
+
+    // Expand sidebar via floating expand button
+    fireEvent.click(expandBtn);
+    expect(sidebar).not.toHaveClass('hidden');
+    expect(screen.queryByTestId('sidebar-expand-btn')).not.toBeInTheDocument();
+
+    // Collapse & expand via mobile quick bar toggle button
+    const mobileToggleBtn = screen.getByTestId('mobile-sidebar-toggle-btn');
+    fireEvent.click(mobileToggleBtn);
+    expect(sidebar).toHaveClass('hidden');
+    fireEvent.click(mobileToggleBtn);
+    expect(sidebar).not.toHaveClass('hidden');
+  });
 });

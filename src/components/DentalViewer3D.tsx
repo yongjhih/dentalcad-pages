@@ -138,6 +138,8 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
   const targetCamPosRef = useRef<THREE.Vector3 | null>(null);
   const targetCamUpRef = useRef<THREE.Vector3 | null>(null);
   const targetLookAtRef = useRef<THREE.Vector3>(new THREE.Vector3(1.29, -18.36, 1.24));
+  const lerpFramesRef = useRef<number>(0);
+  const userInteractingRef = useRef<boolean>(false);
 
   // Loading states
   const [loading, setLoading] = useState<boolean>(true);
@@ -415,8 +417,8 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
     ]
   );
 
-  // Apply Camera Presets with smooth lerp
-  const applyCameraPreset = useCallback((preset: CameraPreset) => {
+  // Apply Camera Presets (supports smooth lerp or immediate snap; keeps Z-up consistent with OrbitControls)
+  const applyCameraPreset = useCallback((preset: CameraPreset, immediate = false) => {
     const cam = cameraRef.current;
     const ctrl = controlsRef.current;
     if (!cam || !ctrl) return;
@@ -428,38 +430,49 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
     switch (preset) {
       case 'front':
         pos.set(c.x, c.y - 130, c.z);
-        up.set(0, 0, 1);
         break;
       case 'upper':
-        pos.set(c.x, c.y, c.z + 135);
-        up.set(0, -1, 0);
+        // Slight anterior (-Y) offset avoids Z-axis gimbal lock while keeping Z-up consistent with OrbitControls
+        pos.set(c.x, c.y - 24, c.z + 135);
         break;
       case 'lower':
-        pos.set(c.x, c.y, c.z - 135);
-        up.set(0, 1, 0);
+        pos.set(c.x, c.y - 24, c.z - 135);
         break;
       case 'right':
         pos.set(c.x - 130, c.y, c.z);
-        up.set(0, 0, 1);
         break;
       case 'left':
         pos.set(c.x + 130, c.y, c.z);
-        up.set(0, 0, 1);
         break;
       case 'isometric':
       default:
         pos.set(c.x - 75, c.y - 95, c.z + 65);
-        up.set(0, 0, 1);
         break;
     }
 
+    if (immediate) {
+      targetCamPosRef.current = null;
+      targetCamUpRef.current = null;
+      lerpFramesRef.current = 0;
+      cam.up.copy(up);
+      cam.position.copy(pos);
+      ctrl.target.copy(c);
+      ctrl.update();
+      return;
+    }
+
+    lerpFramesRef.current = 0;
     targetCamPosRef.current = pos;
     targetCamUpRef.current = up;
     targetLookAtRef.current.copy(c);
   }, []);
 
+  const prevPresetRef = useRef<CameraPreset>(activePreset);
   useEffect(() => {
-    applyCameraPreset(activePreset);
+    if (prevPresetRef.current !== activePreset) {
+      prevPresetRef.current = activePreset;
+      applyCameraPreset(activePreset, false);
+    }
   }, [activePreset, applyCameraPreset]);
 
   // Update 3D Scene Background & Grid on Theme change (Light vs Dark)
@@ -769,6 +782,30 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
     controls.minDistance = 20;
     controlsRef.current = controls;
 
+    // Immediately cancel any preset camera lerp as soon as the user touches/drags/scrolls the 3D canvas
+    // so the camera never springs back ("回彈") against user rotation!
+    const handleControlStart = () => {
+      userInteractingRef.current = true;
+      targetCamPosRef.current = null;
+      targetCamUpRef.current = null;
+      lerpFramesRef.current = 0;
+      if (
+        typeof document !== 'undefined' &&
+        document.activeElement instanceof HTMLElement &&
+        document.activeElement !== renderer?.domElement
+      ) {
+        document.activeElement.blur();
+      }
+    };
+    const handleControlEnd = () => {
+      userInteractingRef.current = false;
+    };
+    controls.addEventListener('start', handleControlStart);
+    controls.addEventListener('end', handleControlEnd);
+    renderer.domElement.addEventListener('pointerdown', handleControlStart, { passive: true });
+    renderer.domElement.addEventListener('touchstart', handleControlStart, { passive: true });
+    renderer.domElement.addEventListener('wheel', handleControlStart, { passive: true });
+
     // Lights
     const ambientLight = new THREE.AmbientLight(0xffffff, 1.0);
     scene.add(ambientLight);
@@ -801,17 +838,26 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
     const animate = (currentTime: number) => {
       animFrameIdRef.current = requestAnimationFrame(animate);
 
-      if (targetCamPosRef.current && targetCamUpRef.current) {
-        camera.position.lerp(targetCamPosRef.current, 0.08);
-        camera.up.lerp(targetCamUpRef.current, 0.08);
-        controls.target.lerp(targetLookAtRef.current, 0.08);
+      if (
+        !userInteractingRef.current &&
+        targetCamPosRef.current &&
+        targetCamUpRef.current
+      ) {
+        lerpFramesRef.current += 1;
+        camera.position.lerp(targetCamPosRef.current, 0.14);
+        camera.up.lerp(targetCamUpRef.current, 0.14).normalize();
+        controls.target.lerp(targetLookAtRef.current, 0.14);
 
-        if (camera.position.distanceTo(targetCamPosRef.current) < 0.2) {
+        if (
+          camera.position.distanceTo(targetCamPosRef.current) < 0.35 ||
+          lerpFramesRef.current > 45
+        ) {
           camera.position.copy(targetCamPosRef.current);
           camera.up.copy(targetCamUpRef.current);
           controls.target.copy(targetLookAtRef.current);
           targetCamPosRef.current = null;
           targetCamUpRef.current = null;
+          lerpFramesRef.current = 0;
         }
       }
 
@@ -1027,7 +1073,8 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
         upperMeshRef.current = upperMesh;
         lowerMeshRef.current = lowerMesh;
 
-        applyCameraPreset(activePreset);
+        // Snap camera immediately on initial/case load so user dragging never fights an active lerp
+        applyCameraPreset(activePreset, true);
         setLoading(false);
       })
       .catch((err) => {
@@ -1649,10 +1696,10 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
         </div>
       </div>
 
-      {/* Floating Upload & Drag-and-Drop Trigger (Visible on BOTH Mobile and Desktop) */}
+      {/* Floating Upload & Drag-and-Drop Trigger (Bottom-right on Desktop; mobile uses Header & Quick Bar so top viewport buttons never overlap) */}
       <label
         data-testid="viewport-upload-label"
-        className="absolute top-12 left-2.5 sm:top-auto sm:left-auto sm:bottom-4 sm:right-4 z-30 flex items-center gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 bg-sky-600 sm:bg-white/95 sm:dark:bg-[#0f172a]/95 hover:bg-sky-500 sm:hover:bg-sky-50 sm:dark:hover:bg-slate-800 border border-sky-500 sm:border-slate-200 sm:dark:border-slate-800 rounded-md text-[11px] font-medium sm:font-normal text-white sm:text-slate-700 sm:dark:text-slate-300 backdrop-blur shadow-md sm:shadow-sm cursor-pointer transition-colors"
+        className="hidden sm:flex absolute bottom-4 right-4 z-30 items-center gap-1.5 px-3 py-1.5 bg-white/95 dark:bg-[#0f172a]/95 hover:bg-sky-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 rounded-md text-[11px] font-normal text-slate-700 dark:text-slate-300 backdrop-blur shadow-sm cursor-pointer transition-colors"
       >
         <input
           data-testid="viewport-file-input"
@@ -1667,11 +1714,8 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
             }
           }}
         />
-        <Upload className="w-3.5 h-3.5 text-white sm:text-sky-500 sm:dark:text-sky-400 flex-shrink-0" />
-        <span className="sm:hidden">
-          {tr(locale, '加載', 'Load')}
-        </span>
-        <span className="hidden sm:inline">
+        <Upload className="w-3.5 h-3.5 text-sky-500 dark:text-sky-400 flex-shrink-0" />
+        <span>
           {tr(
             locale,
             '加載或拖曳口掃檔案 (.zip / .stl / .xml / .jpg)',
