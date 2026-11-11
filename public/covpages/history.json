@@ -1,0 +1,565 @@
+[
+  {
+    "commit": {
+      "sha": "e409bb476d875ed0157be7f216b624626fd04e4b",
+      "shortSha": "e409bb4",
+      "message": "fix(ui): resolve mobile button overlap, 3D orbit drag snap-back, and add collapsible sidebar",
+      "author": "Yongjhih Chen",
+      "date": "2026-11-11T17:35:08.000Z",
+      "branch": "main"
+    },
+    "summary": {
+      "lines": {
+        "total": 6934,
+        "covered": 4773,
+        "skipped": 2161,
+        "pct": 68.83
+      },
+      "functions": {
+        "total": 202,
+        "covered": 79,
+        "skipped": 123,
+        "pct": 39.11
+      },
+      "branches": {
+        "total": 774,
+        "covered": 520,
+        "skipped": 254,
+        "pct": 67.18
+      }
+    },
+    "folderSummaries": {
+      "": {
+        "lines": {
+          "total": 6934,
+          "covered": 4773,
+          "skipped": 2161,
+          "pct": 68.83
+        },
+        "functions": {
+          "total": 202,
+          "covered": 79,
+          "skipped": 123,
+          "pct": 39.11
+        },
+        "branches": {
+          "total": 774,
+          "covered": 520,
+          "skipped": 254,
+          "pct": 67.18
+        }
+      },
+      "src": {
+        "lines": {
+          "total": 6934,
+          "covered": 4773,
+          "skipped": 2161,
+          "pct": 68.83
+        },
+        "functions": {
+          "total": 202,
+          "covered": 79,
+          "skipped": 123,
+          "pct": 39.11
+        },
+        "branches": {
+          "total": 774,
+          "covered": 520,
+          "skipped": 254,
+          "pct": 67.18
+        }
+      },
+      "src/components": {
+        "lines": {
+          "total": 4185,
+          "covered": 2779,
+          "skipped": 1406,
+          "pct": 66.4
+        },
+        "functions": {
+          "total": 107,
+          "covered": 22,
+          "skipped": 85,
+          "pct": 20.56
+        },
+        "branches": {
+          "total": 292,
+          "covered": 180,
+          "skipped": 112,
+          "pct": 61.64
+        }
+      },
+      "src/data": {
+        "lines": {
+          "total": 429,
+          "covered": 321,
+          "skipped": 108,
+          "pct": 74.83
+        },
+        "functions": {
+          "total": 14,
+          "covered": 7,
+          "skipped": 7,
+          "pct": 50
+        },
+        "branches": {
+          "total": 113,
+          "covered": 52,
+          "skipped": 61,
+          "pct": 46.02
+        }
+      },
+      "src/types": {
+        "lines": {
+          "total": 0,
+          "covered": 0,
+          "skipped": 0,
+          "pct": 100
+        },
+        "functions": {
+          "total": 0,
+          "covered": 0,
+          "skipped": 0,
+          "pct": 100
+        },
+        "branches": {
+          "total": 0,
+          "covered": 0,
+          "skipped": 0,
+          "pct": 100
+        }
+      },
+      "src/utils": {
+        "lines": {
+          "total": 1605,
+          "covered": 1081,
+          "skipped": 524,
+          "pct": 67.35
+        },
+        "functions": {
+          "total": 51,
+          "covered": 37,
+          "skipped": 14,
+          "pct": 72.55
+        },
+        "branches": {
+          "total": 265,
+          "covered": 208,
+          "skipped": 57,
+          "pct": 78.49
+        }
+      }
+    },
+    "fileSummaries": {
+      "src/App.tsx": {
+        "lines": {
+          "total": 715,
+          "covered": 592,
+          "skipped": 123,
+          "pct": 82.8
+        },
+        "functions": {
+          "total": 30,
+          "covered": 13,
+          "skipped": 17,
+          "pct": 43.33
+        },
+        "branches": {
+          "total": 104,
+          "covered": 80,
+          "skipped": 24,
+          "pct": 76.92
+        }
+      },
+      "src/components/ArticulatorPanel.tsx": {
+        "lines": {
+          "total": 908,
+          "covered": 824,
+          "skipped": 84,
+          "pct": 90.75
+        },
+        "functions": {
+          "total": 27,
+          "covered": 10,
+          "skipped": 17,
+          "pct": 37.04
+        },
+        "branches": {
+          "total": 58,
+          "covered": 44,
+          "skipped": 14,
+          "pct": 75.86
+        }
+      },
+      "src/components/AskAiDrawer.tsx": {
+        "lines": {
+          "total": 551,
+          "covered": 438,
+          "skipped": 113,
+          "pct": 79.49
+        },
+        "functions": {
+          "total": 14,
+          "covered": 5,
+          "skipped": 9,
+          "pct": 35.71
+        },
+        "branches": {
+          "total": 65,
+          "covered": 47,
+          "skipped": 18,
+          "pct": 72.31
+        }
+      },
+      "src/components/CadToolsPanel.tsx": {
+        "lines": {
+          "total": 446,
+          "covered": 308,
+          "skipped": 138,
+          "pct": 69.06
+        },
+        "functions": {
+          "total": 15,
+          "covered": 1,
+          "skipped": 14,
+          "pct": 6.67
+        },
+        "branches": {
+          "total": 18,
+          "covered": 3,
+          "skipped": 15,
+          "pct": 16.67
+        }
+      },
+      "src/components/CaseDossier.tsx": {
+        "lines": {
+          "total": 226,
+          "covered": 198,
+          "skipped": 28,
+          "pct": 87.61
+        },
+        "functions": {
+          "total": 1,
+          "covered": 1,
+          "skipped": 0,
+          "pct": 100
+        },
+        "branches": {
+          "total": 9,
+          "covered": 7,
+          "skipped": 2,
+          "pct": 77.78
+        }
+      },
+      "src/components/DentalViewer3D.tsx": {
+        "lines": {
+          "total": 1398,
+          "covered": 655,
+          "skipped": 743,
+          "pct": 46.85
+        },
+        "functions": {
+          "total": 30,
+          "covered": 2,
+          "skipped": 28,
+          "pct": 6.67
+        },
+        "branches": {
+          "total": 102,
+          "covered": 57,
+          "skipped": 45,
+          "pct": 55.88
+        }
+      },
+      "src/components/Header.tsx": {
+        "lines": {
+          "total": 226,
+          "covered": 199,
+          "skipped": 27,
+          "pct": 88.05
+        },
+        "functions": {
+          "total": 5,
+          "covered": 1,
+          "skipped": 4,
+          "pct": 20
+        },
+        "branches": {
+          "total": 21,
+          "covered": 18,
+          "skipped": 3,
+          "pct": 85.71
+        }
+      },
+      "src/components/PentaGallery.tsx": {
+        "lines": {
+          "total": 295,
+          "covered": 79,
+          "skipped": 216,
+          "pct": 26.78
+        },
+        "functions": {
+          "total": 11,
+          "covered": 1,
+          "skipped": 10,
+          "pct": 9.09
+        },
+        "branches": {
+          "total": 5,
+          "covered": 1,
+          "skipped": 4,
+          "pct": 20
+        }
+      },
+      "src/components/XmlInspector.tsx": {
+        "lines": {
+          "total": 135,
+          "covered": 78,
+          "skipped": 57,
+          "pct": 57.78
+        },
+        "functions": {
+          "total": 4,
+          "covered": 1,
+          "skipped": 3,
+          "pct": 25
+        },
+        "branches": {
+          "total": 14,
+          "covered": 3,
+          "skipped": 11,
+          "pct": 21.43
+        }
+      },
+      "src/data/caseData.ts": {
+        "lines": {
+          "total": 429,
+          "covered": 321,
+          "skipped": 108,
+          "pct": 74.83
+        },
+        "functions": {
+          "total": 14,
+          "covered": 7,
+          "skipped": 7,
+          "pct": 50
+        },
+        "branches": {
+          "total": 113,
+          "covered": 52,
+          "skipped": 61,
+          "pct": 46.02
+        }
+      },
+      "src/types/dental.ts": {
+        "lines": {
+          "total": 0,
+          "covered": 0,
+          "skipped": 0,
+          "pct": 100
+        },
+        "functions": {
+          "total": 0,
+          "covered": 0,
+          "skipped": 0,
+          "pct": 100
+        },
+        "branches": {
+          "total": 0,
+          "covered": 0,
+          "skipped": 0,
+          "pct": 100
+        }
+      },
+      "src/utils/anonymize.ts": {
+        "lines": {
+          "total": 59,
+          "covered": 59,
+          "skipped": 0,
+          "pct": 100
+        },
+        "functions": {
+          "total": 4,
+          "covered": 4,
+          "skipped": 0,
+          "pct": 100
+        },
+        "branches": {
+          "total": 27,
+          "covered": 24,
+          "skipped": 3,
+          "pct": 88.89
+        }
+      },
+      "src/utils/archMeasurements.ts": {
+        "lines": {
+          "total": 155,
+          "covered": 144,
+          "skipped": 11,
+          "pct": 92.9
+        },
+        "functions": {
+          "total": 3,
+          "covered": 3,
+          "skipped": 0,
+          "pct": 100
+        },
+        "branches": {
+          "total": 50,
+          "covered": 43,
+          "skipped": 7,
+          "pct": 86
+        }
+      },
+      "src/utils/articulatorKinematics.ts": {
+        "lines": {
+          "total": 331,
+          "covered": 331,
+          "skipped": 0,
+          "pct": 100
+        },
+        "functions": {
+          "total": 9,
+          "covered": 9,
+          "skipped": 0,
+          "pct": 100
+        },
+        "branches": {
+          "total": 32,
+          "covered": 32,
+          "skipped": 0,
+          "pct": 100
+        }
+      },
+      "src/utils/caseStorage.ts": {
+        "lines": {
+          "total": 175,
+          "covered": 73,
+          "skipped": 102,
+          "pct": 41.71
+        },
+        "functions": {
+          "total": 12,
+          "covered": 6,
+          "skipped": 6,
+          "pct": 50
+        },
+        "branches": {
+          "total": 21,
+          "covered": 7,
+          "skipped": 14,
+          "pct": 33.33
+        }
+      },
+      "src/utils/i18n.ts": {
+        "lines": {
+          "total": 100,
+          "covered": 89,
+          "skipped": 11,
+          "pct": 89
+        },
+        "functions": {
+          "total": 3,
+          "covered": 3,
+          "skipped": 0,
+          "pct": 100
+        },
+        "branches": {
+          "total": 33,
+          "covered": 27,
+          "skipped": 6,
+          "pct": 81.82
+        }
+      },
+      "src/utils/occlusogram.ts": {
+        "lines": {
+          "total": 282,
+          "covered": 184,
+          "skipped": 98,
+          "pct": 65.25
+        },
+        "functions": {
+          "total": 6,
+          "covered": 4,
+          "skipped": 2,
+          "pct": 66.67
+        },
+        "branches": {
+          "total": 56,
+          "covered": 47,
+          "skipped": 9,
+          "pct": 83.93
+        }
+      },
+      "src/utils/pentaTextureShader.ts": {
+        "lines": {
+          "total": 182,
+          "covered": 38,
+          "skipped": 144,
+          "pct": 20.88
+        },
+        "functions": {
+          "total": 7,
+          "covered": 3,
+          "skipped": 4,
+          "pct": 42.86
+        },
+        "branches": {
+          "total": 5,
+          "covered": 5,
+          "skipped": 0,
+          "pct": 100
+        }
+      },
+      "src/utils/proceduralArch.ts": {
+        "lines": {
+          "total": 73,
+          "covered": 2,
+          "skipped": 71,
+          "pct": 2.74
+        },
+        "functions": {
+          "total": 1,
+          "covered": 0,
+          "skipped": 1,
+          "pct": 0
+        },
+        "branches": {
+          "total": 0,
+          "covered": 0,
+          "skipped": 0,
+          "pct": 100
+        }
+      },
+      "src/utils/zipExtractor.ts": {
+        "lines": {
+          "total": 248,
+          "covered": 161,
+          "skipped": 87,
+          "pct": 64.92
+        },
+        "functions": {
+          "total": 6,
+          "covered": 5,
+          "skipped": 1,
+          "pct": 83.33
+        },
+        "branches": {
+          "total": 41,
+          "covered": 23,
+          "skipped": 18,
+          "pct": 56.1
+        }
+      }
+    },
+    "artifacts": {
+      "lcov": "objects/e4/09bb476d875ed0157be7f216b624626fd04e4b.lcov",
+      "sources": [
+        {
+          "format": "lcov",
+          "path": "objects/e4/09bb476d875ed0157be7f216b624626fd04e4b.lcov.info"
+        }
+      ]
+    }
+  }
+]

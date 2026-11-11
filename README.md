@@ -1,5 +1,7 @@
 # DentalCAD Pages — Universal Intraoral Scanner 3D CAD & Articulator
 
+[![Coverage](https://yongjhih.github.io/dentalcad-pages/covpages/badge.svg)](https://yongjhih.github.io/dentalcad-pages/covpages/)
+[![MCP Pages: Connect](https://img.shields.io/badge/MCP%20Pages-Connect-238636?logo=github&logoColor=white)](https://yongjhih.github.io/ai-proxy/dashboard#add-url=https%3A%2F%2Fyongjhih.github.io%2Fdentalcad-pages%2Fmcp)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](./LICENSE)
 
 **[English](#english) | [繁體中文](#繁體中文)**
@@ -10,9 +12,11 @@
 
 **DentalCAD Pages** (`dentalcad-pages`) is a clinical-grade, vendor-neutral **Universal Intraoral Scanner 3D CAD & Occlusal Articulation Workstation** built with **React 18**, **TypeScript**, **Three.js**, and **Tailwind CSS** (conforming to **Impeccable** and **shadcn/ui** design standards).
 
-It supports intraoral scans from **3Shape TRIOS**, **Medit i-Series**, **Shining 3D Aoralscan**, **Carestream**, and standard `.stl` dental arch meshes — running 100% client-side in the browser with **6-DOF mandibular kinematics**, **real-time Occlusogram bite contact heatmaps**, **5-view clinical photo orthographic texture projection**, and **3D digital caliper biometrics**.
+It supports intraoral scans from **3Shape TRIOS**, **Medit i-Series**, **Shining 3D Aoralscan**, **Carestream**, and standard `.stl` / `.zip` dental arch bundles — running 100% client-side in the browser with **6-DOF mandibular kinematics**, **real-time Occlusogram bite contact heatmaps**, **5-view clinical photo orthographic texture projection**, **3D digital caliper biometrics**, **MCP Pages (`mcp.html`) + `ai-proxy` Ask AI assistant**, and **covpages test coverage reporting**.
 
 - **Live Demo (GitHub Pages)**: https://yongjhih.github.io/dentalcad-pages/
+- **MCP Pages Endpoint (`mcp.html`)**: https://yongjhih.github.io/dentalcad-pages/mcp.html
+- **Test Coverage Report (`covpages`)**: https://yongjhih.github.io/dentalcad-pages/covpages/
 - **Repository**: https://github.com/yongjhih/dentalcad-pages
 - **License**: [Apache License 2.0](./LICENSE)
 
@@ -76,14 +80,29 @@ import { DentalViewer3D, ArticulatorPanel } from '@dentalcad-pages/viewer';
 import { DEFAULT_ARTICULATOR_SETTINGS } from '@dentalcad-pages/core';
 ```
 
-### 🛠️ Local Development & Testing
+### 🔌 MCP Pages & `ai-proxy` Integration (`mcp.html` & Ask AI)
+
+This site includes a zero-backend **MCP Pages** endpoint (`mcp.html`) and an in-app **Ask AI** drawer powered by [`ai-proxy`](https://github.com/yongjhih/ai-proxy):
+
+```bash
+# 1. Start local ai-proxy relay (listens on 127.0.0.1:8788)
+npx ai-proxy serve
+
+# 2. Register DentalCAD Pages WebMCP tools in Claude Code / local AI clients
+npx ai-proxy add https://yongjhih.github.io/dentalcad-pages/mcp.html --name dentalcad
+
+# 3. Verify static MCP Pages compliance
+npx ai-proxy doctor --dir .
+```
+
+### 🛠️ Local Development, Coverage (`covpages`) & Testing
 
 ```bash
 # 1. Install dependencies
 npm install
 
-# 2. Run unit & integration test suites (Vitest + Testing Library)
-npm test
+# 2. Run unit & integration test suites with LCOV coverage
+npm run test:coverage
 
 # 3. Start local Vite development server
 npm run dev
@@ -96,9 +115,11 @@ npm run build
 
 ## 繁體中文
 
-**DentalCAD Pages** (`dentalcad-pages`) 是一個符合 **Impeccable** 規範與 **shadcn/ui** 設計語言的**跨品牌口掃機通用臨床 3D CAD 與咬合運動模擬工作站**。支援 **3Shape TRIOS**、**Medit i-Series**、**Shining 3D Aoralscan**、**Carestream** 及各類標準 `.stl` 牙弓模型，透過 **Three.js** 在純瀏覽器環境中即時進行 **6-DOF 下顎生理運動模擬**、**咬合接觸熱力圖 (Occlusogram)**、**五方位臨床照片 3D 正交投影貼圖**與 **3D 數位游標尺測距**。
+**DentalCAD Pages** (`dentalcad-pages`) 是一個符合 **Impeccable** 規範與 **shadcn/ui** 設計語言的**跨品牌口掃機通用臨床 3D CAD 與咬合運動模擬工作站**。支援 **3Shape TRIOS**、**Medit i-Series**、**Shining 3D Aoralscan**、**Carestream** 及各類標準 `.stl` / `.zip` 牙弓模型，透過 **Three.js** 在純瀏覽器環境中即時進行 **6-DOF 下顎生理運動模擬**、**咬合接觸熱力圖 (Occlusogram)**、**五方位臨床照片 3D 正交投影貼圖**、**3D 數位游標尺測距**，並整合 **MCP Pages (`mcp.html`)**、**`ai-proxy` Ask AI 智慧助手**與 **covpages 測試覆蓋率報告**。
 
 - **線上展示 (GitHub Pages)**：https://yongjhih.github.io/dentalcad-pages/
+- **MCP Pages 工具端點 (`mcp.html`)**：https://yongjhih.github.io/dentalcad-pages/mcp.html
+- **測試覆蓋率報告 (`covpages`)**：https://yongjhih.github.io/dentalcad-pages/covpages/
 - **GitHub 儲存庫**：https://github.com/yongjhih/dentalcad-pages
 - **開源授權**：[Apache License 2.0](./LICENSE)
 

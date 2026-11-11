@@ -336,4 +336,40 @@ describe('DentalCAD Pages Application Integration Tests', () => {
     fireEvent.click(mobileToggleBtn);
     expect(sidebar).not.toHaveClass('hidden');
   });
+
+  it('exposes MCP Pages link, covpages link, and interactive Ask AI assistant drawer', async () => {
+    render(<App />);
+
+    // Verify MCP and covpages links in Header
+    const mcpLink = screen.getByTestId('header-mcp-link');
+    expect(mcpLink).toHaveAttribute('href', 'mcp.html');
+
+    const covLink = screen.getByTestId('header-covpages-link');
+    expect(covLink).toHaveAttribute('href', 'covpages/');
+
+    // Open Ask AI drawer
+    const askAiBtn = screen.getByTestId('header-ask-ai-btn');
+    fireEvent.click(askAiBtn);
+
+    const drawer = screen.getByTestId('ask-ai-drawer');
+    expect(drawer).toBeInTheDocument();
+
+    // Toggle settings panel inside Ask AI drawer
+    fireEvent.click(screen.getByTestId('ask-ai-settings-toggle'));
+    expect(screen.getByTestId('ask-ai-settings-panel')).toBeInTheDocument();
+
+    // Click quick prompt chips to verify MCP, Heatmap, and Coverage replies
+    fireEvent.click(screen.getByTestId('ask-ai-chip-mcp'));
+    expect(await screen.findByText(/dentalcad_get_overview/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('ask-ai-chip-heatmap'));
+    expect(await screen.findByText(/Occlusogram Contact Heatmap/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('ask-ai-chip-covpages'));
+    expect(await screen.findByText(/GitHub Primer-styled/i)).toBeInTheDocument();
+
+    // Close Ask AI drawer
+    fireEvent.click(screen.getByTestId('ask-ai-close-btn'));
+    expect(screen.queryByTestId('ask-ai-drawer')).not.toBeInTheDocument();
+  });
 });

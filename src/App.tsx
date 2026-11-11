@@ -36,6 +36,8 @@ import {
   ArticulatorPanel,
   CadToolsPanel,
   XmlInspector,
+  AskAiDrawer,
+  ViewerControlPayload,
 } from '@dentalcad-pages/viewer';
 import {
   FileText,
@@ -307,6 +309,9 @@ export const App: React.FC = () => {
   // Collapsible right/bottom sidebar panel state
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
 
+  // Ask AI Assistant slide-over drawer state
+  const [askAiOpen, setAskAiOpen] = useState<boolean>(false);
+
   // Mobile layout ratio mode ('split' | '3d' | 'panel') for small screens
   const [mobileLayoutMode, setMobileLayoutMode] = useState<MobileLayoutMode>('split');
   const mobileBundleInputRef = useRef<HTMLInputElement>(null);
@@ -335,6 +340,55 @@ export const App: React.FC = () => {
     lightingIntensity: 1.0,
     articulator: { ...DEFAULT_ARTICULATOR_SETTINGS },
   });
+
+  // Apply live 3D viewer control commands from Ask AI or WebMCP (mcp.html via BroadcastChannel)
+  const handleApplyViewerControl = useCallback((payload: ViewerControlPayload) => {
+    if (payload.cameraPreset) {
+      setCameraPreset(payload.cameraPreset);
+    }
+    setViewportSettings((prev) => ({
+      ...prev,
+      shadingMode: payload.shadingMode ?? prev.shadingMode,
+      occlusogramEnabled:
+        typeof payload.occlusogramEnabled === 'boolean'
+          ? payload.occlusogramEnabled
+          : prev.occlusogramEnabled,
+      occlusionSeparation:
+        typeof payload.occlusionSeparation === 'number'
+          ? payload.occlusionSeparation
+          : prev.occlusionSeparation,
+      articulator: {
+        ...prev.articulator,
+        mode: payload.articulationMode ?? prev.articulator.mode,
+        progress:
+          typeof payload.articulationProgress === 'number'
+            ? payload.articulationProgress
+            : prev.articulator.progress,
+      },
+    }));
+  }, []);
+
+  useEffect(() => {
+    if (typeof BroadcastChannel === 'undefined') return;
+    let channel: BroadcastChannel | null = null;
+    try {
+      channel = new BroadcastChannel('dentalcad_mcp_channel');
+      channel.onmessage = (ev) => {
+        if (ev?.data?.type === 'DENTALCAD_MCP_CONTROL' && ev.data.payload) {
+          handleApplyViewerControl(ev.data.payload);
+        }
+      };
+    } catch {
+      // ignore if BroadcastChannel is unsupported in test env
+    }
+    return () => {
+      try {
+        channel?.close();
+      } catch {
+        // ignore
+      }
+    };
+  }, [handleApplyViewerControl]);
 
   // Import an entire new case bundle (e.g. .zip or .stl + .xml + .jpg + .pdf) at runtime and persist to IndexedDB
   const handleImportCaseFiles = async (fileList: FileList) => {
@@ -388,6 +442,7 @@ export const App: React.FC = () => {
         onToggleTheme={handleToggleTheme}
         locale={locale}
         onToggleLocale={handleToggleLocale}
+        onOpenAskAi={() => setAskAiOpen((v) => !v)}
       />
 
       {/* Smart ?url= Local Path / ZIP Quick Loader Banner */}
@@ -834,6 +889,19 @@ export const App: React.FC = () => {
           </div>
         </aside>
       </main>
+
+      {/* Ask AI Assistant Slide-Over Drawer (ai-proxy /v1 & MCP Pages) */}
+      <AskAiDrawer
+        open={askAiOpen}
+        onClose={() => setAskAiOpen(false)}
+        locale={locale}
+        activeCase={activeCase}
+        archMetrics={archMetrics}
+        occlusogramStats={occlusogramStats}
+        viewportSettings={viewportSettings}
+        cameraPreset={cameraPreset}
+        onApplyViewerControl={handleApplyViewerControl}
+      />
     </div>
   );
 };

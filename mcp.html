@@ -1,0 +1,735 @@
+<!doctype html>
+<html lang="en" data-color-mode="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="description" content="DentalCAD Pages WebMCP Endpoint — Client-side 3D Dental CAD, 6-DOF Virtual Articulator, and Orthodontic Arch Analysis tools for ai-proxy & MCP clients." />
+  <title>DentalCAD Pages · WebMCP Tools &amp; ai-proxy Endpoint</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg-canvas: #f8fafc;
+      --bg-surface: #ffffff;
+      --bg-subtle: #f1f5f9;
+      --border-default: #cbd5e1;
+      --border-muted: #e2e8f0;
+      --fg-default: #0f172a;
+      --fg-muted: #475569;
+      --fg-subtle: #64748b;
+      --accent: #0284c7;
+      --accent-hover: #0369a1;
+      --accent-subtle: rgba(2, 132, 199, 0.1);
+      --success: #16a34a;
+      --success-bg: rgba(22, 163, 74, 0.12);
+      --warning: #d97706;
+      --warning-bg: rgba(217, 119, 6, 0.12);
+      --danger: #dc2626;
+      --danger-bg: rgba(220, 38, 38, 0.12);
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 14px;
+    }
+
+    [data-color-mode="dark"] {
+      color-scheme: dark;
+      --bg-canvas: #070b12;
+      --bg-surface: #0f172a;
+      --bg-subtle: #1e293b;
+      --border-default: #1e293b;
+      --border-muted: #334155;
+      --fg-default: #f8fafc;
+      --fg-muted: #94a3b8;
+      --fg-subtle: #64748b;
+      --accent: #38bdf8;
+      --accent-hover: #0284c7;
+      --accent-subtle: rgba(56, 189, 248, 0.12);
+      --success: #34d399;
+      --success-bg: rgba(16, 185, 129, 0.15);
+      --warning: #fbbf24;
+      --warning-bg: rgba(245, 158, 11, 0.15);
+      --danger: #f87171;
+      --danger-bg: rgba(239, 68, 68, 0.15);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: var(--font-sans);
+      background: var(--bg-canvas);
+      color: var(--fg-default);
+      line-height: 1.5;
+      font-size: 14px;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    code, pre { font-family: var(--font-mono); }
+
+    .site-header {
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border-default);
+      padding: 10px 20px;
+    }
+    .header-inner {
+      max-width: 1120px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--fg-default);
+      font-weight: 700;
+      font-size: 15px;
+      text-decoration: none;
+    }
+    .brand:hover { text-decoration: none; }
+    .brand-logo {
+      width: 28px;
+      height: 28px;
+      border-radius: 7px;
+      background: linear-gradient(135deg, #38bdf8, #2563eb);
+      color: #fff;
+      font-weight: 800;
+      font-size: 11px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-muted);
+      background: var(--bg-subtle);
+      color: var(--fg-default);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.15s ease;
+    }
+    .btn:hover {
+      border-color: var(--accent);
+      text-decoration: none;
+    }
+    .btn-primary {
+      background: #0284c7;
+      border-color: #0284c7;
+      color: #ffffff;
+    }
+    .btn-primary:hover {
+      background: #0369a1;
+      border-color: #0369a1;
+    }
+    .btn-success {
+      background: #238636;
+      border-color: #238636;
+      color: #ffffff;
+    }
+    .btn-success:hover {
+      background: #1a7f37;
+      border-color: #1a7f37;
+    }
+
+    .container {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 28px 20px 80px;
+    }
+    .hero-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+    .hero-title {
+      font-size: 24px;
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+    .hero-subtitle {
+      color: var(--fg-muted);
+      font-size: 14px;
+      max-width: 820px;
+      margin-bottom: 18px;
+    }
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .cli-box {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 14px;
+      border-radius: var(--radius-md);
+      background: var(--bg-canvas);
+      border: 1px solid var(--border-default);
+      font-family: var(--font-mono);
+      font-size: 12.5px;
+      color: var(--accent);
+      overflow-x: auto;
+    }
+
+    /* WebMCP UI widget styling */
+    .mcp-page-widget { display: flex; flex-direction: column; gap: 20px; }
+    .mcp-status-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 18px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-md);
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .badge-success { background: var(--success-bg); color: var(--success); }
+    .badge-warning { background: var(--warning-bg); color: var(--warning); }
+    .badge-danger { background: var(--danger-bg); color: var(--danger); }
+    .badge-neutral { background: var(--bg-subtle); color: var(--fg-muted); }
+    .badge-readonly { background: var(--accent-subtle); color: var(--accent); }
+    .badge-mutating { background: var(--warning-bg); color: var(--warning); }
+    .mcp-catalog h3 { font-size: 18px; font-weight: 700; margin-bottom: 14px; }
+    .mcp-tool-list { display: flex; flex-direction: column; gap: 14px; }
+    .mcp-tool-row {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-md);
+      padding: 18px 20px;
+    }
+    .mcp-tool-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+    .mcp-tool-title code { font-size: 15px; font-weight: 700; color: var(--accent); }
+    .mcp-tool-desc { color: var(--fg-muted); font-size: 13px; margin-bottom: 14px; }
+    .mcp-field-group {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .mcp-field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--fg-muted); }
+    .mcp-field input {
+      padding: 7px 10px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-muted);
+      background: var(--bg-canvas);
+      color: var(--fg-default);
+      font-size: 13px;
+    }
+    .mcp-tool-actions { display: flex; align-items: center; gap: 10px; }
+    .btn-sm {
+      padding: 5px 12px;
+      border-radius: var(--radius-sm);
+      border: 1px solid #0284c7;
+      background: #0284c7;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .mcp-tool-result {
+      margin-top: 12px;
+      padding: 12px;
+      border-radius: var(--radius-sm);
+      background: var(--bg-canvas);
+      border: 1px solid var(--border-default);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: 360px;
+      overflow-y: auto;
+    }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-inner">
+      <a href="./" class="brand">
+        <span class="brand-logo">CAD</span>
+        <span>DentalCAD Pages</span>
+        <span style="color:var(--fg-subtle);font-weight:500;">/ WebMCP Endpoint</span>
+      </a>
+      <nav class="nav-links" aria-label="Navigation">
+        <a href="./" class="btn">🦷 3D CAD Workspace</a>
+        <a href="./covpages/" class="btn">📊 Coverage Report (covpages)</a>
+        <a href="https://yongjhih.github.io/ai-proxy/dashboard#add-url=https%3A%2F%2Fyongjhih.github.io%2Fdentalcad-pages%2Fmcp" target="_blank" rel="noopener" class="btn btn-success">
+          🔌 Connect to ai-proxy
+        </a>
+        <button type="button" class="btn" id="themeToggleBtn">🌓 Theme</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="hero-card">
+      <h1 class="hero-title">DentalCAD Pages · Client-Side WebMCP Tools</h1>
+      <p class="hero-subtitle">
+        This static MCP Page registers 5 client-side WebMCP tools on <code>navigator.modelContext</code> for 3D Dental CAD inspection,
+        6-DOF mandibular articulation kinematics, orthodontic arch analysis, and live 3D viewport control via <code>ai-proxy</code>.
+      </p>
+      <div class="hero-actions">
+        <a href="https://yongjhih.github.io/ai-proxy/dashboard#add-url=https%3A%2F%2Fyongjhih.github.io%2Fdentalcad-pages%2Fmcp" target="_blank" rel="noopener" class="btn btn-success">
+          ➕ One-Click Add to local ai-proxy
+        </a>
+        <a href="./" class="btn btn-primary">Launch 3D Dental CAD Viewer</a>
+        <a href="./covpages/" class="btn">View Test Coverage (covpages)</a>
+      </div>
+      <div class="cli-box">
+        <code id="cliCmdText">npx ai-proxy add https://yongjhih.github.io/dentalcad-pages/mcp.html --name dentalcad</code>
+        <button type="button" class="btn" id="copyCliBtn">Copy</button>
+      </div>
+    </section>
+
+    <div id="mcp-catalog"></div>
+  </main>
+
+  <script>
+    (function () {
+      const root = document.documentElement;
+      const saved = localStorage.getItem('dentalcad_theme') || 'dark';
+      root.setAttribute('data-color-mode', saved === 'light' ? 'light' : 'dark');
+      document.getElementById('themeToggleBtn')?.addEventListener('click', () => {
+        const next = root.getAttribute('data-color-mode') === 'dark' ? 'light' : 'dark';
+        root.setAttribute('data-color-mode', next);
+        try { localStorage.setItem('dentalcad_theme', next); } catch (e) {}
+      });
+      document.getElementById('copyCliBtn')?.addEventListener('click', async () => {
+        const btn = document.getElementById('copyCliBtn');
+        const cmd = document.getElementById('cliCmdText')?.textContent || '';
+        try {
+          await navigator.clipboard.writeText(cmd);
+          if (btn) {
+            btn.textContent = 'Copied!';
+            setTimeout(() => { btn.textContent = 'Copy'; }, 1800);
+          }
+        } catch (e) {}
+      });
+    })();
+  </script>
+
+  <script type="module">
+    import { mountMcpPageUi } from './web/ui.mjs';
+
+    const DEG2RAD = Math.PI / 180;
+
+    function computeArticulationTransform({
+      protrusionMm = 0,
+      leftLateralMm = 0,
+      rightLateralMm = 0,
+      openCloseDeg = 0,
+      condylarInclinationDeg = 30,
+      bennettAngleDeg = 15,
+      incisalGuidanceDeg = 40,
+      speeCurveRadiusMm = 75,
+      wilsonCurveRadiusMm = 65
+    } = {}) {
+      const netLateral = leftLateralMm - rightLateralMm;
+      const absLateral = Math.abs(netLateral);
+      const effectiveAngle = (condylarInclinationDeg * 0.45 + incisalGuidanceDeg * 0.55) * DEG2RAD;
+      const speeMod = (75 / Math.max(40, speeCurveRadiusMm)) * 0.18;
+      const wilsonMod = (65 / Math.max(40, wilsonCurveRadiusMm)) * 0.15;
+
+      const protrusiveDrop = Math.max(0, protrusionMm) * Math.tan(effectiveAngle) * (1 + speeMod);
+      const lateralDrop = absLateral * Math.tan(bennettAngleDeg * DEG2RAD) * (1 + wilsonMod);
+      const openingDrop = (openCloseDeg / 30) * 18.0;
+
+      const dx = netLateral;
+      const dy = protrusionMm;
+      const dz = -(protrusiveDrop + lateralDrop + openingDrop);
+      const rx = -openCloseDeg;
+      const ry = netLateral * 0.35;
+      const rz = -netLateral * 0.45;
+
+      return {
+        translationMm: {
+          dx: Number(dx.toFixed(3)),
+          dy: Number(dy.toFixed(3)),
+          dz: Number(dz.toFixed(3))
+        },
+        rotationDeg: {
+          rx: Number(rx.toFixed(3)),
+          ry: Number(ry.toFixed(3)),
+          rz: Number(rz.toFixed(3))
+        },
+        verticalDisclusionDropMm: Number(Math.abs(dz).toFixed(3)),
+        parameters: {
+          protrusionMm,
+          leftLateralMm,
+          rightLateralMm,
+          openCloseDeg,
+          condylarInclinationDeg,
+          bennettAngleDeg,
+          incisalGuidanceDeg,
+          speeCurveRadiusMm,
+          wilsonCurveRadiusMm
+        }
+      };
+    }
+
+    async function readCasesFromIndexedDB() {
+      return new Promise((resolve) => {
+        if (typeof indexedDB === 'undefined') {
+          resolve([]);
+          return;
+        }
+        try {
+          const req = indexedDB.open('dentalcad_cases_db', 1);
+          req.onerror = () => resolve([]);
+          req.onsuccess = () => {
+            try {
+              const db = req.result;
+              if (!db.objectStoreNames.contains('cases')) {
+                db.close();
+                resolve([]);
+                return;
+              }
+              const tx = db.transaction('cases', 'readonly');
+              const store = tx.objectStore('cases');
+              const getAll = store.getAll();
+              getAll.onsuccess = () => {
+                const rows = Array.isArray(getAll.result) ? getAll.result : [];
+                db.close();
+                resolve(
+                  rows.map((r) => ({
+                    id: r.id,
+                    source: 'indexeddb-custom',
+                    scannerVendor: r.bundle?.OrderOverview?.ScannerVendor || 'Auto-detected IOS',
+                    diagnosis: r.bundle?.ClinicalSummary?.Diagnosis || 'Custom Uploaded Dental Scan',
+                    upperStlFileName: r.bundle?.assets?.upperStlFileName || null,
+                    lowerStlFileName: r.bundle?.assets?.lowerStlFileName || null,
+                    meshStats: r.bundle?.defaultMeshStats || null
+                  }))
+                );
+              };
+              getAll.onerror = () => {
+                db.close();
+                resolve([]);
+              };
+            } catch (e) {
+              resolve([]);
+            }
+          };
+        } catch (e) {
+          resolve([]);
+        }
+      });
+    }
+
+    const tools = [
+      {
+        name: 'dentalcad_get_overview',
+        description: 'Get DentalCAD Pages architecture, workspace packages (@dentalcad-pages/core, @dentalcad-pages/viewer), supported intraoral scanner formats, and clinical feature specifications.',
+        inputSchema: {
+          type: 'object',
+          properties: {},
+          additionalProperties: false
+        },
+        annotations: {
+          title: 'Get DentalCAD Overview',
+          readOnlyHint: true,
+          destructiveHint: false,
+          idempotentHint: true,
+          openWorldHint: false
+        },
+        async execute() {
+          return {
+            project: 'dentalcad-pages',
+            license: 'Apache-2.0',
+            packages: [
+              '@dentalcad-pages/core (6-DOF kinematics, occlusogram BVH distance field, arch metrics, multi-scanner XML/ZIP parser, IndexedDB storage)',
+              '@dentalcad-pages/viewer (Three.js WebGL 3D viewer, triplanar 5-view photo shader, ArticulatorPanel, CadToolsPanel, PentaGallery)'
+            ],
+            supportedScanners: [
+              '3Shape TRIOS',
+              'Medit (i500 / i700 / i900)',
+              'Shining 3D (Aoralscan)',
+              'Generic STL + XML / ZIP Intraoral Scanner Exports'
+            ],
+            privacyModel: 'Zero-PHI client-side browser sandbox (all STL/XML/ZIP parsing runs 100% locally in WebGL & IndexedDB)',
+            links: {
+              app: new URL('./', window.location.href).href,
+              mcp: new URL('./mcp.html', window.location.href).href,
+              covpages: new URL('./covpages/', window.location.href).href
+            }
+          };
+        }
+      },
+      {
+        name: 'dentalcad_list_cases',
+        description: 'List dental scan cases available in this browser (built-in zero-PHI sandbox template and any custom cases uploaded into local IndexedDB).',
+        inputSchema: {
+          type: 'object',
+          properties: {},
+          additionalProperties: false
+        },
+        annotations: {
+          title: 'List Dental Cases',
+          readOnlyHint: true,
+          destructiveHint: false,
+          idempotentHint: true,
+          openWorldHint: false
+        },
+        async execute() {
+          const customCases = await readCasesFromIndexedDB();
+          const builtinCase = {
+            id: 'DEMO-CASE-01',
+            source: 'builtin-sandbox',
+            scannerVendor: 'Universal Intraoral Scanner (Zero-PHI Template)',
+            diagnosis: 'Browser-Only Sandbox — Upload Local STL / XML / ZIP to Render',
+            upperStlFileName: 'upper_arch.stl',
+            lowerStlFileName: 'lower_arch.stl'
+          };
+          return {
+            totalCases: 1 + customCases.length,
+            activeCaseId: localStorage.getItem('dentalcad_last_active_case_id') || 'DEMO-CASE-01',
+            cases: [builtinCase, ...customCases]
+          };
+        }
+      },
+      {
+        name: 'dentalcad_compute_articulation',
+        description: 'Compute 6-DOF virtual articulator mandibular kinematics (translation dx/dy/dz in mm, rotation rx/ry/rz in deg, and vertical disclusion drop) from Posselt envelope & Curve of Spee/Wilson parameters.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            protrusionMm: {
+              type: 'number',
+              description: 'Mandibular protrusion / retrusion in mm (-2 to 8)',
+              default: 2.5
+            },
+            leftLateralMm: {
+              type: 'number',
+              description: 'Left lateral excursion in mm (0 to 8)',
+              default: 0
+            },
+            rightLateralMm: {
+              type: 'number',
+              description: 'Right lateral excursion in mm (0 to 8)',
+              default: 0
+            },
+            openCloseDeg: {
+              type: 'number',
+              description: 'Condylar hinge axis opening angle in degrees (0 to 30)',
+              default: 0
+            },
+            condylarInclinationDeg: {
+              type: 'number',
+              description: 'Sagittal condylar guidance angle in degrees (10 to 55)',
+              default: 30
+            },
+            bennettAngleDeg: {
+              type: 'number',
+              description: 'Bennett lateral shift angle in degrees (5 to 30)',
+              default: 15
+            },
+            incisalGuidanceDeg: {
+              type: 'number',
+              description: 'Anterior incisal guidance angle in degrees (10 to 65)',
+              default: 40
+            },
+            speeCurveRadiusMm: {
+              type: 'number',
+              description: 'Curve of Spee radius in mm (45 to 120)',
+              default: 75
+            },
+            wilsonCurveRadiusMm: {
+              type: 'number',
+              description: 'Curve of Wilson radius in mm (45 to 110)',
+              default: 65
+            }
+          },
+          additionalProperties: false
+        },
+        annotations: {
+          title: 'Compute 6-DOF Articulation',
+          readOnlyHint: true,
+          destructiveHint: false,
+          idempotentHint: true,
+          openWorldHint: false
+        },
+        async execute(input = {}) {
+          return computeArticulationTransform(input);
+        }
+      },
+      {
+        name: 'dentalcad_analyze_arch_metrics',
+        description: 'Evaluate orthodontic arch metrics (intercanine width U3-U3/L3-L3, intermolar width U6-U6/L6-L6, overjet, overbite, and arch form classification).',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            intercanineUpperMm: {
+              type: 'number',
+              description: 'Upper intercanine width (U3-U3) in mm',
+              default: 34.8
+            },
+            intermolarUpperMm: {
+              type: 'number',
+              description: 'Upper intermolar width (U6-U6) in mm',
+              default: 52.6
+            },
+            intercanineLowerMm: {
+              type: 'number',
+              description: 'Lower intercanine width (L3-L3) in mm',
+              default: 27.4
+            },
+            intermolarLowerMm: {
+              type: 'number',
+              description: 'Lower intermolar width (L6-L6) in mm',
+              default: 45.2
+            },
+            overjetMm: {
+              type: 'number',
+              description: 'Anterior horizontal overjet in mm',
+              default: 2.6
+            },
+            overbiteMm: {
+              type: 'number',
+              description: 'Anterior vertical overbite in mm',
+              default: 2.1
+            }
+          },
+          additionalProperties: false
+        },
+        annotations: {
+          title: 'Analyze Orthodontic Arch Metrics',
+          readOnlyHint: true,
+          destructiveHint: false,
+          idempotentHint: true,
+          openWorldHint: false
+        },
+        async execute({
+          intercanineUpperMm = 34.8,
+          intermolarUpperMm = 52.6,
+          intercanineLowerMm = 27.4,
+          intermolarLowerMm = 45.2,
+          overjetMm = 2.6,
+          overbiteMm = 2.1
+        } = {}) {
+          const ratio = intercanineUpperMm / Math.max(1, intermolarUpperMm);
+          const archForm = ratio < 0.63 ? 'Tapered' : ratio > 0.69 ? 'Square' : 'Ovoid';
+          return {
+            archForm,
+            canineToMolarRatio: Number(ratio.toFixed(3)),
+            transverseMaxilloMandibularDiffMm: Number((intermolarUpperMm - intermolarLowerMm).toFixed(2)),
+            overjetAssessment:
+              overjetMm > 4.0 ? 'Increased Overjet (Class II tendency)' : overjetMm < 1.0 ? 'Edge-to-Edge / Anterior Crossbite tendency' : 'Normal Overjet (1–4 mm)',
+            overbiteAssessment:
+              overbiteMm > 4.0 ? 'Deep Bite tendency' : overbiteMm < 0.5 ? 'Anterior Open Bite tendency' : 'Normal Overbite (1–4 mm)',
+            metrics: {
+              intercanineUpperMm,
+              intermolarUpperMm,
+              intercanineLowerMm,
+              intermolarLowerMm,
+              overjetMm,
+              overbiteMm
+            }
+          };
+        }
+      },
+      {
+        name: 'dentalcad_control_viewer',
+        description: 'Send a live control command (camera preset, shader mode, occlusogram heatmap toggle, or articulation excursion) to any open DentalCAD Pages 3D viewer tab. The AI assistant should only invoke this tool when explicitly requested by the human user.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            cameraPreset: {
+              type: 'string',
+              enum: ['front', 'upper', 'lower', 'left', 'right'],
+              description: 'Optional camera view preset to activate'
+            },
+            shadingMode: {
+              type: 'string',
+              enum: ['enamel', 'matcap', 'curvature', 'plaster', 'wireframe'],
+              description: 'Optional 3D dental surface shader mode'
+            },
+            occlusogramEnabled: {
+              type: 'boolean',
+              description: 'Optional toggle for Occlusogram contact clearance heatmap'
+            },
+            protrusionMm: {
+              type: 'number',
+              description: 'Optional mandibular protrusion in mm (-2 to 8)'
+            },
+            openCloseDeg: {
+              type: 'number',
+              description: 'Optional mandibular opening angle in degrees (0 to 30)'
+            }
+          },
+          additionalProperties: false
+        },
+        annotations: {
+          title: 'Control Live 3D Viewer',
+          readOnlyHint: false,
+          destructiveHint: false
+        },
+        async execute(payload = {}) {
+          const eventMsg = {
+            type: 'DENTALCAD_MCP_CONTROL',
+            timestamp: new Date().toISOString(),
+            payload
+          };
+          try {
+            if (typeof BroadcastChannel !== 'undefined') {
+              const ch = new BroadcastChannel('dentalcad_mcp_channel');
+              ch.postMessage(eventMsg);
+              ch.close();
+            }
+            localStorage.setItem('dentalcad_mcp_last_command', JSON.stringify(eventMsg));
+          } catch (e) {}
+          return {
+            ok: true,
+            deliveredVia: 'BroadcastChannel(dentalcad_mcp_channel)',
+            appliedCommand: payload
+          };
+        }
+      }
+    ];
+
+    mountMcpPageUi({
+      container: document.getElementById('mcp-catalog'),
+      title: 'DentalCAD Pages WebMCP Tools (5 Tools)',
+      tools
+    });
+  </script>
+</body>
+</html>
