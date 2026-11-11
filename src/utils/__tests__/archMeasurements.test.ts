@@ -5,7 +5,7 @@ import {
   DEFAULT_ORTHO_ARCH_METRICS,
 } from '../archMeasurements';
 
-describe('archMeasurements (OrthoCAD Digital Caliper & Arch Analysis)', () => {
+describe('archMeasurements (Digital Caliper & Arch Analysis)', () => {
   it('computes exact 3D Euclidean distance and axis deltas for caliper measurements', () => {
     const m = createCaliperMeasurement(
       'test-1',
@@ -38,7 +38,7 @@ describe('archMeasurements (OrthoCAD Digital Caliper & Arch Analysis)', () => {
     expect(metrics).toEqual(DEFAULT_ORTHO_ARCH_METRICS);
   });
 
-  it('computes realistic OrthoCAD arch metrics from synthetic upper and lower vertex clouds (Anterior = -Y, Posterior = +Y)', () => {
+  it('computes realistic arch metrics from synthetic upper and lower vertex clouds (Anterior = -Y, Posterior = +Y)', () => {
     const upper: number[] = [];
     const lower: number[] = [];
 

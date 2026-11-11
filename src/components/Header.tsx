@@ -59,7 +59,7 @@ export const Header: React.FC<HeaderProps> = ({
               DentalCAD Pages
             </span>
             <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400">
-              Universal IOS 3D
+              3D Dental Workstation
             </span>
           </div>
         </div>

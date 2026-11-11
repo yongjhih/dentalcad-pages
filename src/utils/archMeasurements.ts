@@ -88,7 +88,7 @@ function analyzeArchVertices(positions: ArrayLike<number>, isUpper: boolean): Ar
   }
 
   const depthY = Math.max(1, maxY - minY);
-  // In iTero STL coordinates: Anterior (Incisors) is near minY (-47 mm) and Posterior (Molars) is near maxY (+10 mm)
+  // In STL coordinates: Anterior (Incisors) is near minY (-47 mm) and Posterior (Molars) is near maxY (+10 mm)
   // Canine coronal band is approximately 20% to 32% from anterior (minY) toward posterior (maxY)
   const canineYMin = minY + depthY * 0.20;
   const canineYMax = minY + depthY * 0.32;
@@ -170,7 +170,7 @@ function analyzeArchVertices(positions: ArrayLike<number>, isUpper: boolean): Ar
 }
 
 /**
- * Compute OrthoCAD clinical arch and occlusal metrics from Upper and Lower 3D mesh vertices
+ * Compute clinical arch and occlusal metrics from Upper and Lower 3D mesh vertices
  */
 export function computeOrthoArchMetrics(
   upperPositions: ArrayLike<number>,

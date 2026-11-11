@@ -2,7 +2,7 @@ import * as THREE from 'three';
 
 /**
  * Generate a realistic anatomical 3D dental arch BufferGeometry (14 teeth + alveolar gingiva)
- * in the exact iTero coordinate system (Anterior = -Y, Posterior = +Y, Left = +X, Right = -X).
+ * in the standard coordinate system (Anterior = -Y, Posterior = +Y, Left = +X, Right = -X).
  * Used as an automatic zero-dependency fallback on GitHub Pages when private patient STL files
  * are not committed to the public repository.
  */

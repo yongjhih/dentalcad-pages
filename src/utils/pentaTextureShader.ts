@@ -167,7 +167,7 @@ export function computePentaProjectedUVs(params: {
     z: clamp01((P.z - combMin.z) / Math.max(0.001, combMax.z - combMin.z)),
   };
 
-  // In iTero STL coordinates:
+  // In STL coordinates:
   // - Anterior (Incisors) is at Y_min (-47.4 mm, nY = 0.0)
   // - Posterior (Molars) is at Y_max (+10.7 mm, nY = 1.0)
   // - Patient Right is at X_min (-32.3 mm, nX = 0.0)

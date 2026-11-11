@@ -7,7 +7,7 @@ export type ThemeMode = 'dark' | 'light';
 export type LocaleMode = 'en' | 'zh-TW';
 
 export type ScannerVendor =
-  | 'itero'
+  | 'scanner_a'
   | '3shape'
   | 'medit'
   | 'shining3d'
@@ -58,9 +58,9 @@ export interface ViewportSettings {
   occlusionSeparation: number; // 0 to 35mm (synced with articulator progress)
   shadingMode: ShadingMode;
   photoTextureMapped: boolean; // Project 5-view clinical photos onto 3D model
-  occlusogramEnabled: boolean; // iTero Occlusogram bite contact heatmap
+  occlusogramEnabled: boolean; // Occlusogram bite contact heatmap
   occlusogramMaxRangeMm: number; // Max clearance range in mm (default 1.6mm)
-  caliperToolActive: boolean; // OrthoCAD 3D point-to-point digital caliper mode
+  caliperToolActive: boolean; // 3D point-to-point digital caliper mode
   archDistinction: boolean; // distinct upper / lower tint
   wireframeOverlay: boolean;
   clippingEnabled: boolean;
@@ -163,7 +163,7 @@ export interface DentalCaseMetadata {
   upperAdaRange: string;
   lowerAdaRange: string;
   caasVersion: string;
-  iteroVersion: string;
+  scannerVersion: string;
   transforms?: string[];
 }
 

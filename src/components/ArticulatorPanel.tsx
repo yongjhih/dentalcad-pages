@@ -172,7 +172,7 @@ export const ArticulatorPanel: React.FC<ArticulatorPanelProps> = ({
 
   return (
     <div className="space-y-6 text-xs text-slate-700 dark:text-slate-300">
-      {/* 1. iTero Virtual Articulator Mode & Playback */}
+      {/* 1. Virtual Articulator Mode & Playback */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
@@ -180,7 +180,7 @@ export const ArticulatorPanel: React.FC<ArticulatorPanelProps> = ({
             <span>
               {tr(
                 locale,
-                'iTero 虛擬咬合器與下顎運動模擬',
+                '虛擬咬合器與下顎運動模擬',
                 'Virtual Articulator & 6-DOF Mandibular Kinematics'
               )}
             </span>
@@ -769,7 +769,7 @@ export const ArticulatorPanel: React.FC<ArticulatorPanelProps> = ({
         </div>
       </div>
 
-      {/* 3. iTero Occlusogram (咬合接觸熱力圖與左右咬合平衡) */}
+      {/* 3. Occlusogram (咬合接觸熱力圖與左右咬合平衡) */}
       <div className="space-y-3 pt-2 border-t border-slate-200 dark:border-slate-800/80">
         <div className="flex items-center justify-between">
           <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
@@ -777,7 +777,7 @@ export const ArticulatorPanel: React.FC<ArticulatorPanelProps> = ({
             <span>
               {tr(
                 locale,
-                'iTero Occlusogram 咬合接觸熱力圖',
+                'Occlusogram 咬合接觸熱力圖',
                 'Occlusogram Bite Contact Heatmap'
               )}
             </span>
@@ -871,7 +871,7 @@ export const ArticulatorPanel: React.FC<ArticulatorPanelProps> = ({
         </div>
       </div>
 
-      {/* 4. OrthoCAD 3D Digital Caliper & Automated Arch Metrics */}
+      {/* 4. 3D Digital Caliper & Automated Arch Metrics */}
       <div className="space-y-3 pt-2 border-t border-slate-200 dark:border-slate-800/80">
         <div className="flex items-center justify-between">
           <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
@@ -879,8 +879,8 @@ export const ArticulatorPanel: React.FC<ArticulatorPanelProps> = ({
             <span>
               {tr(
                 locale,
-                'OrthoCAD 牙弓分析與 3D 數位游標尺',
-                'OrthoCAD Arch Biometrics & 3D Digital Caliper'
+                '牙弓分析與 3D 數位游標尺',
+                'Arch Biometrics & 3D Digital Caliper'
               )}
             </span>
           </h2>
@@ -907,7 +907,7 @@ export const ArticulatorPanel: React.FC<ArticulatorPanelProps> = ({
           </div>
         </div>
 
-        {/* Automated OrthoCAD Arch Indices */}
+        {/* Automated Arch Indices */}
         <div className="bg-white dark:bg-[#0b0f17] border border-slate-200 dark:border-slate-800 p-3 rounded-lg space-y-3 shadow-sm dark:shadow-none">
           <div className="grid grid-cols-2 gap-2 font-mono">
             <div className="p-2 rounded bg-slate-50 dark:bg-slate-900/60 border border-slate-200/70 dark:border-slate-800">

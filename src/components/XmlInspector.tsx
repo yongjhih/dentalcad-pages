@@ -62,8 +62,8 @@ export const XmlInspector: React.FC<XmlInspectorProps> = ({
 
   const activeFileName =
     xmlVersion === 'v50'
-      ? assets.xmlV50FileName || `itero_export_#${metadata.orderId}_v50.xml`
-      : assets.xmlV30FileName || `itero_export_#${metadata.orderId}_v30.xml`;
+      ? assets.xmlV50FileName || `scanner_export_#${metadata.orderId}_v50.xml`
+      : assets.xmlV30FileName || `scanner_export_#${metadata.orderId}_v30.xml`;
 
   const activeDownloadUrl = xmlVersion === 'v50' ? assets.xmlV50Url : assets.xmlV30Url;
 

@@ -10,7 +10,7 @@ import {
   computeMandibularKinematics,
 } from '../articulatorKinematics';
 
-describe('occlusogram (iTero Bite Contact Heatmap Engine)', () => {
+describe('occlusogram (Bite Contact Heatmap Engine)', () => {
   describe('clearanceToOcclusogramRGB color scale', () => {
     it('returns null when clearance exceeds maxRangeMm', () => {
       expect(clearanceToOcclusogramRGB(2.2, 1.6)).toBeNull();

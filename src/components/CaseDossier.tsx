@@ -143,7 +143,7 @@ export const CaseDossier: React.FC<CaseDossierProps> = ({
           <div className="grid grid-cols-3 p-2.5">
             <span className="text-slate-500">系統與掃描儀版本</span>
             <span className="col-span-2 text-slate-700 dark:text-slate-300 font-mono text-[11px]">
-              iTero v{metadata.iteroVersion} / CaaS v{metadata.caasVersion}
+              Scanner v{metadata.scannerVersion} / CAD v{metadata.caasVersion}
             </span>
           </div>
         </div>

@@ -14,26 +14,26 @@ import {
 } from '../utils/caseStorage';
 
 const DEMO_SAMPLE_XML = `<?xml version="1.0" encoding="UTF-8"?>
-<IOSExport Version="1.0" Vendor="Universal-IOS">
+<DentalCADExport Version="1.0" Vendor="Universal-Scanner">
   <OrderInfo>
     <OrderID>DEMO-ARCH-01</OrderID>
-    <OrderCode>IOS-CALIB-01</OrderCode>
+    <OrderCode>DCAD-CALIB-01</OrderCode>
     <Patient>Demo, Calibration Arch</Patient>
     <UniquePatientIdentifier>00000000-0000-4000-8000-000000000001</UniquePatientIdentifier>
     <Doctor>Dr. Demo, Clinician</Doctor>
     <DoctorLicense>DEMO-808</DoctorLicense>
-    <DoctorID>IOS-DEMO</DoctorID>
-    <PracticeShipToAddress>Universal IOS Dental Clinic 100 Digital Dentistry Blvd, Suite 3D</PracticeShipToAddress>
+    <DoctorID>DCAD-DEMO</DoctorID>
+    <PracticeShipToAddress>Universal DentalCAD Clinic 100 Digital Dentistry Blvd, Suite 3D</PracticeShipToAddress>
     <DueDate>2026-05-02</DueDate>
     <ExportTime>2026-05-02 09:00:00</ExportTime>
     <ToothShadeSystem>VITA Classical / 3D-Master</ToothShadeSystem>
-    <ScannerVendor>Universal IOS</ScannerVendor>
+    <ScannerVendor>Universal Intraoral Scanner</ScannerVendor>
     <ScannerModel>Procedural Calibration Arch (14-Tooth)</ScannerModel>
   </OrderInfo>
   <ActualUsedTransforms>
     <Transformation>-1 0 0 0, 0 -1 0 0, 0 0 1 0, 0 0 0 1</Transformation>
   </ActualUsedTransforms>
-</IOSExport>`;
+</DentalCADExport>`;
 
 /**
  * Built-in zero-PHI synthetic calibration arch bundle.
@@ -41,30 +41,30 @@ const DEMO_SAMPLE_XML = `<?xml version="1.0" encoding="UTF-8"?>
  */
 export const DEFAULT_CASE_BUNDLE: DentalCaseBundle = {
   id: 'DEMO-ARCH-01',
-  label: '#DEMO-ARCH-01 — Demo, Calibration Arch (Universal IOS)',
+  label: '#DEMO-ARCH-01 — Demo, Calibration Arch (DentalCAD)',
   source: 'builtin',
   metadata: {
     orderId: 'DEMO-ARCH-01',
-    orderCode: 'IOS-CALIB-01',
+    orderCode: 'DCAD-CALIB-01',
     scannerVendor: 'generic',
-    scannerModel: 'Universal IOS Synthetic Arch',
+    scannerModel: 'Universal Synthetic Arch',
     patientName: 'Demo, Calibration Arch',
     patientId: '00000000-0000-4000-8000-000000000001',
     doctorName: 'Dr. Demo, Clinician',
     doctorLicense: 'DEMO-808',
-    doctorId: 'IOS-DEMO',
-    clinicName: 'Universal IOS Dental Clinic',
+    doctorId: 'DCAD-DEMO',
+    clinicName: 'Universal DentalCAD Clinic',
     clinicAddress: '100 Digital Dentistry Blvd, Suite 3D (Browser Sandbox)',
     scanDate: '2026-05-02',
     exportTime: '2026-05-02 09:00:00',
     dueDate: '2026-05-02',
-    procedure: 'Universal IOS',
+    procedure: 'DentalCAD 3D',
     procedureType: '3D Occlusal & Articulation Sandbox',
     toothShadeSystem: 'VITA Lumin',
     upperAdaRange: 'ADA #1 - #16 (Maxillary Full Arch)',
     lowerAdaRange: 'ADA #17 - #32 (Mandibular Full Arch)',
     caasVersion: '1.0.0',
-    iteroVersion: 'Universal-IOS',
+    scannerVersion: 'Universal-Scanner',
   },
   assets: {
     upperStlUrl: 'procedural://upper',
@@ -105,13 +105,11 @@ export function detectScannerVendor(
   const xmlLower = xmlText.toLowerCase();
 
   if (
-    joinedNames.includes('itero') ||
     joinedNames.includes('_shell_occlusion_') ||
     joinedNames.includes('penta_') ||
-    xmlLower.includes('<iteroversion>') ||
     xmlLower.includes('caasversion')
   ) {
-    return { vendor: 'itero', model: 'Align iTero Element / Lumina' };
+    return { vendor: 'scanner_a', model: 'Element / Lumina Series' };
   }
   if (
     joinedNames.includes('upperjawscan') ||
@@ -123,10 +121,7 @@ export function detectScannerVendor(
   ) {
     return { vendor: '3shape', model: '3Shape TRIOS' };
   }
-  if (
-    joinedNames.includes('medit') ||
-    xmlLower.includes('medit')
-  ) {
+  if (joinedNames.includes('medit') || xmlLower.includes('medit')) {
     return { vendor: 'medit', model: 'Medit i-Series (i600 / i700 / i900)' };
   }
   if (
@@ -147,7 +142,7 @@ export function detectScannerVendor(
 }
 
 /**
- * Parse intraoral scanner XML metadata (supports iTero v3/v5, 3Shape TRIOS, Medit, and Generic XML)
+ * Parse intraoral scanner XML metadata (supports multiple intraoral scanner XML schemas)
  */
 export function parseScannerXmlString(
   xmlText: string,
@@ -235,16 +230,13 @@ export function parseScannerXmlString(
     upperAdaRange: `ADA #${upperFrom} - #${upperTo} (Maxillary Full Arch)`,
     lowerAdaRange: `ADA #${lowerFrom} - #${lowerTo} (Mandibular Full Arch)`,
     caasVersion: getText('CaaSVersion', 'SoftwareVersion') || '1.0.0',
-    iteroVersion: getText('iTeroVersion', 'ScannerVersion') || detected.model,
+    scannerVersion: getText('ScannerVersion') || detected.model,
   };
 }
 
-// Keep alias for backward compatibility
-export const parseIteroXmlString = parseScannerXmlString;
-
 /**
  * Build a complete DentalCaseBundle from user-selected or dropped files AND persist to IndexedDB.
- * Supports multi-vendor intraoral scanner exports (iTero, 3Shape TRIOS, Medit, Shining3D, Generic STL/XML/JPG/PDF).
+ * Supports multi-vendor intraoral scanner exports (STL + XML + JPG + PDF + HTML).
  */
 export async function buildCaseBundleFromFiles(
   fileList: FileList | File[],
@@ -252,7 +244,6 @@ export async function buildCaseBundleFromFiles(
 ): Promise<DentalCaseBundle> {
   const files = Array.from(fileList);
 
-  // Match upper (maxilla) and lower (mandible) STL files across all major scanner conventions
   const stlFiles = files.filter((f) => f.name.toLowerCase().endsWith('.stl'));
   const upperStl =
     stlFiles.find((f) => {
@@ -276,7 +267,6 @@ export async function buildCaseBundleFromFiles(
       );
     }) || (stlFiles.length === 2 && stlFiles[0] === upperStl ? stlFiles[1] : undefined);
 
-  // Check for XML metadata files
   const xmlFiles = files.filter((f) => f.name.toLowerCase().endsWith('.xml'));
   const xmlV50File =
     xmlFiles.find((f) => f.name.toLowerCase().includes('v50')) || xmlFiles[0];
@@ -292,12 +282,11 @@ export async function buildCaseBundleFromFiles(
     rawXmlV30 = await xmlV30File.text();
   }
 
-  // Extract Order ID from filename if present
   const idMatch =
     upperStl?.name.match(/^(\d+)_/) ||
     lowerStl?.name.match(/^(\d+)_/) ||
     xmlV50File?.name.match(/#?(\d+)/);
-  const inferredId = idMatch ? idMatch[1] : `ios-${Date.now().toString().slice(-5)}`;
+  const inferredId = idMatch ? idMatch[1] : `dcad-${Date.now().toString().slice(-5)}`;
 
   const detected = detectScannerVendor(files, rawXmlV50 || rawXmlV30 || '');
 
@@ -318,7 +307,6 @@ export async function buildCaseBundleFromFiles(
           scanDate: new Date().toISOString().slice(0, 10),
         };
 
-  // Check for Clinical Photos (.jpg / .png / .webp)
   const imageFiles = files.filter(
     (f) => /\.(jpe?g|png|webp)$/i.test(f.name) && !f.name.toLowerCase().includes('logo')
   );
@@ -334,7 +322,13 @@ export async function buildCaseBundleFromFiles(
   }[] = [
     {
       id: 'overview',
-      match: (n) => !n.includes('penta_') && !n.includes('front') && !n.includes('upper') && !n.includes('lower') && !n.includes('right') && !n.includes('left'),
+      match: (n) =>
+        !n.includes('penta_') &&
+        !n.includes('front') &&
+        !n.includes('upper') &&
+        !n.includes('lower') &&
+        !n.includes('right') &&
+        !n.includes('left'),
       title: '複合臨床全覽圖 (Overview)',
       viewName: 'Composite Penta View',
       description: '口掃系統匯總之五方位臨床照片集合總覽圖。',
@@ -397,11 +391,9 @@ export async function buildCaseBundleFromFiles(
     }
   }
 
-  // Check for PDF & HTML Rx
   const pdfFile = files.find((f) => f.name.toLowerCase().endsWith('.pdf'));
   const htmlFile = files.find((f) => f.name.toLowerCase().endsWith('.html'));
 
-  // Check if there is an existing record in IndexedDB for this ID to merge blobs
   const existingRecord = await getCaseRecordFromIndexedDB(metadata.orderId).catch(() => undefined);
 
   const record: StoredCaseRecord = {

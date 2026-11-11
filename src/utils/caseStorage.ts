@@ -6,10 +6,10 @@ import {
   MeshGeometryStats,
 } from '../types/dental';
 
-const DB_NAME = 'OrthoCAD_CaseDB';
+const DB_NAME = 'DentalCAD_CaseDB';
 const DB_VERSION = 1;
 const STORE_CASES = 'cases';
-const LAST_ACTIVE_CASE_KEY = 'orthocad_last_active_case_id';
+const LAST_ACTIVE_CASE_KEY = 'dentalcad_last_active_case_id';
 
 export interface StoredPhotoRecord {
   id: string;
@@ -202,7 +202,7 @@ export function hydrateCaseBundleFromRecord(record: StoredCaseRecord): DentalCas
       xmlV50FileName: record.xmlV50FileName,
       xmlV30Url,
       xmlV30FileName: record.xmlV30FileName,
-      logoUrl: record.logoUrl || './images/itero_element_logo.png',
+      logoUrl: record.logoUrl,
     },
     photos,
     defaultMeshStats: record.defaultMeshStats,

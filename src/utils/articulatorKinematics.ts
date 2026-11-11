@@ -53,7 +53,7 @@ export const ARTICULATION_CURVE_PRESETS: Record<
 };
 
 /**
- * In iTero STL model coordinates:
+ * In STL model coordinates:
  * - Anterior (Incisors / 前牙切端) is at Y ≈ -43.5 mm (-Y direction)
  * - Posterior (Molars / 後牙大臼齒) is at Y ≈ +5 to +10.7 mm (+Y direction)
  * - Therefore, the TMJ Intercondylar Hinge Axis is posterior to the molars at Y = +42 mm, Z = +28 mm
@@ -250,7 +250,7 @@ export function transformPoint3DByMatrix4(p: Point3D, m: number[]): Point3D {
  * Compute full 6-DOF mandibular articulation kinematics at the current progress
  * based on anatomical TMJ parameters and the user-adjustable Bezier movement curve.
  *
- * Coordinate convention of the iTero STL models:
+ * Coordinate convention of the STL models:
  * - X: Patient Right (-X) to Patient Left (+X)
  * - Y: Anterior / Incisors (-Y, ~ -43.5 mm) to Posterior / Molars (+Y, ~ +10 mm) & TMJ (+Y, ~ +42 mm)
  * - Z: Inferior (-Z) to Superior (+Z)

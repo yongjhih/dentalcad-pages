@@ -35,7 +35,7 @@ export const DEFAULT_OCCLUSAL_BOUNDS: OcclusalMapBounds = {
 
 /**
  * Map an inter-arch clearance distance (in mm) to an RGB color [r, g, b] in 0..1
- * following the iTero / OrthoCAD Occlusogram clinical color scale.
+ * following the clinical Occlusogram color scale.
  * Returns null if clearance exceeds maxRangeMm (no occlusal contact).
  */
 export function clearanceToOcclusogramRGB(
@@ -183,7 +183,7 @@ export function sampleElevationMapAtXY(
 }
 
 /**
- * Compute real-time iTero Occlusogram contact statistics given Upper & Lower elevation maps
+ * Compute real-time Occlusogram contact statistics given Upper & Lower elevation maps
  * and the current MandibularKinematicsResult.
  */
 export function computeOcclusogramStats(
@@ -305,7 +305,7 @@ export function createElevationDataTexture(map: OcclusalElevationMap): THREE.Dat
 }
 
 /**
- * Create a Three.js MeshPhysicalMaterial that renders real-time 60 FPS iTero Occlusogram
+ * Create a Three.js MeshPhysicalMaterial that renders real-time 60 FPS Occlusogram
  * contact heatmaps on the occlusal surfaces as the jaw moves along its articulation curve.
  */
 export function createOcclusogramMaterial(params: {
@@ -393,7 +393,7 @@ export function createOcclusogramMaterial(params: {
       varying vec3 vOccLocalPos;
       varying vec3 vOccLocalNormal;
 
-      vec3 iterOcclusogramColor(float d, float maxR) {
+      vec3 occlusogramHeatColor(float d, float maxR) {
         if (d <= 0.0) {
           return vec3(0.94, 0.15, 0.22); // Heavy contact / collision red
         }
@@ -455,7 +455,7 @@ export function createOcclusogramMaterial(params: {
             }
 
             if (validSample > 0.5 && clearance <= uMaxRangeMm) {
-              vec3 heatCol = iterOcclusogramColor(clearance, uMaxRangeMm);
+              vec3 heatCol = occlusogramHeatColor(clearance, uMaxRangeMm);
               float fade = 1.0 - smoothstep(uMaxRangeMm * 0.78, uMaxRangeMm, clearance);
               diffuseColor.rgb = mix(diffuseColor.rgb, heatCol, occFacing * clamp(fade + 0.15, 0.0, 1.0));
             }
@@ -466,7 +466,7 @@ export function createOcclusogramMaterial(params: {
   };
 
   mat.customProgramCacheKey = () =>
-    `itero-occlusogram-${isUpper ? 'u' : 'l'}-${wireframe ? 'w' : 's'}`;
+    `dentalcad-occlusogram-${isUpper ? 'u' : 'l'}-${wireframe ? 'w' : 's'}`;
 
   return {
     material: mat,

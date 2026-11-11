@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { App } from '../App';
-import { detectScannerVendor, parseScannerXmlString } from '@ios-pages/core';
+import { detectScannerVendor, parseScannerXmlString } from '@dentalcad-pages/core';
 
-describe('IOS Pages Application Integration Tests', () => {
+describe('DentalCAD Pages Application Integration Tests', () => {
   beforeEach(() => {
     localStorage.clear();
   });
@@ -14,11 +14,11 @@ describe('IOS Pages Application Integration Tests', () => {
     // Navigate to the Dossier & Specifications tab where secondary administrative archive info lives
     fireEvent.click(screen.getByTestId('tab-dossier'));
 
-    // Default state: anonymizePatient = true ("Demo, Calibration Arch" -> "D***, C***** A***", "Universal IOS Dental Clinic" -> "U***** I** Dental Clinic")
+    // Default state: anonymizePatient = true ("Demo, Calibration Arch" -> "D***, C***** A***", "Universal DentalCAD Clinic" -> "U***** D***** Dental Clinic")
     expect(screen.queryByText(/Demo, Calibration Arch/)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Universal IOS Dental Clinic/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Universal DentalCAD Clinic/)).not.toBeInTheDocument();
     expect(screen.getAllByText(/D\*\*\*, C\*\*\*\*\* A\*\*\*/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/U\*\*\*\*\* I\*\* Dental Clinic/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/U\*\*\*\*\* D\*\*\*\*\* Clinic/).length).toBeGreaterThan(0);
 
     // Click the privacy toggle button in the header ("匿名已啟用")
     const privacyBtn = screen.getByTitle(/目前為匿名保護模式/);
@@ -26,12 +26,12 @@ describe('IOS Pages Application Integration Tests', () => {
 
     // Synthetic demo clinic, doctor, and patient names should now be visible in the secondary archive section
     expect(screen.getAllByText(/Demo, Calibration Arch/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Universal IOS Dental Clinic/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Universal DentalCAD Clinic/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Dr\. Demo, Clinician/).length).toBeGreaterThan(0);
   });
 
-  it('auto-detects multiple intraoral scanner vendors (iTero, 3Shape TRIOS, Medit, Shining3D, Generic) via @ios-pages/core', () => {
-    expect(detectScannerVendor([{ name: '12345_shell_occlusion_u.stl' }]).vendor).toBe('itero');
+  it('auto-detects multiple intraoral scanner vendors (3Shape TRIOS, Medit, Shining3D, Generic) via @dentalcad-pages/core', () => {
+    expect(detectScannerVendor([{ name: '12345_shell_occlusion_u.stl' }]).vendor).toBe('scanner_a');
     expect(detectScannerVendor([{ name: 'UpperJawScan.stl' }, { name: '3ShapeOrder.xml' }]).vendor).toBe('3shape');
     expect(detectScannerVendor([{ name: 'medit_maxilla.stl' }]).vendor).toBe('medit');
     expect(detectScannerVendor([{ name: 'aoralscan_upper.stl' }]).vendor).toBe('shining3d');
@@ -56,18 +56,18 @@ describe('IOS Pages Application Integration Tests', () => {
     fireEvent.click(themeBtn);
 
     expect(document.documentElement.classList.contains('dark')).toBe(false);
-    expect(localStorage.getItem('orthocad_theme')).toBe('light');
+    expect(localStorage.getItem('dentalcad_theme')).toBe('light');
 
     const backToDarkBtn = screen.getByTitle(/切換為暗色佈景/);
     fireEvent.click(backToDarkBtn);
     expect(document.documentElement.classList.contains('dark')).toBe(true);
-    expect(localStorage.getItem('orthocad_theme')).toBe('dark');
+    expect(localStorage.getItem('dentalcad_theme')).toBe('dark');
   });
 
   it('switches between Traditional Chinese (zh-TW) and English (en) locales', () => {
     render(<App />);
 
-    expect(screen.getByText('iTero 虛擬咬合器與下顎運動模擬')).toBeInTheDocument();
+    expect(screen.getByText('虛擬咬合器與下顎運動模擬')).toBeInTheDocument();
 
     const localeBtn = screen.getByTestId('locale-toggle-btn');
     fireEvent.click(localeBtn);
@@ -82,14 +82,14 @@ describe('IOS Pages Application Integration Tests', () => {
 
     fireEvent.click(localeBtn);
     expect(document.documentElement.lang).toBe('zh-TW');
-    expect(screen.getByText('iTero 虛擬咬合器與下顎運動模擬')).toBeInTheDocument();
+    expect(screen.getByText('虛擬咬合器與下顎運動模擬')).toBeInTheDocument();
   });
 
   it('simulates 6-DOF mandibular articulation and updates trajectory when curve & condylar parameters change', () => {
     render(<App />);
 
     // Articulator tab is the default tab
-    expect(screen.getByText('iTero 虛擬咬合器與下顎運動模擬')).toBeInTheDocument();
+    expect(screen.getByText('虛擬咬合器與下顎運動模擬')).toBeInTheDocument();
 
     // At initial progress = 0, incisal opening and rotation are 0.0
     expect(screen.getByTestId('kinematic-incisal-opening')).toHaveTextContent('0.0 mm');
@@ -131,16 +131,16 @@ describe('IOS Pages Application Integration Tests', () => {
     ).toBeGreaterThan(2);
   });
 
-  it('toggles iTero Occlusogram heatmap and manages OrthoCAD 3D Digital Caliper measurements', () => {
+  it('toggles Occlusogram heatmap and manages 3D Digital Caliper measurements', () => {
     render(<App />);
 
-    // Toggle iTero Occlusogram ON
+    // Toggle Occlusogram ON
     const occBtn = screen.getByTestId('occlusogram-toggle-btn');
     expect(occBtn).toHaveTextContent('開啟咬合熱力圖');
     fireEvent.click(occBtn);
     expect(occBtn).toHaveTextContent('熱力圖已開啟');
 
-    // Verify OrthoCAD Arch Metrics are rendered
+    // Verify Arch Metrics are rendered
     expect(screen.getByTestId('arch-canine-width')).toHaveTextContent('34.8 / 27.4 mm');
     expect(screen.getByTestId('arch-molar-width')).toHaveTextContent('52.6 / 47.2 mm');
     expect(screen.getByTestId('arch-overjet-overbite')).toHaveTextContent(

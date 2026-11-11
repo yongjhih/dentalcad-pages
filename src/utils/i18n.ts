@@ -1,6 +1,6 @@
 import { LocaleMode } from '../types/dental';
 
-export const LOCALE_STORAGE_KEY = 'ios_pages_locale';
+export const LOCALE_STORAGE_KEY = 'dentalcad_locale';
 
 /**
  * Simple bilingual helper: returns English string when locale === 'en',

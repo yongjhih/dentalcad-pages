@@ -63,7 +63,7 @@ const DEFAULT_OCCLUSOGRAM_STATS: OcclusogramStats = {
   totalContactPoints: 142,
 };
 
-const THEME_STORAGE_KEY = 'orthocad_theme';
+const THEME_STORAGE_KEY = 'dentalcad_theme';
 
 export const App: React.FC = () => {
   // Theme state (Light / Dark mode)
@@ -165,7 +165,7 @@ export const App: React.FC = () => {
     activeCase.defaultMeshStats || FALLBACK_STATS
   );
 
-  // iTero Occlusogram & OrthoCAD Arch Metrics
+  // Occlusogram & Arch Metrics
   const [occlusogramStats, setOcclusogramStats] = useState<OcclusogramStats>(
     DEFAULT_OCCLUSOGRAM_STATS
   );
@@ -254,7 +254,7 @@ export const App: React.FC = () => {
   // Camera presets
   const [cameraPreset, setCameraPreset] = useState<CameraPreset>('front');
 
-  // Viewport 3D settings (with 5-view photo texture mapping, iTero Occlusogram & Virtual Articulator)
+  // Viewport 3D settings (with 5-view photo texture mapping, Occlusogram & Virtual Articulator)
   const [viewportSettings, setViewportSettings] = useState<ViewportSettings>({
     showUpper: true,
     showLower: true,
@@ -351,7 +351,7 @@ export const App: React.FC = () => {
           />
         </section>
 
-        {/* Right: Clinical Dossier, Articulator/OrthoCAD, 5-View Gallery, Tools, & XML Tabs */}
+        {/* Right: Clinical Dossier, Articulator, 5-View Gallery, Tools, & XML Tabs */}
         <aside className="w-full lg:w-[490px] xl:w-[550px] flex-shrink-0 flex flex-col h-[50vh] lg:h-full bg-slate-50 dark:bg-[#0c1220] overflow-hidden transition-colors">
           {/* Tab Selection Bar */}
           <div className="flex border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-[#090d16] px-2 pt-2 flex-shrink-0 gap-1 overflow-x-auto transition-colors">

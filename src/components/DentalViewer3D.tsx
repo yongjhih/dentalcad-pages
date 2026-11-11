@@ -244,7 +244,7 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
         lowerOccUpdaterRef.current = null;
       }
 
-      // Priority 1: iTero Occlusogram Real-time Bite Contact Heatmap
+      // Priority 1: Occlusogram Real-time Bite Contact Heatmap
       if (
         occlusogramEnabled &&
         upperElevationTexRef.current &&
@@ -926,7 +926,7 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
           });
         }
 
-        // Build iTero Occlusogram Elevation Maps & DataTextures
+        // Build Occlusogram Elevation Maps & DataTextures
         const uPosArr = upperGeom.attributes.position.array;
         const uNormArr = upperGeom.attributes.normal?.array;
         const lPosArr = lowerGeom.attributes.position.array;
@@ -952,7 +952,7 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
         lowerElevationTexRef.current = createElevationDataTexture(lMap);
         setMapsReady(true);
 
-        // Compute OrthoCAD Arch Diagnostic Metrics
+        // Compute Arch Diagnostic Metrics
         if (onArchMetricsComputed) {
           onArchMetricsComputed(computeOrthoArchMetrics(uPosArr, lPosArr));
         }
@@ -1084,7 +1084,7 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
     const renderer = rendererRef.current;
     if (!renderer) return;
     const link = document.createElement('a');
-    link.download = `iTero_3D_Capture_${Date.now()}.png`;
+    link.download = `DentalCAD_3D_Capture_${Date.now()}.png`;
     link.href = renderer.domElement.toDataURL('image/png');
     link.click();
   };
@@ -1193,7 +1193,7 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
           <Upload className="w-12 h-12 text-sky-300 mb-2 transition-transform duration-300 scale-110" />
           <p className="text-base font-medium text-sky-100">放開以載入新案例資料包或 STL 模型</p>
           <p className="text-xs text-sky-300/80">
-            支援同時拖入整套 iTero 檔案 (.stl + .xml + .jpg + .pdf) 即時抽換並存入 IndexedDB
+            支援同時拖入整套口掃檔案 (.stl + .xml + .jpg + .pdf) 即時抽換並存入 IndexedDB
           </p>
         </div>
       )}
@@ -1240,7 +1240,7 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
               occlusogramEnabled: !prev.occlusogramEnabled,
             }))
           }
-          title="切換 iTero Occlusogram 咬合接觸熱力圖"
+          title="切換 Occlusogram 咬合接觸熱力圖"
           className={`px-2 py-1 rounded text-xs font-medium flex items-center gap-1 transition-colors ${
             settings.occlusogramEnabled
               ? 'bg-rose-600 text-white shadow-sm'
@@ -1258,7 +1258,7 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
               caliperToolActive: !prev.caliperToolActive,
             }))
           }
-          title="切換 OrthoCAD 3D 數位游標尺點選測距"
+          title="切換 3D 數位游標尺點選測距"
           className={`px-2 py-1 rounded text-xs font-medium flex items-center gap-1 transition-colors ${
             settings.caliperToolActive
               ? 'bg-amber-500 text-slate-950 font-semibold shadow-sm'
@@ -1559,7 +1559,7 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
           {tr(
             locale,
             '點擊選擇或拖曳本地口掃檔案 (.stl / .xml / .jpg) 渲染並存入瀏覽器',
-            'Click or drop local IOS scan files (.stl / .xml / .jpg) to render in browser'
+            'Click or drop local scan files (.stl / .xml / .jpg) to render in browser'
           )}
         </span>
       </label>

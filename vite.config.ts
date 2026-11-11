@@ -9,8 +9,6 @@ export default defineConfig({
     alias: {
       '@dentalcad-pages/core': path.resolve(__dirname, 'packages/core/src'),
       '@dentalcad-pages/viewer': path.resolve(__dirname, 'packages/viewer/src'),
-      '@ios-pages/core': path.resolve(__dirname, 'packages/core/src'),
-      '@ios-pages/viewer': path.resolve(__dirname, 'packages/viewer/src'),
     },
   },
   // GitHub Pages base: relative path ensures assets load properly regardless of domain/repo subpath
