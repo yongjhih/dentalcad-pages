@@ -16,4 +16,5 @@ iTero_Rx_*
 itero_*
 public/cases/
 public/images/
-data/
+/data/
+!src/data/
