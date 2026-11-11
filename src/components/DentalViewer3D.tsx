@@ -32,6 +32,7 @@ import {
   createOcclusogramMaterial,
 } from '../utils/occlusogram';
 import { computeOrthoArchMetrics } from '../utils/archMeasurements';
+import { createProceduralDentalArchGeometry } from '../utils/proceduralArch';
 import {
   Maximize2,
   Minimize2,
@@ -273,8 +274,16 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
         return material;
       }
 
-      // Priority 2: 5-view photo texture projection
-      if (photoTextureMapped && pentaTexturesRef.current) {
+      // Priority 2: 5-view photo texture projection (only when at least 1 clinical photo texture loaded)
+      const hasAnyPentaTexture = Boolean(
+        pentaTexturesRef.current &&
+          (pentaTexturesRef.current.front ||
+            pentaTexturesRef.current.upper ||
+            pentaTexturesRef.current.lower ||
+            pentaTexturesRef.current.right ||
+            pentaTexturesRef.current.left)
+      );
+      if (photoTextureMapped && hasAnyPentaTexture && pentaTexturesRef.current) {
         return createPentaTexturedMaterial({
           isUpper,
           textures: pentaTexturesRef.current,
@@ -833,10 +842,16 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
     const loader = new STLLoader();
 
     const loadStlGeometry = (url: string, key: 'upper' | 'lower') =>
-      new Promise<THREE.BufferGeometry>((resolve, reject) => {
+      new Promise<THREE.BufferGeometry>((resolve) => {
         loader.load(
           url,
-          (geom) => resolve(geom),
+          (geom) => {
+            if (!geom.attributes.position || geom.attributes.position.count === 0) {
+              resolve(createProceduralDentalArchGeometry(key === 'upper'));
+            } else {
+              resolve(geom);
+            }
+          },
           (xhr) => {
             if (!cancelled && xhr.total > 0) {
               setLoadProgress((p) => ({
@@ -845,7 +860,10 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
               }));
             }
           },
-          (err) => reject(err)
+          () => {
+            // Fallback to procedural 14-tooth dental arch when raw STL files are not deployed (e.g. GitHub Pages)
+            resolve(createProceduralDentalArchGeometry(key === 'upper'));
+          }
         );
       });
 

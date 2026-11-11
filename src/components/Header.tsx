@@ -49,6 +49,9 @@ export const Header: React.FC<HeaderProps> = ({
             src={assets.logoUrl || './images/itero_element_logo.png'}
             alt="iTero Element Logo"
             className="w-7 h-7 object-contain rounded"
+            onError={(e) => {
+              e.currentTarget.style.display = 'none';
+            }}
           />
           <span className="font-semibold text-slate-900 dark:text-slate-100 text-sm tracking-tight">
             iTero OrthoCAD
@@ -189,7 +192,7 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* GitHub link */}
         <a
-          href="https://github.com/yongjhih/dental-OrthoCAD"
+          href="https://github.com/yongjhih/itero-pages"
           target="_blank"
           rel="noopener noreferrer"
           className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-colors"

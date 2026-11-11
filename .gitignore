@@ -6,3 +6,13 @@ dist-ssr/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Raw dental patient case data (kept local, not committed to GitHub)
+297077963*
+Rx_*
+gallery_*
+iTero_Rx_*
+itero_*
+public/cases/
+public/images/
+data/

@@ -102,4 +102,4 @@ npm run preview
    git push origin main
    ```
 4. GitHub Actions 將自動建置並發布至：
-   `https://yongjhih.github.io/dental-OrthoCAD/`
+   `https://yongjhih.github.io/itero-pages/`
