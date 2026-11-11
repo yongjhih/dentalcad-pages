@@ -372,4 +372,33 @@ describe('DentalCAD Pages Application Integration Tests', () => {
     fireEvent.click(screen.getByTestId('ask-ai-close-btn'));
     expect(screen.queryByTestId('ask-ai-drawer')).not.toBeInTheDocument();
   });
+
+  it('provides dedicated vertical articulation seek bar and spring-back mandibular joystick', () => {
+    render(<App />);
+
+    // Vertical seek bar
+    const verticalSeekBar = screen.getByTestId('vertical-articulation-seekbar');
+    expect(verticalSeekBar).toBeInTheDocument();
+    fireEvent.change(verticalSeekBar, { target: { value: '0.45' } });
+    expect(verticalSeekBar).toHaveValue('0.45');
+
+    // Play/Pause button on vertical toolbar
+    const playBtn = screen.getByTestId('vertical-play-toggle-btn');
+    expect(playBtn).toBeInTheDocument();
+    fireEvent.click(playBtn);
+
+    // Spring-back joystick pad and thumb
+    const joystickPad = screen.getByTestId('mandibular-joystick-pad');
+    const joystickThumb = screen.getByTestId('mandibular-joystick-thumb');
+    expect(joystickPad).toBeInTheDocument();
+    expect(joystickThumb).toBeInTheDocument();
+
+    // Simulate drag and release
+    fireEvent.pointerDown(joystickPad, { clientX: 50, clientY: 80 });
+    fireEvent.pointerMove(joystickPad, { clientX: 65, clientY: 95 });
+    fireEvent.pointerUp(joystickPad);
+
+    // Verify spring back
+    expect(verticalSeekBar).toHaveValue('0');
+  });
 });

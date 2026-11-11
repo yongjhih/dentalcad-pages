@@ -54,6 +54,7 @@ import {
   Trash2,
   ChevronDown,
   ChevronUp,
+  CircleDot,
 } from 'lucide-react';
 
 interface DentalViewer3DProps {
@@ -155,6 +156,9 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
   const [triangleStats, setTriangleStats] = useState({ upper: 0, lower: 0 });
   const [isDragOver, setIsDragOver] = useState<boolean>(false);
   const [hudCollapsed, setHudCollapsed] = useState<boolean>(false);
+  const [joystickActive, setJoystickActive] = useState<boolean>(false);
+  const [joystickPos, setJoystickPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const joystickContainerRef = useRef<HTMLDivElement>(null);
 
   // Dynamic dental occlusion center computed from loaded STL bounding boxes
   const centerTarget = useRef(new THREE.Vector3(1.29, -18.36, 1.24));
@@ -245,6 +249,137 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
     rafId = requestAnimationFrame(stepPlayback);
     return () => cancelAnimationFrame(rafId);
   }, [settings.articulator.isPlaying, onSettingsChange]);
+
+  // Spring-back Mandibular Joystick handler: user drags thumbstick to articulate; releasing snaps back to neutral CO (progress: 0)
+  const handleJoystickPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setJoystickActive(true);
+
+    const updateFromPointer = (clientX: number, clientY: number) => {
+      const container = joystickContainerRef.current;
+      if (!container) return;
+      const rect = container.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      const maxRadius = rect.width / 2 - 14;
+
+      const rawDx = clientX - centerX;
+      const rawDy = clientY - centerY;
+      const distance = Math.hypot(rawDx, rawDy);
+      const angle = Math.atan2(rawDy, rawDx);
+      const clampedDist = Math.min(distance, maxRadius);
+
+      const normX = clampedDist > 0 ? (Math.cos(angle) * clampedDist) / maxRadius : 0;
+      const normY = clampedDist > 0 ? (Math.sin(angle) * clampedDist) / maxRadius : 0;
+
+      setJoystickPos({
+        x: normX * maxRadius,
+        y: normY * maxRadius,
+      });
+
+      // Determine movement mode based on direction:
+      // normY > 0.35 -> hinge / opening
+      // normY < -0.35 -> protrusion
+      // normX < -0.35 -> lateral left
+      // normX > 0.35 -> lateral right
+      const mag = Math.min(1, clampedDist / maxRadius);
+      const roundedMag = Number(mag.toFixed(3));
+
+      let determinedMode: ArticulationMode = 'hinge';
+      if (normY < -0.35 && Math.abs(normY) >= Math.abs(normX)) {
+        determinedMode = 'protrusion';
+      } else if (normX < -0.35) {
+        determinedMode = 'lateral_left';
+      } else if (normX > 0.35) {
+        determinedMode = 'lateral_right';
+      } else {
+        determinedMode = 'hinge';
+      }
+
+      onSettingsChange((prev) => ({
+        ...prev,
+        occlusionSeparation: Math.round(roundedMag * 35),
+        articulator: {
+          ...prev.articulator,
+          mode: determinedMode,
+          progress: roundedMag,
+          isPlaying: false,
+        },
+      }));
+    };
+
+    updateFromPointer(e.clientX, e.clientY);
+  }, [onSettingsChange]);
+
+  const handleJoystickPointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (!joystickActive) return;
+    const container = joystickContainerRef.current;
+    if (!container) return;
+    const clientX = e.clientX;
+    const clientY = e.clientY;
+    const rect = container.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    const maxRadius = rect.width / 2 - 14;
+
+    const rawDx = clientX - centerX;
+    const rawDy = clientY - centerY;
+    const distance = Math.hypot(rawDx, rawDy);
+    const angle = Math.atan2(rawDy, rawDx);
+    const clampedDist = Math.min(distance, maxRadius);
+
+    const normX = clampedDist > 0 ? (Math.cos(angle) * clampedDist) / maxRadius : 0;
+    const normY = clampedDist > 0 ? (Math.sin(angle) * clampedDist) / maxRadius : 0;
+
+    setJoystickPos({
+      x: normX * maxRadius,
+      y: normY * maxRadius,
+    });
+
+    const mag = Math.min(1, clampedDist / maxRadius);
+    const roundedMag = Number(mag.toFixed(3));
+
+    let determinedMode: ArticulationMode = 'hinge';
+    if (normY < -0.35 && Math.abs(normY) >= Math.abs(normX)) {
+      determinedMode = 'protrusion';
+    } else if (normX < -0.35) {
+      determinedMode = 'lateral_left';
+    } else if (normX > 0.35) {
+      determinedMode = 'lateral_right';
+    } else {
+      determinedMode = 'hinge';
+    }
+
+    onSettingsChange((prev) => ({
+      ...prev,
+      occlusionSeparation: Math.round(roundedMag * 35),
+      articulator: {
+        ...prev.articulator,
+        mode: determinedMode,
+        progress: roundedMag,
+        isPlaying: false,
+      },
+    }));
+  }, [joystickActive, onSettingsChange]);
+
+  const handleJoystickPointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {}
+    setJoystickActive(false);
+    setJoystickPos({ x: 0, y: 0 });
+
+    // Spring back to neutral centric occlusion (0 progress)
+    onSettingsChange((prev) => ({
+      ...prev,
+      occlusionSeparation: 0,
+      articulator: {
+        ...prev.articulator,
+        progress: 0,
+        isPlaying: false,
+      },
+    }));
+  }, [onSettingsChange]);
 
   // Build Material based on settings, Occlusogram state & loaded 5-view textures
   const createDentalMaterial = useCallback(
@@ -1339,31 +1474,137 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
         ))}
       </div>
 
-      {/* Floating Top Right: Action Utilities */}
-      <div className="absolute top-12 sm:top-4 right-2.5 sm:right-4 z-30 flex items-center space-x-1 sm:space-x-1.5 bg-white/90 dark:bg-[#0f172a]/90 border border-slate-200 dark:border-slate-800 p-1 rounded-lg backdrop-blur shadow-md">
+      {/* Dedicated Vertical Articulation Seek Bar & Spring-Back Joystick on Left Edge */}
+      <div className="absolute top-20 sm:top-24 left-2.5 sm:left-4 z-30 flex flex-col items-center gap-3 bg-white/95 dark:bg-[#0f172a]/95 border border-slate-200 dark:border-slate-800 p-2 sm:p-2.5 rounded-xl backdrop-blur shadow-xl">
+        {/* Play / Pause Toggle Button */}
         <button
           type="button"
+          data-testid="vertical-play-toggle-btn"
           onClick={() =>
             onSettingsChange((prev) => ({
               ...prev,
-              occlusogramEnabled: !prev.occlusogramEnabled,
+              articulator: {
+                ...prev.articulator,
+                isPlaying: !prev.articulator.isPlaying,
+              },
             }))
           }
-          title={tr(
-            locale,
-            '切換 Occlusogram 咬合接觸熱力圖',
-            'Toggle Occlusogram Bite Contact Heatmap'
-          )}
-          className={`px-2 py-1 rounded text-xs font-medium flex items-center gap-1 transition-colors ${
-            settings.occlusogramEnabled
-              ? 'bg-rose-600 text-white shadow-sm'
-              : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+          className={`p-1.5 rounded-lg transition-all shadow-sm ${
+            settings.articulator.isPlaying
+              ? 'bg-amber-500 text-white hover:bg-amber-600 animate-pulse'
+              : 'bg-sky-600 text-white hover:bg-sky-500'
           }`}
+          title={
+            settings.articulator.isPlaying
+              ? tr(locale, '暫停下顎運動 (垂直 SeekBar)', 'Pause articulation')
+              : tr(locale, '自動播放下顎運動 (垂直 SeekBar)', 'Auto-play articulation')
+          }
         >
-          <Flame className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">{tr(locale, '咬合熱力圖', 'Occlusogram')}</span>
+          {settings.articulator.isPlaying ? (
+            <Pause className="w-3.5 h-3.5" />
+          ) : (
+            <Play className="w-3.5 h-3.5" />
+          )}
         </button>
 
+        {/* Vertical Seek Bar */}
+        <div className="flex flex-col items-center gap-1.5 h-36 sm:h-44">
+          <span className="text-[9px] font-mono text-slate-500 dark:text-slate-400 font-semibold uppercase">
+            100%
+          </span>
+          <div className="relative flex-1 flex items-center justify-center w-6">
+            <input
+              type="range"
+              data-testid="vertical-articulation-seekbar"
+              min="0"
+              max="1"
+              step="0.01"
+              value={settings.articulator.progress}
+              onChange={(e) => {
+                const p = parseFloat(e.target.value);
+                onSettingsChange((prev) => ({
+                  ...prev,
+                  occlusionSeparation: Math.round(p * 35),
+                  articulator: {
+                    ...prev.articulator,
+                    progress: p,
+                    isPlaying: false,
+                  },
+                }));
+              }}
+              style={{
+                writingMode: 'vertical-lr',
+                direction: 'rtl',
+              }}
+              className="w-1.5 h-28 sm:h-36 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-sky-500"
+              title={tr(locale, '垂直咬合行程拉桿', 'Vertical Articulation Slider')}
+            />
+          </div>
+          <span className="text-[9px] font-mono text-slate-500 dark:text-slate-400 font-semibold uppercase">
+            CO
+          </span>
+        </div>
+
+        {/* Readout Pill */}
+        <div className="px-1 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[10px] font-mono font-medium text-sky-600 dark:text-sky-400 text-center tabular-nums">
+          {Math.round(settings.articulator.progress * 100)}%
+        </div>
+
+        <div className="w-full h-px bg-slate-200 dark:bg-slate-800" />
+
+        {/* Spring-Back Mandibular Joystick (蘑菇頭控制器 - 鬆開自動彈回中立位) */}
+        <div className="flex flex-col items-center gap-1">
+          <div className="flex items-center gap-1 text-[9px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+            <CircleDot className="w-3 h-3 text-sky-500" />
+            <span>{tr(locale, '搖桿', 'Stick')}</span>
+          </div>
+
+          <div
+            ref={joystickContainerRef}
+            data-testid="mandibular-joystick-pad"
+            onPointerDown={handleJoystickPointerDown}
+            onPointerMove={handleJoystickPointerMove}
+            onPointerUp={handleJoystickPointerUp}
+            onPointerCancel={handleJoystickPointerUp}
+            className={`relative w-14 h-14 rounded-full border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-900/90 flex items-center justify-center cursor-grab active:cursor-grabbing select-none touch-none shadow-inner transition-colors ${
+              joystickActive ? 'border-sky-500 bg-sky-50/50 dark:bg-sky-950/40' : ''
+            }`}
+            title={tr(
+              locale,
+              '咬合運動蘑菇頭搖桿（拖曳模擬前突與側方運動，鬆開自動回到中立位 CO）',
+              'Mandibular joystick: drag to articulate in any excursion direction; release to spring back to neutral CO.'
+            )}
+          >
+            {/* Crosshairs & Direction Indicators */}
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-40">
+              <div className="w-full h-px bg-slate-400 dark:bg-slate-600" />
+              <div className="h-full w-px bg-slate-400 dark:bg-slate-600 absolute" />
+            </div>
+
+            {/* Thumbstick Puck (蘑菇頭本體) */}
+            <div
+              data-testid="mandibular-joystick-thumb"
+              style={{
+                transform: `translate(${joystickPos.x}px, ${joystickPos.y}px)`,
+                transition: joystickActive ? 'none' : 'transform 0.18s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+              }}
+              className={`w-6 h-6 rounded-full shadow-md flex items-center justify-center pointer-events-none transition-colors ${
+                joystickActive
+                  ? 'bg-sky-500 text-white shadow-sky-500/40'
+                  : 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-600'
+              }`}
+            >
+              <div className="w-2 h-2 rounded-full bg-current opacity-70" />
+            </div>
+          </div>
+          <span className="text-[8px] text-slate-400 text-center leading-tight">
+            {joystickActive
+              ? tr(locale, '運動中', 'Active')
+              : tr(locale, '鬆開回中', 'Spring CO')}
+          </span>
+        </div>
+      </div>
+      <div className="absolute top-12 sm:top-4 right-2.5 sm:right-4 z-30 flex items-center space-x-1 sm:space-x-1.5 bg-white/90 dark:bg-[#0f172a]/90 border border-slate-200 dark:border-slate-800 p-1 rounded-lg backdrop-blur shadow-md">
         <button
           type="button"
           onClick={() =>
