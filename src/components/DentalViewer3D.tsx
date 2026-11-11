@@ -145,7 +145,7 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
     upper: 0,
     lower: 0,
   });
-  const [texturesReady, setTexturesReady] = useState<boolean>(false);
+  const [textureRevision, setTextureRevision] = useState<number>(0);
   const [mapsReady, setMapsReady] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
@@ -163,14 +163,32 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
     [settings.articulator]
   );
 
-  // Load 5-view clinical textures whenever photos change
+  // Load 5-view clinical textures whenever photos change (synchronously clear old textures first)
   useEffect(() => {
     let cancelled = false;
-    setTexturesReady(false);
+
+    // Synchronously dispose and clear previous textures so deleted/switched cases never leak textures
+    if (pentaTexturesRef.current) {
+      const prev = pentaTexturesRef.current;
+      prev.front?.dispose();
+      prev.upper?.dispose();
+      prev.lower?.dispose();
+      prev.right?.dispose();
+      prev.left?.dispose();
+      pentaTexturesRef.current = null;
+    }
+    setTextureRevision((r) => r + 1);
+
+    if (!photos || photos.length === 0) {
+      return () => {
+        cancelled = true;
+      };
+    }
+
     loadPentaViewTextures(photos).then((loaded) => {
       if (cancelled) return;
       pentaTexturesRef.current = loaded;
-      setTexturesReady(true);
+      setTextureRevision((r) => r + 1);
     });
     return () => {
       cancelled = true;
@@ -281,9 +299,10 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
         return material;
       }
 
-      // Priority 2: 5-view photo texture projection (only when at least 1 clinical photo texture loaded)
+      // Priority 2: 5-view photo texture projection (only when active case has photos and at least 1 texture loaded)
       const hasAnyPentaTexture = Boolean(
-        pentaTexturesRef.current &&
+        photos.length > 0 &&
+          pentaTexturesRef.current &&
           (pentaTexturesRef.current.front ||
             pentaTexturesRef.current.upper ||
             pentaTexturesRef.current.lower ||
@@ -383,6 +402,7 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
       return mat;
     },
     [
+      photos,
       settings.shadingMode,
       settings.photoTextureMapped,
       settings.occlusogramEnabled,
@@ -390,7 +410,7 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
       settings.archDistinction,
       settings.wireframeOverlay,
       settings.clippingEnabled,
-      texturesReady,
+      textureRevision,
       mapsReady,
     ]
   );

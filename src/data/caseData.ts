@@ -400,6 +400,7 @@ export async function buildCaseBundleFromFiles(
   const htmlFile = files.find((f) => f.name.toLowerCase().endsWith('.html'));
 
   const existingRecord = await getCaseRecordFromIndexedDB(metadata.orderId).catch(() => undefined);
+  const isSameCase = currentBundle.id === metadata.orderId;
 
   const record: StoredCaseRecord = {
     id: metadata.orderId,
@@ -408,31 +409,51 @@ export async function buildCaseBundleFromFiles(
     metadata,
     upperStlBlob: upperStl || existingRecord?.upperStlBlob,
     upperStlFileName:
-      upperStl?.name || existingRecord?.upperStlFileName || currentBundle.assets.upperStlFileName,
-    fallbackUpperStlUrl: currentBundle.assets.upperStlUrl,
+      upperStl?.name ||
+      existingRecord?.upperStlFileName ||
+      (isSameCase ? currentBundle.assets.upperStlFileName : DEFAULT_CASE_BUNDLE.assets.upperStlFileName),
+    fallbackUpperStlUrl: isSameCase
+      ? currentBundle.assets.upperStlUrl
+      : DEFAULT_CASE_BUNDLE.assets.upperStlUrl,
     lowerStlBlob: lowerStl || existingRecord?.lowerStlBlob,
     lowerStlFileName:
-      lowerStl?.name || existingRecord?.lowerStlFileName || currentBundle.assets.lowerStlFileName,
-    fallbackLowerStlUrl: currentBundle.assets.lowerStlUrl,
+      lowerStl?.name ||
+      existingRecord?.lowerStlFileName ||
+      (isSameCase ? currentBundle.assets.lowerStlFileName : DEFAULT_CASE_BUNDLE.assets.lowerStlFileName),
+    fallbackLowerStlUrl: isSameCase
+      ? currentBundle.assets.lowerStlUrl
+      : DEFAULT_CASE_BUNDLE.assets.lowerStlUrl,
     rxPdfBlob: pdfFile || existingRecord?.rxPdfBlob,
-    rxPdfFileName: pdfFile?.name || existingRecord?.rxPdfFileName || currentBundle.assets.rxPdfFileName,
-    fallbackRxPdfUrl: currentBundle.assets.rxPdfUrl,
+    rxPdfFileName:
+      pdfFile?.name ||
+      existingRecord?.rxPdfFileName ||
+      (isSameCase ? currentBundle.assets.rxPdfFileName : undefined),
+    fallbackRxPdfUrl: isSameCase ? currentBundle.assets.rxPdfUrl : undefined,
     rxHtmlBlob: htmlFile || existingRecord?.rxHtmlBlob,
     rxHtmlFileName:
-      htmlFile?.name || existingRecord?.rxHtmlFileName || currentBundle.assets.rxHtmlFileName,
-    fallbackRxHtmlUrl: currentBundle.assets.rxHtmlUrl,
+      htmlFile?.name ||
+      existingRecord?.rxHtmlFileName ||
+      (isSameCase ? currentBundle.assets.rxHtmlFileName : undefined),
+    fallbackRxHtmlUrl: isSameCase ? currentBundle.assets.rxHtmlUrl : undefined,
     xmlV50Blob: xmlV50File || existingRecord?.xmlV50Blob,
     xmlV50FileName:
-      xmlV50File?.name || existingRecord?.xmlV50FileName || currentBundle.assets.xmlV50FileName,
+      xmlV50File?.name ||
+      existingRecord?.xmlV50FileName ||
+      (isSameCase ? currentBundle.assets.xmlV50FileName : undefined),
     xmlV30Blob: xmlV30File || existingRecord?.xmlV30Blob,
     xmlV30FileName:
-      xmlV30File?.name || existingRecord?.xmlV30FileName || currentBundle.assets.xmlV30FileName,
-    rawXmlV50: rawXmlV50 ?? existingRecord?.rawXmlV50 ?? currentBundle.rawXmlV50,
-    rawXmlV30: rawXmlV30 ?? existingRecord?.rawXmlV30 ?? currentBundle.rawXmlV30,
+      xmlV30File?.name ||
+      existingRecord?.xmlV30FileName ||
+      (isSameCase ? currentBundle.assets.xmlV30FileName : undefined),
+    rawXmlV50:
+      rawXmlV50 ??
+      existingRecord?.rawXmlV50 ??
+      (isSameCase ? currentBundle.rawXmlV50 : DEFAULT_CASE_BUNDLE.rawXmlV50),
+    rawXmlV30: rawXmlV30 ?? existingRecord?.rawXmlV30 ?? (isSameCase ? currentBundle.rawXmlV30 : undefined),
     storedPhotos:
       storedPhotos.length > 0 ? storedPhotos : existingRecord?.storedPhotos,
-    fallbackPhotos: currentBundle.photos,
-    logoUrl: currentBundle.assets.logoUrl,
+    fallbackPhotos: isSameCase ? currentBundle.photos : [],
+    logoUrl: isSameCase ? currentBundle.assets.logoUrl : undefined,
   };
 
   await saveCaseRecordToIndexedDB(record).catch((err) =>
