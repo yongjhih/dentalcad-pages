@@ -320,6 +320,7 @@ export const App: React.FC = () => {
             onArchMetricsComputed={setArchMetrics}
             caliperMeasurements={caliperMeasurements}
             onAddCaliperMeasurement={handleAddCaliperMeasurement}
+            onClearCaliperMeasurements={handleClearCaliperMeasurements}
             onCustomFilesDrop={handleImportCaseFiles}
           />
         </section>

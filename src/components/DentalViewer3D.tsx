@@ -48,6 +48,7 @@ import {
   Pause,
   Flame,
   Ruler,
+  Trash2,
 } from 'lucide-react';
 
 interface DentalViewer3DProps {
@@ -64,6 +65,7 @@ interface DentalViewer3DProps {
   onArchMetricsComputed?: (metrics: OrthoArchMetrics) => void;
   caliperMeasurements?: CaliperMeasurement[];
   onAddCaliperMeasurement?: (pointA: Point3D, pointB: Point3D) => void;
+  onClearCaliperMeasurements?: () => void;
   onCustomFilesDrop?: (files: FileList) => void;
 }
 
@@ -81,6 +83,7 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
   onArchMetricsComputed,
   caliperMeasurements = [],
   onAddCaliperMeasurement,
+  onClearCaliperMeasurements,
   onCustomFilesDrop,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -1123,15 +1126,38 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
         </div>
       )}
 
-      {/* 3D Caliper Active Banner */}
-      {settings.caliperToolActive && (
-        <div className="absolute top-16 left-4 z-30 bg-amber-500/95 text-slate-950 px-3 py-1.5 rounded-md text-xs font-medium flex items-center gap-2 shadow-md">
-          <Ruler className="w-3.5 h-3.5" />
-          <span>
-            {pendingCaliperPoint
-              ? '請於 3D 齒列模型上點選第二點 (Point B) 完成測距'
-              : '3D 數位游標尺已啟用：請於齒列模型上點選起點 (Point A)'}
+      {/* 3D Caliper Active / Measurements Floating Banner */}
+      {(settings.caliperToolActive || caliperMeasurements.length > 0 || pendingCaliperPoint) && (
+        <div className="absolute top-16 left-4 z-30 bg-white/95 dark:bg-[#0f172a]/95 border border-amber-500/50 text-slate-900 dark:text-slate-100 px-3 py-1.5 rounded-lg text-xs flex items-center gap-2.5 shadow-md backdrop-blur">
+          <Ruler className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+          <span className="font-medium">
+            {settings.caliperToolActive
+              ? pendingCaliperPoint
+                ? '請點選第二點 (Point B) 完成測距'
+                : '3D 測距中：請於齒列模型上點選兩點'
+              : `已標記 ${caliperMeasurements.length} 組 3D 測距`}
           </span>
+          {caliperMeasurements.length > 0 && (
+            <span className="font-mono font-semibold text-amber-600 dark:text-amber-400 tabular-nums border-l border-slate-200 dark:border-slate-700 pl-2">
+              {caliperMeasurements[0].distanceMm.toFixed(2)} mm
+            </span>
+          )}
+          {(caliperMeasurements.length > 0 || pendingCaliperPoint) && (
+            <button
+              type="button"
+              data-testid="viewport-clear-caliper-btn"
+              onClick={() => {
+                pendingCaliperPointRef.current = null;
+                setPendingCaliperPoint(null);
+                onClearCaliperMeasurements?.();
+              }}
+              className="px-2 py-0.5 rounded bg-rose-500/15 hover:bg-rose-500/25 text-rose-600 dark:text-rose-300 border border-rose-500/30 text-[11px] font-medium flex items-center gap-1 transition-colors"
+              title="直接清除 3D 視窗中的所有測距線與標記點"
+            >
+              <Trash2 className="w-3 h-3" />
+              <span>清除測距</span>
+            </button>
+          )}
         </div>
       )}
 
@@ -1216,6 +1242,21 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
           <Ruler className="w-3.5 h-3.5" />
           <span className="hidden sm:inline">3D 測距</span>
         </button>
+
+        {(caliperMeasurements.length > 0 || pendingCaliperPoint) && (
+          <button
+            onClick={() => {
+              pendingCaliperPointRef.current = null;
+              setPendingCaliperPoint(null);
+              onClearCaliperMeasurements?.();
+            }}
+            title="清除所有 3D 測距標記"
+            className="px-2 py-1 rounded text-xs font-medium flex items-center gap-1 text-rose-600 dark:text-rose-400 hover:bg-rose-500/15 transition-colors"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            <span className="hidden md:inline">清除</span>
+          </button>
+        )}
 
         <button
           onClick={handleResetCamera}
