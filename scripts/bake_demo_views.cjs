@@ -121,8 +121,8 @@ async function main() {
       const upperGeom = createGeom(true);
       const lowerGeom = createGeom(false);
 
-      const width = 1024;
-      const height = 768;
+      const width = 1600;
+      const height = 1200;
 
       const renderer = new THREE.WebGLRenderer({
         antialias: true,

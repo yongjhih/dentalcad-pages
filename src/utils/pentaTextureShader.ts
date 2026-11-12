@@ -87,7 +87,8 @@ function loadSingleTextureWithRect(
       const rect = computeImageContentUVRect(img);
       const tex = new THREE.Texture(img);
       tex.colorSpace = THREE.SRGBColorSpace;
-      tex.minFilter = THREE.LinearFilter;
+      tex.generateMipmaps = true;
+      tex.minFilter = THREE.LinearMipmapLinearFilter;
       tex.magFilter = THREE.LinearFilter;
       tex.wrapS = THREE.ClampToEdgeWrapping;
       tex.wrapT = THREE.ClampToEdgeWrapping;
@@ -293,16 +294,16 @@ export function createPentaTexturedMaterial(params: {
       varying vec3 vStlPos;
       varying vec3 vStlNormal;
 
-      // Return foreground weight (0 if transparent/white background pixel, 1 if valid dental pixel)
+      // Return foreground weight with smooth feathered borders (eliminates jagged edge clipping)
       float pentaForegroundMask(vec4 col, vec2 uv, vec4 rect) {
-        if (uv.x < rect.x || uv.x > rect.y || uv.y < rect.z || uv.y > rect.w) {
-          return 0.0;
-        }
-        if (col.a < 0.1) {
+        float edgeX = smoothstep(rect.x, rect.x + 0.012, uv.x) * (1.0 - smoothstep(rect.y - 0.012, rect.y, uv.x));
+        float edgeY = smoothstep(rect.z, rect.z + 0.012, uv.y) * (1.0 - smoothstep(rect.w - 0.012, rect.w, uv.y));
+        float borderWeight = edgeX * edgeY;
+        if (borderWeight < 0.001 || col.a < 0.1) {
           return 0.0;
         }
         float minChannel = min(col.r, min(col.g, col.b));
-        return (1.0 - smoothstep(0.90, 0.965, minChannel)) * col.a;
+        return (1.0 - smoothstep(0.90, 0.965, minChannel)) * col.a * borderWeight;
       }
       ` +
       shader.fragmentShader.replace(

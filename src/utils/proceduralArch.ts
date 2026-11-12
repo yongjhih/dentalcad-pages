@@ -12,8 +12,9 @@ import * as THREE from 'three';
  * 5. Facial Gingival Margin (唇側齒頸緣): Smooth concave parabolic scallops at the facial center of each tooth crown.
  */
 export function createProceduralDentalArchGeometry(isUpper: boolean): THREE.BufferGeometry {
-  const segU = 180; // High resolution along the parabolic arch (from Right 2nd Molar to Left 2nd Molar)
-  const segV = 54; // Cross-sectional profile (from lingual gingiva -> crown cusps -> buccal gingiva)
+  // High-density subdivision for smooth anatomical gingival scallops and anti-aliased tooth-gum transitions
+  const segU = 320; // High resolution along the parabolic arch (eliminates dental scallop faceting/jaggies)
+  const segV = 88; // Dense cross-sectional profile (smooth clinical crown to gingival roll)
 
   const positions: number[] = [];
   const colors: number[] = [];
