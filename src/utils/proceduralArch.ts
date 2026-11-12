@@ -52,15 +52,15 @@ export function createProceduralDentalArchGeometry(isUpper: boolean): THREE.Buff
     return t * t * (3 - 2 * t);
   };
 
-  // Anatomical color palette
-  const colToothBody = new THREE.Color(0xf6f3ea); // VITA A1/A2 Body Enamel
-  const colToothIncisal = new THREE.Color(0xdce7ef); // Translucent bluish incisal edge
-  const colToothCervical = new THREE.Color(0xeee2c9); // Warm cervical neck enamel
-  const colGingivaMargin = new THREE.Color(0xdf798b); // Free gingival margin collar
-  const colGingivaAttached = new THREE.Color(0xce6577); // Stippled attached gingiva
-  const colGingivaAlveolar = new THREE.Color(0xb2384a); // Deeper alveolar mucosa
-  const colPalateMucosa = new THREE.Color(0xd46e7f); // Palatal mucosa
-  const colPalateRaphe = new THREE.Color(0xe59aa8); // Pale median palatine raphe
+  // Anatomical color palette matching clinical reference photography
+  const colToothBody = new THREE.Color(0xfcfaf5); // Luminous pearl-white enamel
+  const colToothIncisal = new THREE.Color(0xecf4f8); // Translucent bluish-white incisal edge
+  const colToothCervical = new THREE.Color(0xf7efe0); // Warm cervical neck enamel
+  const colGingivaMargin = new THREE.Color(0xf6899e); // Healthy vibrant light-coral pink (free gingival margin)
+  const colGingivaAttached = new THREE.Color(0xee6982); // Vibrant coral attached gingiva
+  const colGingivaAlveolar = new THREE.Color(0xdb4c68); // Rich alveolar mucosa
+  const colPalateMucosa = new THREE.Color(0xe87a90); // Palatal mucosa
+  const colPalateRaphe = new THREE.Color(0xf49ba8); // Pale median palatine raphe
 
   const lingualVertices: Array<{ x: number; y: number; z: number }> = [];
 
@@ -155,19 +155,19 @@ export function createProceduralDentalArchGeometry(isUpper: boolean): THREE.Buff
       const isBuccal = v > 0.50;
       const sinAngle = Math.max(0, Math.sin(angle));
       const rootProminence = isBuccal
-        ? (0.75 * Math.pow(bestToothWeight, 1.4) - 0.35 * papillaPeak) * Math.pow(sinAngle, 1.8)
+        ? (0.85 * Math.pow(bestToothWeight, 1.4) - 0.40 * papillaPeak) * Math.pow(sinAngle, 1.8)
         : 0;
 
       // Scalloped Cervical Margin (CEJ):
-      // In human anatomy, clinical crowns occupy ~38% of total labial height at the tooth center,
-      // while interdental papillae extend coronally into embrasures towards the contact point (crownDist ≈ 0.16).
+      // In human anatomy, clinical crowns occupy ~66% of total height at the tooth center (prominent full crowns),
+      // while interdental papillae shoot coronally down between adjacent teeth to fill embrasures (crownDist ≈ 0.32).
       const crownDist = Math.abs(v - 0.5) / 0.5; // [0, 1]
-      const cervicalMargin = 0.38 - 0.22 * Math.pow(papillaPeak, 1.4);
+      const cervicalMargin = 0.66 - 0.34 * Math.pow(papillaPeak, 1.2);
 
       // 3D Marginal Gingival Collar (游離齦緣卷邊):
-      // A rounded 0.32mm outward lip precisely along the scalloped gingival margin
+      // A rounded 0.36mm outward lip precisely along the scalloped gingival margin
       const distToCervical = Math.abs(crownDist - cervicalMargin);
-      const marginalCollar = isBuccal ? 0.32 * Math.exp(-Math.pow(distToCervical / 0.06, 2)) : 0;
+      const marginalCollar = isBuccal ? 0.36 * Math.exp(-Math.pow(distToCervical / 0.06, 2)) : 0;
 
       const effectiveRadius = alveolarRadius + crownBulge + rootProminence + marginalCollar;
 
@@ -223,13 +223,13 @@ export function createProceduralDentalArchGeometry(isUpper: boolean): THREE.Buff
 
       if (enamelWeight > 0.01) {
         const toothCol = new THREE.Color();
-        if (crownDist < 0.12) {
+        if (crownDist < 0.16) {
           // Incisal edge translucency
-          const tInc = 1 - crownDist / 0.12;
+          const tInc = 1 - crownDist / 0.16;
           toothCol.copy(colToothBody).lerp(colToothIncisal, tInc * 0.7);
-        } else if (crownDist > 0.22) {
+        } else if (crownDist > 0.45) {
           // Warm cervical enamel near the margin
-          const tCerv = Math.min(1, Math.max(0, (crownDist - 0.22) / 0.16));
+          const tCerv = Math.min(1, Math.max(0, (crownDist - 0.45) / 0.20));
           toothCol.copy(colToothBody).lerp(colToothCervical, tCerv * 0.65);
         } else {
           toothCol.copy(colToothBody);
@@ -251,7 +251,7 @@ export function createProceduralDentalArchGeometry(isUpper: boolean): THREE.Buff
 
         // Interdental papilla has delicate light mucosal tip
         if (papillaPeak > 0.15) {
-          vertexColor.lerp(colGingivaMargin, papillaPeak * 0.45);
+          vertexColor.lerp(colGingivaMargin, papillaPeak * 0.5);
         }
       }
 
