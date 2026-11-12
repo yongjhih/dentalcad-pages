@@ -1,9 +1,10 @@
 import { ClinicalPhoto } from '../types/dental';
+import { BAKED_DEMO_PHOTOS } from './bakedDemoPhotos';
 
 /**
  * Creates an SVG Data URL from an SVG markup string.
  */
-function svgToDataUrl(svg: string): string {
+export function svgToDataUrl(svg: string): string {
   return `data:image/svg+xml;utf8,${encodeURIComponent(svg.trim())}`;
 }
 
@@ -12,7 +13,7 @@ function svgToDataUrl(svg: string): string {
  * Displays upper and lower anterior & premolar teeth in Centric Occlusion with natural gingiva,
  * enamel shades (VITA A1/A2), incisal translucency, and interproximal embrasures.
  */
-function createFrontalViewSvg(): string {
+export function createFrontalViewSvg(): string {
   return `
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" width="800" height="600">
   <defs>
@@ -97,7 +98,7 @@ function createFrontalViewSvg(): string {
  * Maxillary Occlusal View (penta_upper)
  * Full horseshoe arch of 14 upper teeth (17 to 27) with palate and anatomical occlusal anatomy.
  */
-function createUpperOcclusalViewSvg(): string {
+export function createUpperOcclusalViewSvg(): string {
   return `
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 650" width="800" height="650">
   <defs>
@@ -187,7 +188,7 @@ function createUpperOcclusalViewSvg(): string {
  * Mandibular Occlusal View (penta_lower)
  * Full horseshoe arch of 14 lower teeth (47 to 37) with lingual floor and anatomical fissures.
  */
-function createLowerOcclusalViewSvg(): string {
+export function createLowerOcclusalViewSvg(): string {
   return `
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 650" width="800" height="650">
   <defs>
@@ -270,7 +271,7 @@ function createLowerOcclusalViewSvg(): string {
  * Right Buccal Occlusion View (penta_patientright)
  * Right side molar and canine relationship in Class I interdigitation.
  */
-function createRightBuccalViewSvg(): string {
+export function createRightBuccalViewSvg(): string {
   return `
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" width="800" height="600">
   <defs>
@@ -343,7 +344,7 @@ function createRightBuccalViewSvg(): string {
  * Left Buccal Occlusion View (penta_patientleft)
  * Left side molar and canine relationship in Class I interdigitation.
  */
-function createLeftBuccalViewSvg(): string {
+export function createLeftBuccalViewSvg(): string {
   return `
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" width="800" height="600">
   <defs>
@@ -413,7 +414,8 @@ function createLeftBuccalViewSvg(): string {
 }
 
 /**
- * Returns the 5 high-resolution procedural clinical photos for the built-in demo case.
+ * Returns the 5 high-resolution procedural clinical photos for the built-in demo case,
+ * baked directly from the 3D procedural arch geometry for 100% orthographic alignment.
  */
 export function createDemoClinicalPhotos(): ClinicalPhoto[] {
   return [
@@ -422,8 +424,8 @@ export function createDemoClinicalPhotos(): ClinicalPhoto[] {
       title: '正視臨床咬合照片 (Frontal View)',
       viewName: 'Frontal Occlusion',
       description: '正中咬合門齒關係、覆咬與覆蓋、中線對齊與微笑曲線。',
-      fileName: 'demo_penta_front.svg',
-      src: svgToDataUrl(createFrontalViewSvg()),
+      fileName: 'demo_penta_front.png',
+      src: BAKED_DEMO_PHOTOS.front,
       cameraPreset: 'front',
     },
     {
@@ -431,8 +433,8 @@ export function createDemoClinicalPhotos(): ClinicalPhoto[] {
       title: '上顎齒列咬合面 (Upper Arch)',
       viewName: 'Maxillary Occlusal',
       description: '上顎牙弓型態、顎面窩溝咬合點以及牙弓寬度。',
-      fileName: 'demo_penta_upper.svg',
-      src: svgToDataUrl(createUpperOcclusalViewSvg()),
+      fileName: 'demo_penta_upper.png',
+      src: BAKED_DEMO_PHOTOS.upper,
       cameraPreset: 'upper',
     },
     {
@@ -440,8 +442,8 @@ export function createDemoClinicalPhotos(): ClinicalPhoto[] {
       title: '下顎齒列咬合面 (Lower Arch)',
       viewName: 'Mandibular Occlusal',
       description: '下顎牙弓對稱性、舌側傾斜度及前牙擁擠分析。',
-      fileName: 'demo_penta_lower.svg',
-      src: svgToDataUrl(createLowerOcclusalViewSvg()),
+      fileName: 'demo_penta_lower.png',
+      src: BAKED_DEMO_PHOTOS.lower,
       cameraPreset: 'lower',
     },
     {
@@ -449,8 +451,8 @@ export function createDemoClinicalPhotos(): ClinicalPhoto[] {
       title: '右側頰面咬合 (Right Buccal)',
       viewName: 'Right Buccal Occlusion',
       description: '右側犬齒與第一大臼齒咬合關係與齒間接觸。',
-      fileName: 'demo_penta_patientright.svg',
-      src: svgToDataUrl(createRightBuccalViewSvg()),
+      fileName: 'demo_penta_patientright.png',
+      src: BAKED_DEMO_PHOTOS.patientright,
       cameraPreset: 'right',
     },
     {
@@ -458,8 +460,8 @@ export function createDemoClinicalPhotos(): ClinicalPhoto[] {
       title: '左側頰面咬合 (Left Buccal)',
       viewName: 'Left Buccal Occlusion',
       description: '左側犬齒與第一大臼齒咬合關係及後牙側方引導。',
-      fileName: 'demo_penta_patientleft.svg',
-      src: svgToDataUrl(createLeftBuccalViewSvg()),
+      fileName: 'demo_penta_patientleft.png',
+      src: BAKED_DEMO_PHOTOS.patientleft,
       cameraPreset: 'left',
     },
   ];

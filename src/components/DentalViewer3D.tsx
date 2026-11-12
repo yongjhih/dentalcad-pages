@@ -35,6 +35,7 @@ import {
 } from '../utils/occlusogram';
 import { computeOrthoArchMetrics } from '../utils/archMeasurements';
 import { createProceduralDentalArchGeometry } from '../utils/proceduralArch';
+import { CameraTransform } from '../utils/urlState';
 import {
   Maximize2,
   Minimize2,
@@ -74,6 +75,8 @@ interface DentalViewer3DProps {
   onClearCaliperMeasurements?: () => void;
   onCustomFilesDrop?: (files: FileList) => void;
   locale?: LocaleMode;
+  initialCamera?: CameraTransform;
+  onCameraChange?: (camera: CameraTransform) => void;
 }
 
 export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
@@ -93,6 +96,8 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
   onClearCaliperMeasurements,
   onCustomFilesDrop,
   locale = 'en',
+  initialCamera,
+  onCameraChange,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
@@ -141,6 +146,9 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
   const targetLookAtRef = useRef<THREE.Vector3>(new THREE.Vector3(1.29, -18.36, 1.24));
   const lerpFramesRef = useRef<number>(0);
   const userInteractingRef = useRef<boolean>(false);
+  const initialCameraAppliedRef = useRef<boolean>(false);
+  const onCameraChangeRef = useRef(onCameraChange);
+  onCameraChangeRef.current = onCameraChange;
 
   // Loading states
   const [loading, setLoading] = useState<boolean>(true);
@@ -951,6 +959,17 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
     controls.minDistance = 20;
     controlsRef.current = controls;
 
+    const emitCameraChange = () => {
+      const cam = cameraRef.current;
+      const ctrl = controlsRef.current;
+      if (cam && ctrl && onCameraChangeRef.current) {
+        onCameraChangeRef.current({
+          position: [cam.position.x, cam.position.y, cam.position.z],
+          target: [ctrl.target.x, ctrl.target.y, ctrl.target.z],
+        });
+      }
+    };
+
     // Immediately cancel any preset camera lerp as soon as the user touches/drags/scrolls the 3D canvas
     // so the camera never springs back ("回彈") against user rotation!
     const handleControlStart = () => {
@@ -968,9 +987,23 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
     };
     const handleControlEnd = () => {
       userInteractingRef.current = false;
+      emitCameraChange();
+    };
+
+    let cameraChangeThrottle: ReturnType<typeof setTimeout> | null = null;
+    const handleControlChange = () => {
+      if (userInteractingRef.current) {
+        if (!cameraChangeThrottle) {
+          cameraChangeThrottle = setTimeout(() => {
+            cameraChangeThrottle = null;
+            emitCameraChange();
+          }, 150);
+        }
+      }
     };
     controls.addEventListener('start', handleControlStart);
     controls.addEventListener('end', handleControlEnd);
+    controls.addEventListener('change', handleControlChange);
     renderer.domElement.addEventListener('pointerdown', handleControlStart, { passive: true });
     renderer.domElement.addEventListener('touchstart', handleControlStart, { passive: true });
     renderer.domElement.addEventListener('wheel', handleControlStart, { passive: true });
@@ -1027,6 +1060,7 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
           targetCamPosRef.current = null;
           targetCamUpRef.current = null;
           lerpFramesRef.current = 0;
+          emitCameraChange();
         }
       }
 
@@ -1242,8 +1276,19 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
         upperMeshRef.current = upperMesh;
         lowerMeshRef.current = lowerMesh;
 
-        // Snap camera immediately on initial/case load so user dragging never fights an active lerp
-        applyCameraPreset(activePreset, true);
+        if (initialCamera && !initialCameraAppliedRef.current) {
+          initialCameraAppliedRef.current = true;
+          const cam = cameraRef.current;
+          const ctrl = controlsRef.current;
+          if (cam && ctrl) {
+            cam.position.set(...initialCamera.position);
+            ctrl.target.set(...initialCamera.target);
+            ctrl.update();
+          }
+        } else {
+          // Snap camera immediately on initial/case load so user dragging never fights an active lerp
+          applyCameraPreset(activePreset, true);
+        }
         setLoading(false);
       })
       .catch((err) => {

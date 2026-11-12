@@ -29,6 +29,14 @@ import {
   ParsedUrlDataParam,
 } from '@dentalcad-pages/core';
 import {
+  ViewerUrlState,
+  CameraTransform,
+  parseViewerUrlParams,
+  loadPersistedViewerState,
+  savePersistedViewerState,
+  updateBrowserUrl,
+} from './utils/urlState';
+import {
   Header,
   DentalViewer3D,
   CaseDossier,
@@ -85,8 +93,21 @@ const MIN_SIDEBAR_WIDTH = 320;
 const MAX_SIDEBAR_WIDTH = 880;
 
 export const App: React.FC = () => {
+  // Parse URL search parameters on boot, or fallback to the last saved state from localStorage if no query is provided
+  const initialViewerParams = useMemo(() => {
+    if (typeof window === 'undefined') return {};
+    const hasSearch = Boolean(
+      window.location.search && window.location.search.replace(/^\?/, '').trim()
+    );
+    if (hasSearch) {
+      return parseViewerUrlParams(window.location.search);
+    }
+    return loadPersistedViewerState() || {};
+  }, []);
+
   // Theme state (Light / Dark mode)
   const [theme, setTheme] = useState<ThemeMode>(() => {
+    if (initialViewerParams.theme) return initialViewerParams.theme;
     try {
       const saved = localStorage.getItem(THEME_STORAGE_KEY);
       if (saved === 'light' || saved === 'dark') return saved;
@@ -115,7 +136,9 @@ export const App: React.FC = () => {
   }, []);
 
   // Language / Locale state: auto-detect browser language; default to English ('en') if non-Chinese or undetectable
-  const [locale, setLocale] = useState<LocaleMode>(() => detectInitialLocale());
+  const [locale, setLocale] = useState<LocaleMode>(
+    () => initialViewerParams.locale || detectInitialLocale()
+  );
 
   useEffect(() => {
     document.documentElement.lang = locale;
@@ -132,7 +155,9 @@ export const App: React.FC = () => {
 
   // Case Registry state (builtin manifest + browser IndexedDB persisted cases)
   const [cases, setCases] = useState<DentalCaseBundle[]>([DEFAULT_CASE_BUNDLE]);
-  const [activeCaseId, setActiveCaseId] = useState<string>(DEFAULT_CASE_BUNDLE.id);
+  const [activeCaseId, setActiveCaseId] = useState<string>(
+    initialViewerParams.caseId || DEFAULT_CASE_BUNDLE.id
+  );
   const [pendingUrlDataParam, setPendingUrlDataParam] = useState<ParsedUrlDataParam | null>(null);
   const [copiedUrlPath, setCopiedUrlPath] = useState<boolean>(false);
   const urlParamFileInputRef = useRef<HTMLInputElement>(null);
@@ -153,7 +178,7 @@ export const App: React.FC = () => {
         setCases(mergedCases);
 
         const urlParams = new URLSearchParams(window.location.search);
-        const requestedCase = urlParams.get('case');
+        const requestedCase = initialViewerParams.caseId || urlParams.get('case');
         const rawUrlParam = urlParams.get('url');
         const lastSavedCaseId = getLastActiveCaseId();
 
@@ -307,8 +332,10 @@ export const App: React.FC = () => {
   // Privacy toggle (HIPAA / clinical presentation - default ON)
   const [anonymizePatient, setAnonymizePatient] = useState<boolean>(true);
 
-  // Active right pane tab (default to Articulator & Occlusogram)
-  const [activeTab, setActiveTab] = useState<TabType>('articulator');
+  // Active right pane tab (default to Articulator & Occlusogram, or restored from URL/persistence)
+  const [activeTab, setActiveTab] = useState<TabType>(
+    initialViewerParams.activeTab || 'articulator'
+  );
 
   // Collapsible right/bottom sidebar panel state
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
@@ -399,17 +426,46 @@ export const App: React.FC = () => {
   const mobileUpperInputRef = useRef<HTMLInputElement>(null);
   const mobileLowerInputRef = useRef<HTMLInputElement>(null);
 
-  // Camera presets
-  const [cameraPreset, setCameraPreset] = useState<CameraPreset>('front');
+  // Camera presets & free orbit/zoom transform
+  const [cameraPreset, setCameraPreset] = useState<CameraPreset>(
+    initialViewerParams.cameraPreset || 'front'
+  );
+  const [currentCameraTransform, setCurrentCameraTransform] = useState<
+    CameraTransform | undefined
+  >(initialViewerParams.cameraTransform);
+
+  const handleCameraChange = useCallback((cam: CameraTransform) => {
+    setCurrentCameraTransform(cam);
+  }, []);
+
+  const handlePresetSelect = useCallback((preset: CameraPreset) => {
+    setCameraPreset(preset);
+    setCurrentCameraTransform(undefined); // Clear free-orbit coordinates so URL reflects the preset view cleanly
+  }, []);
 
   // Viewport 3D settings (with 5-view photo texture mapping, Occlusogram & Virtual Articulator)
-  const [viewportSettings, setViewportSettings] = useState<ViewportSettings>({
-    showUpper: true,
-    showLower: true,
-    occlusionSeparation: 0,
-    shadingMode: 'enamel',
-    photoTextureMapped: true,
-    occlusogramEnabled: false,
+  const [viewportSettings, setViewportSettings] = useState<ViewportSettings>(() => ({
+    showUpper:
+      typeof initialViewerParams.showUpper === 'boolean'
+        ? initialViewerParams.showUpper
+        : true,
+    showLower:
+      typeof initialViewerParams.showLower === 'boolean'
+        ? initialViewerParams.showLower
+        : true,
+    occlusionSeparation:
+      typeof initialViewerParams.occlusionSeparation === 'number'
+        ? initialViewerParams.occlusionSeparation
+        : 0,
+    shadingMode: initialViewerParams.shadingMode || 'enamel',
+    photoTextureMapped:
+      typeof initialViewerParams.photoTextureMapped === 'boolean'
+        ? initialViewerParams.photoTextureMapped
+        : true,
+    occlusogramEnabled:
+      typeof initialViewerParams.occlusogramEnabled === 'boolean'
+        ? initialViewerParams.occlusogramEnabled
+        : false,
     occlusogramMaxRangeMm: 1.6,
     caliperToolActive: false,
     showMeasurements: true,
@@ -421,7 +477,44 @@ export const App: React.FC = () => {
     autoRotate: false,
     lightingIntensity: 1.0,
     articulator: { ...DEFAULT_ARTICULATOR_SETTINGS },
-  });
+  }));
+
+  // Synchronize viewer state changes to URL query string and localStorage (for parameterless reloads)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const viewerState: ViewerUrlState = {
+        caseId: activeCaseId,
+        cameraPreset,
+        cameraTransform: currentCameraTransform,
+        shadingMode: viewportSettings.shadingMode,
+        photoTextureMapped: viewportSettings.photoTextureMapped,
+        showUpper: viewportSettings.showUpper,
+        showLower: viewportSettings.showLower,
+        occlusionSeparation: viewportSettings.occlusionSeparation,
+        occlusogramEnabled: viewportSettings.occlusogramEnabled,
+        activeTab,
+        theme,
+        locale,
+      };
+      savePersistedViewerState(viewerState);
+      updateBrowserUrl(viewerState);
+    }, 200);
+
+    return () => clearTimeout(timer);
+  }, [
+    activeCaseId,
+    cameraPreset,
+    currentCameraTransform,
+    viewportSettings.shadingMode,
+    viewportSettings.photoTextureMapped,
+    viewportSettings.showUpper,
+    viewportSettings.showLower,
+    viewportSettings.occlusionSeparation,
+    viewportSettings.occlusogramEnabled,
+    activeTab,
+    theme,
+    locale,
+  ]);
 
   // Apply live 3D viewer control commands from Ask AI or WebMCP (mcp.html via BroadcastChannel)
   const handleApplyViewerControl = useCallback((payload: ViewerControlPayload) => {
@@ -659,7 +752,9 @@ export const App: React.FC = () => {
             settings={viewportSettings}
             onSettingsChange={setViewportSettings}
             activePreset={cameraPreset}
-            onPresetSelect={setCameraPreset}
+            onPresetSelect={handlePresetSelect}
+            initialCamera={initialViewerParams.cameraTransform}
+            onCameraChange={handleCameraChange}
             onMeshStatsComputed={handleMeshStatsComputed}
             onOcclusogramStatsComputed={setOcclusogramStats}
             onArchMetricsComputed={setArchMetrics}
