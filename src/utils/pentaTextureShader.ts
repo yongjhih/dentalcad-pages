@@ -193,14 +193,9 @@ export function computePentaProjectedUVs(params: {
       : mix(rects.occlusal.z, rects.occlusal.w, nArch.y),
   };
 
-  // 3. Front (penta_front): Centered at anterior dental midline (X=0)
-  // FOV covers anterior arch width (~72% of full molar-to-molar combined width)
-  const frontSpanX = Math.max(0.001, (combMax.x - combMin.x) * 0.72);
-  const frontCenterX = (combMax.x + combMin.x) * 0.5;
-  const nFrontX = clamp01((P.x - frontCenterX) / frontSpanX + 0.5);
-
+  // 3. Front (penta_front): X_min (nX=0) is LEFT (uMin = x), X_max (nX=1) is RIGHT (uMax = y)
   const uvFront = {
-    u: mix(rects.front.x, rects.front.y, nFrontX),
+    u: mix(rects.front.x, rects.front.y, nComb.x),
     v: mix(rects.front.z, rects.front.w, nComb.z),
   };
 
@@ -350,14 +345,9 @@ export function createPentaTexturedMaterial(params: {
             vOcc
           );
 
-          // 2. Front UV: Centered at anterior dental midline (X=0)
-          // FOV covers anterior arch width (~72% of full molar width)
-          float frontSpanX = max(uCombMax.x - uCombMin.x, 0.001) * 0.72;
-          float frontCenterX = (uCombMax.x + uCombMin.x) * 0.5;
-          float nFrontX = clamp((P.x - frontCenterX) / frontSpanX + 0.5, 0.0, 1.0);
-
+          // 2. Front UV (Anterior is -Y looking toward +Y; X_min is left, X_max is right)
           vec2 uvFront = vec2(
-            mix(uRectFront.x, uRectFront.y, nFrontX),
+            mix(uRectFront.x, uRectFront.y, nComb.x),
             mix(uRectFront.z, uRectFront.w, nComb.z)
           );
 
@@ -394,21 +384,25 @@ export function createPentaTexturedMaterial(params: {
           vec2 horizNorm = normalize(N.xy + vec2(0.0001));
           float outward = smoothstep(0.05, 0.45, dot(radialDir, horizNorm));
 
-          // Occlusal zone: teeth crowns & cusps (Z < 8 for upper, Z > -8 for lower).
-          // Prevents occlusal fissure drawings from projecting onto the flat base cut of the alveolar model.
+          // Guard against closed-bite overlap near the occlusal plane (Z ≈ 0) in side/front views
+          float archZMask = uIsUpper > 0.5
+            ? smoothstep(-0.2, 2.5, P.z)
+            : smoothstep(0.2, -2.2, P.z);
+
+          // Occlusal zone: teeth crowns & cusps (prevents fissure projection onto flat alveolar base cut)
           float isOcclusalZone = uIsUpper > 0.5
-            ? (1.0 - smoothstep(5.0, 10.0, P.z))
-            : smoothstep(-10.0, -5.0, P.z);
+            ? (1.0 - smoothstep(8.0, 14.0, P.z))
+            : smoothstep(-14.0, -8.0, P.z);
 
           // Directional weights:
           // Front: Anterior is -Y (labial faces -Y so -N.y > 0)
-          float wFront = pow(max(0.0, -N.y), 1.6) * outward * (1.0 - smoothstep(-35.0, -18.0, P.y)) * maskFront;
+          float wFront = pow(max(0.0, -N.y), 1.5) * outward * (1.0 - smoothstep(-32.0, -18.0, P.y)) * archZMask * maskFront;
           // Right Buccal: Patient Right is -X (buccal faces -X so -N.x > 0)
-          float wRight = pow(max(0.0, -N.x), 1.5) * outward * (1.0 - smoothstep(-16.0, -4.0, P.x)) * smoothstep(-42.0, -22.0, P.y) * maskRight;
+          float wRight = pow(max(0.0, -N.x), 1.5) * outward * (1.0 - smoothstep(-14.0, -4.0, P.x)) * archZMask * maskRight;
           // Left Buccal: Patient Left is +X (buccal faces +X so N.x > 0)
-          float wLeft  = pow(max(0.0,  N.x), 1.5) * outward * smoothstep(4.0, 16.0, P.x) * smoothstep(-42.0, -22.0, P.y) * maskLeft;
+          float wLeft  = pow(max(0.0,  N.x), 1.5) * outward * smoothstep( 4.0,  14.0, P.x) * archZMask * maskLeft;
           // Occlusal: Top/bottom occlusal table + lingual/palatal anatomy
-          float wOcc   = (pow(abs(N.z), 1.2) * 1.5 + max(0.0, 0.75 - outward) * 1.2 + 0.08) * isOcclusalZone * maskOcc;
+          float wOcc   = (pow(abs(N.z), 0.9) + (1.0 - outward * archZMask) * 1.15 + 0.18) * isOcclusalZone * maskOcc;
 
           float totalW = wFront + wRight + wLeft + wOcc;
           vec3 gingivaBaseColor = vec3(0.82, 0.44, 0.50);

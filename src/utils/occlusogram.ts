@@ -484,10 +484,7 @@ export function createOcclusogramMaterial(params: {
             ? mix(uRectOcclusal.w, uRectOcclusal.z, nArch.y)
             : mix(uRectOcclusal.z, uRectOcclusal.w, nArch.y);
           vec2 uvOcclusal = vec2(mix(uRectOcclusal.x, uRectOcclusal.y, nArch.x), vOcc);
-          float frontSpanX = max(uCombMax.x - uCombMin.x, 0.001) * 0.72;
-          float frontCenterX = (uCombMax.x + uCombMin.x) * 0.5;
-          float nFrontX = clamp((P.x - frontCenterX) / frontSpanX + 0.5, 0.0, 1.0);
-          vec2 uvFront = vec2(mix(uRectFront.x, uRectFront.y, nFrontX), mix(uRectFront.z, uRectFront.w, nComb.z));
+          vec2 uvFront = vec2(mix(uRectFront.x, uRectFront.y, nComb.x), mix(uRectFront.z, uRectFront.w, nComb.z));
           vec2 uvRight = vec2(mix(uRectRight.y, uRectRight.x, nComb.y), mix(uRectRight.z, uRectRight.w, nComb.z));
           vec2 uvLeft  = vec2(mix(uRectLeft.x, uRectLeft.y, nComb.y), mix(uRectLeft.z, uRectLeft.w, nComb.z));
 
@@ -511,14 +508,20 @@ export function createOcclusogramMaterial(params: {
           vec2 horizNorm = normalize(N.xy + vec2(0.0001));
           float outward = smoothstep(0.05, 0.45, dot(radialDir, horizNorm));
 
-          float isOcclusalZone = uIsUpper > 0.5
-            ? (1.0 - smoothstep(5.0, 10.0, P.z))
-            : smoothstep(-10.0, -5.0, P.z);
+          // Guard against closed-bite overlap near the occlusal plane (Z ≈ 0) in side/front views
+          float archZMask = uIsUpper > 0.5
+            ? smoothstep(-0.2, 2.5, P.z)
+            : smoothstep(0.2, -2.2, P.z);
 
-          float wFront = pow(max(0.0, -N.y), 1.6) * outward * (1.0 - smoothstep(-35.0, -18.0, P.y)) * maskFront;
-          float wRight = pow(max(0.0, -N.x), 1.5) * outward * (1.0 - smoothstep(-16.0, -4.0, P.x)) * smoothstep(-42.0, -22.0, P.y) * maskRight;
-          float wLeft  = pow(max(0.0,  N.x), 1.5) * outward * smoothstep(4.0, 16.0, P.x) * smoothstep(-42.0, -22.0, P.y) * maskLeft;
-          float wOcc   = (pow(abs(N.z), 1.2) * 1.5 + max(0.0, 0.75 - outward) * 1.2 + 0.08) * isOcclusalZone * maskOcc;
+          // Occlusal zone: teeth crowns & cusps (prevents fissure projection onto flat alveolar base cut)
+          float isOcclusalZone = uIsUpper > 0.5
+            ? (1.0 - smoothstep(8.0, 14.0, P.z))
+            : smoothstep(-14.0, -8.0, P.z);
+
+          float wFront = pow(max(0.0, -N.y), 1.5) * outward * (1.0 - smoothstep(-32.0, -18.0, P.y)) * archZMask * maskFront;
+          float wRight = pow(max(0.0, -N.x), 1.5) * outward * (1.0 - smoothstep(-14.0, -4.0, P.x)) * archZMask * maskRight;
+          float wLeft  = pow(max(0.0,  N.x), 1.5) * outward * smoothstep( 4.0,  14.0, P.x) * archZMask * maskLeft;
+          float wOcc   = (pow(abs(N.z), 0.9) + (1.0 - outward * archZMask) * 1.15 + 0.18) * isOcclusalZone * maskOcc;
 
           float totalW = wFront + wRight + wLeft + wOcc;
           vec3 gingivaBaseColor = vec3(0.82, 0.44, 0.50);
