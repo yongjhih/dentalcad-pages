@@ -152,9 +152,10 @@ export function createProceduralDentalArchGeometry(isUpper: boolean): THREE.Buff
 
       // Anatomical Juga Alveolaria (牙槽隆起):
       // Facial root prominence over tooth center; gentle interdental depression at the tooth gaps
-      const isBuccal = v > 0.48;
+      const isBuccal = v > 0.50;
+      const sinAngle = Math.max(0, Math.sin(angle));
       const rootProminence = isBuccal
-        ? (0.75 * Math.pow(bestToothWeight, 1.4) - 0.35 * papillaPeak) * Math.pow(Math.sin(angle), 1.8)
+        ? (0.75 * Math.pow(bestToothWeight, 1.4) - 0.35 * papillaPeak) * Math.pow(sinAngle, 1.8)
         : 0;
 
       // Scalloped Cervical Margin (CEJ):
