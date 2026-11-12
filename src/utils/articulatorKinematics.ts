@@ -1,5 +1,6 @@
 import {
   ArticulatorSettings,
+  ArticulationStrokes,
   ArticulationCurvePresetId,
   BezierControlPoints,
   Point3D,
@@ -66,6 +67,41 @@ export const ARTICULATION_CURVE_PRESETS: Record<
   },
 };
 
+export const DEFAULT_ARTICULATOR_STROKES: ArticulationStrokes = {
+  hinge: 0,
+  protrusion: 0,
+  lateral: 0,
+  parallel: 0,
+};
+
+/**
+ * Resolve the effective independent stroke values based on articulator mode and settings.
+ * When in single-axis modes (hinge, protrusion, etc.), derives the stroke from progress.
+ * When in 'compound' mode, uses settings.strokes (or default zeroes).
+ */
+export function resolveActiveStrokes(settings: ArticulatorSettings): ArticulationStrokes {
+  const p = clamp(settings.progress, 0, 1);
+  if (settings.mode === 'compound') {
+    return settings.strokes ? { ...settings.strokes } : { ...DEFAULT_ARTICULATOR_STROKES };
+  }
+  if (settings.mode === 'hinge') {
+    return { hinge: p, protrusion: 0, lateral: 0, parallel: 0 };
+  }
+  if (settings.mode === 'protrusion') {
+    return { hinge: 0, protrusion: p, lateral: 0, parallel: 0 };
+  }
+  if (settings.mode === 'lateral_left') {
+    return { hinge: 0, protrusion: 0, lateral: p, parallel: 0 };
+  }
+  if (settings.mode === 'lateral_right') {
+    return { hinge: 0, protrusion: 0, lateral: -p, parallel: 0 };
+  }
+  if (settings.mode === 'parallel') {
+    return { hinge: 0, protrusion: 0, lateral: 0, parallel: p };
+  }
+  return { ...DEFAULT_ARTICULATOR_STROKES };
+}
+
 /**
  * In STL model coordinates:
  * - Anterior (Incisors / 前牙切端) is at Y ≈ -43.5 mm (-Y direction)
@@ -86,6 +122,7 @@ export const DEFAULT_ARTICULATOR_SETTINGS: ArticulatorSettings = {
   showTrajectoryGizmo: true,
   curvePresetId: 'posselt',
   bezier: { ...ARTICULATION_CURVE_PRESETS.posselt.bezier },
+  strokes: { ...DEFAULT_ARTICULATOR_STROKES },
 };
 
 export const DEFAULT_INCISAL_REF_POINT: Point3D = {
@@ -367,6 +404,171 @@ export function computeContinuousMandibularExcursion(
 }
 
 /**
+ * Compute compound mandibular kinematics by freely combining and mixing independent excursion strokes:
+ * - Hinge Opening (0..1)
+ * - Protrusive excursion (0..1)
+ * - Lateral excursion (-1..1, negative right, positive left)
+ * - Parallel separation (0..1)
+ *
+ * Each stroke can be adjusted independently, enabling compound clinical movements
+ * (e.g. combined protrusion + opening, canine guidance + lateral excursion, or custom bite interference analysis).
+ */
+export function computeCompoundMandibularKinematics(
+  settings: ArticulatorSettings,
+  strokes: ArticulationStrokes = DEFAULT_ARTICULATOR_STROKES,
+  incisalRefPoint: Point3D = DEFAULT_INCISAL_REF_POINT,
+  scale: number = 1.0
+): MandibularKinematicsResult {
+  const pivot: Point3D = {
+    x: 0,
+    y: settings.hingeAxisY,
+    z: settings.hingeAxisZ,
+  };
+
+  const condylarRad = (settings.condylarGuidanceAngleDeg * Math.PI) / 180;
+  const incisalRad = (settings.incisalGuidanceAngleDeg * Math.PI) / 180;
+  const bennettRad = (settings.bennettAngleDeg * Math.PI) / 180;
+
+  const h = clamp((strokes.hinge ?? 0) * scale, 0, 1);
+  const p = clamp((strokes.protrusion ?? 0) * scale, 0, 1);
+  const l = clamp((strokes.lateral ?? 0) * scale, -1, 1);
+  const s = clamp((strokes.parallel ?? 0) * scale, 0, 1);
+
+  // 1. Parallel Separation (Upper +Z, Lower -Z)
+  const curveFactorS = evaluateBezierYForProgress(s, settings.bezier);
+  const totalSep = curveFactorS * 35;
+  const upperPos: Point3D = { x: 0, y: 0, z: totalSep * 0.5 };
+  const upperRot: Point3D = { x: 0, y: 0, z: 0 };
+  const parallelLowerZ = -totalSep * 0.5;
+
+  // 2. Hinge Opening Component
+  let rxHinge = 0;
+  let shiftYHinge = 0;
+  let shiftZHinge = 0;
+  let transMmHinge = 0;
+  if (h > 0) {
+    const curveFactorH = evaluateBezierYForProgress(h, settings.bezier);
+    const rotBlend = 0.55 * h + 0.45 * curveFactorH;
+    const thetaDeg = rotBlend * settings.maxOpeningAngleDeg;
+    rxHinge = (thetaDeg * Math.PI) / 180;
+
+    const maxTransMm = 11.0 * clamp(1 - settings.bezier.p1x * 0.5, 0.25, 1.2);
+    transMmHinge = curveFactorH * maxTransMm;
+    shiftYHinge = -transMmHinge * Math.cos(condylarRad); // Anterior is -Y
+    shiftZHinge = -transMmHinge * Math.sin(condylarRad); // Inferior is -Z
+  }
+
+  // 3. Protrusion Component
+  let rxProtrusion = 0;
+  let shiftYProtrusion = 0;
+  let shiftZProtrusion = 0;
+  if (p > 0) {
+    const curveFactorP = evaluateBezierYForProgress(p, settings.bezier);
+    const forwardMm = curveFactorP * 8.5;
+    const verticalDropMm = forwardMm * Math.tan(incisalRad * 0.55 + condylarRad * 0.45);
+
+    const clearanceDeg = Math.sin(p * Math.PI) * 2.2 + curveFactorP * 2.0;
+    rxProtrusion = (clearanceDeg * Math.PI) / 180;
+    shiftYProtrusion = -forwardMm;
+    shiftZProtrusion = -verticalDropMm * 0.65;
+  }
+
+  // 4. Lateral Excursion Component (-1..1)
+  let rxLateral = 0;
+  let ryLateral = 0;
+  let rzLateral = 0;
+  let shiftXLateral = 0;
+  let shiftYLateral = 0;
+  let shiftZLateral = 0;
+  if (l !== 0) {
+    const dir = Math.sign(l);
+    const magL = Math.abs(l);
+    const curveFactorL = evaluateBezierYForProgress(magL, settings.bezier);
+
+    const maxYawDeg = 6.5;
+    const yawDeg = curveFactorL * maxYawDeg;
+    rzLateral = dir * ((yawDeg * Math.PI) / 180);
+
+    const canineRiseDeg = curveFactorL * (2.5 + settings.incisalGuidanceAngleDeg * 0.06);
+    rxLateral = (canineRiseDeg * Math.PI) / 180;
+    ryLateral = -dir * ((curveFactorL * 1.8 * Math.PI) / 180);
+
+    const bennettShiftMm = curveFactorL * 3.8;
+    shiftXLateral = dir * bennettShiftMm * Math.sin(bennettRad);
+    shiftYLateral = -bennettShiftMm * Math.cos(condylarRad) * 0.6;
+    shiftZLateral = -bennettShiftMm * Math.sin(condylarRad) * 0.6;
+  }
+
+  // Combined Rotations and Translations
+  const rx = rxHinge + rxProtrusion + rxLateral;
+  const ry = ryLateral;
+  const rz = rzLateral;
+
+  const condyleShift: Point3D = {
+    x: shiftXLateral,
+    y: shiftYHinge + shiftYProtrusion + shiftYLateral,
+    z: shiftZHinge + shiftZProtrusion + shiftZLateral + parallelLowerZ,
+  };
+
+  const condylarTranslationMm = Math.hypot(
+    condyleShift.x,
+    condyleShift.y,
+    condyleShift.z - parallelLowerZ
+  );
+
+  // Rigid-body composition around posterior TMJ pivot
+  const rotOnlyMat = composeMatrix4EulerXYZ(rx, ry, rz, 0, 0, 0);
+  const rotatedPivot = transformPoint3DByMatrix4(pivot, rotOnlyMat);
+
+  const lowerPos: Point3D = {
+    x: pivot.x - rotatedPivot.x + condyleShift.x,
+    y: pivot.y - rotatedPivot.y + condyleShift.y,
+    z: pivot.z - rotatedPivot.z + condyleShift.z,
+  };
+
+  const fullMat = composeMatrix4EulerXYZ(rx, ry, rz, lowerPos.x, lowerPos.y, lowerPos.z);
+  const invMat = invertRigidMatrix4(fullMat);
+
+  const incisalWorld = transformPoint3DByMatrix4(incisalRefPoint, fullMat);
+  const condyleLeftWorld = transformPoint3DByMatrix4(
+    { x: 50, y: pivot.y, z: pivot.z },
+    fullMat
+  );
+  const condyleRightWorld = transformPoint3DByMatrix4(
+    { x: -50, y: pivot.y, z: pivot.z },
+    fullMat
+  );
+
+  const disp: Point3D = {
+    x: incisalWorld.x - incisalRefPoint.x,
+    y: incisalWorld.y - incisalRefPoint.y,
+    z: incisalWorld.z - incisalRefPoint.z - upperPos.z,
+  };
+
+  const incOpening = Math.hypot(disp.x, disp.y, disp.z);
+  const rotDeg = Number(((rx * 180) / Math.PI).toFixed(2));
+
+  return {
+    upperPosition: upperPos,
+    upperRotation: upperRot,
+    lowerPosition: lowerPos,
+    lowerRotation: { x: rx, y: ry, z: rz },
+    lowerMatrixElements: fullMat,
+    lowerInverseMatrixElements: invMat,
+    hingePivot: pivot,
+    condyleLeftWorld,
+    condyleRightWorld,
+    incisalWorldPoint: incisalWorld,
+    incisalDisplacementMm: disp,
+    incisalOpeningMm: incOpening,
+    rotationAngleDeg: rotDeg,
+    condylarTranslationMm: Number(condylarTranslationMm.toFixed(2)),
+    lateralShiftMm: Number(disp.x.toFixed(2)),
+    bezierPoint: { x: Math.max(h, p, Math.abs(l), s), y: Math.max(h, p, Math.abs(l), s) },
+  };
+}
+
+/**
  * Compute full 6-DOF mandibular articulation kinematics at the current progress
  * based on anatomical TMJ parameters and the user-adjustable Bezier movement curve.
  *
@@ -390,6 +592,21 @@ export function computeMandibularKinematics(
       settings.manualExcursion.x,
       settings.manualExcursion.y,
       incisalRefPoint
+    );
+  }
+
+  // Compound mixed articulation mode (multiple excursion strokes active together)
+  if (settings.mode === 'compound') {
+    const scale = settings.isPlaying
+      ? settings.progress
+      : settings.progress > 0
+      ? settings.progress
+      : 1.0;
+    return computeCompoundMandibularKinematics(
+      settings,
+      settings.strokes ?? DEFAULT_ARTICULATOR_STROKES,
+      incisalRefPoint,
+      scale
     );
   }
 

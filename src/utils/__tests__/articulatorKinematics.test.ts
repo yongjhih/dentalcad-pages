@@ -223,6 +223,31 @@ describe('articulatorKinematics', () => {
       expect(combinedKin.lateralShiftMm).toBeGreaterThan(0.5);
       expect(combinedKin.incisalOpeningMm).toBeGreaterThan(5.0);
     });
+
+    it('computes compound mixed articulation when independent strokes are combined', () => {
+      // Test combined protrusion + opening
+      const kinMix = computeMandibularKinematics({
+        ...DEFAULT_ARTICULATOR_SETTINGS,
+        mode: 'compound',
+        strokes: {
+          hinge: 0.35,
+          protrusion: 0.6,
+          lateral: 0.25,
+          parallel: 0.1,
+        },
+        progress: 1.0,
+      });
+
+      // Forward translation from protrusion opposes backward swing of opening, net anterior is negative Y
+      expect(kinMix.incisalDisplacementMm.y).toBeLessThan(0);
+      // Lateral shift from left excursion (Left is +X)
+      expect(kinMix.lateralShiftMm).toBeGreaterThan(0.3);
+      // Vertical opening combined from hinge, protrusion clearance, and canine rise
+      expect(kinMix.incisalOpeningMm).toBeGreaterThan(7.0);
+      expect(kinMix.rotationAngleDeg).toBeGreaterThan(5.0);
+      // Parallel separation applied to upper position
+      expect(kinMix.upperPosition.z).toBeGreaterThan(0.5);
+    });
   });
 
   describe('Trajectory Sampling', () => {

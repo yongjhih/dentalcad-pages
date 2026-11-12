@@ -138,6 +138,19 @@ describe('Viewer URL State Synchronization and Persistence', () => {
       const loaded = loadPersistedViewerState();
       expect(loaded).toEqual(sample);
     });
+    it('parses and serializes compound articulation mode and independent strokes', () => {
+      const search = '?art=compound&strokes=h0.35,p0.5,l-0.2,s0.15';
+      const parsed = parseViewerUrlParams(search);
+      expect(parsed.articulationMode).toBe('compound');
+      expect(parsed.articulationStrokes?.hinge).toBeCloseTo(0.35, 2);
+      expect(parsed.articulationStrokes?.protrusion).toBeCloseTo(0.5, 2);
+      expect(parsed.articulationStrokes?.lateral).toBeCloseTo(-0.2, 2);
+      expect(parsed.articulationStrokes?.parallel).toBeCloseTo(0.15, 2);
+
+      const serialized = serializeViewerUrlParams(parsed);
+      expect(serialized).toContain('art=compound');
+      expect(serialized).toContain('strokes=h0.35%2Cp0.5%2Cl-0.2%2Cs0.15');
+    });
   });
 
   describe('updateBrowserUrl', () => {

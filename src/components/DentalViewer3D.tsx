@@ -24,6 +24,8 @@ import {
 import {
   computeMandibularKinematics,
   sampleArticulationTrajectory,
+  DEFAULT_ARTICULATOR_STROKES,
+  resolveActiveStrokes,
 } from '../utils/articulatorKinematics';
 import {
   OcclusalElevationMap,
@@ -1930,19 +1932,35 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
                     { id: 'lateral_right', label: tr(locale, '右側方', 'Lat R') },
                     { id: 'chewing', label: tr(locale, '咀嚼循環', 'Chewing') },
                     { id: 'parallel', label: tr(locale, '平行', 'Parallel') },
+                    { id: 'compound', label: tr(locale, '混用', 'Mix') },
                   ] as { id: ArticulationMode; label: string }[]
                 ).map((m) => (
                   <button
                     key={m.id}
                     type="button"
                     onClick={() =>
-                      onSettingsChange((prev) => ({
-                        ...prev,
-                        articulator: {
-                          ...prev.articulator,
-                          mode: m.id,
-                        },
-                      }))
+                      onSettingsChange((prev) => {
+                        if (m.id === 'compound') {
+                          const currentStrokes =
+                            prev.articulator.strokes ?? resolveActiveStrokes(prev.articulator);
+                          return {
+                            ...prev,
+                            articulator: {
+                              ...prev.articulator,
+                              mode: 'compound',
+                              strokes: currentStrokes,
+                              progress: prev.articulator.progress > 0 ? prev.articulator.progress : 1.0,
+                            },
+                          };
+                        }
+                        return {
+                          ...prev,
+                          articulator: {
+                            ...prev.articulator,
+                            mode: m.id,
+                          },
+                        };
+                      })
                     }
                     className={`px-2 py-0.5 rounded text-[10px] font-medium border transition-colors ${
                       settings.articulator.mode === m.id
@@ -1954,6 +1972,159 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
                   </button>
                 ))}
               </div>
+
+              {/* Compact Mixed Strokes Sub-Panel in HUD when Compound Mode is Active */}
+              {settings.articulator.mode === 'compound' && (
+                <div
+                  data-testid="hud-compound-strokes"
+                  className="p-2 rounded bg-slate-100/90 dark:bg-slate-800/80 border border-sky-500/30 space-y-1.5 text-[10px]"
+                >
+                  <div className="flex items-center justify-between text-slate-700 dark:text-slate-300 font-medium">
+                    <span>{tr(locale, '獨立行程混用微調：', 'Stroke Mixer:')}</span>
+                    <button
+                      type="button"
+                      data-testid="hud-compound-reset-co"
+                      onClick={() =>
+                        onSettingsChange((prev) => ({
+                          ...prev,
+                          articulator: {
+                            ...prev.articulator,
+                            strokes: { hinge: 0, protrusion: 0, lateral: 0, parallel: 0 },
+                            progress: 0,
+                          },
+                        }))
+                      }
+                      className="text-sky-600 dark:text-sky-400 hover:underline"
+                    >
+                      CO (0%)
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-x-2 gap-y-1">
+                    <div>
+                      <div className="flex justify-between text-[9px] text-slate-500 dark:text-slate-400">
+                        <span>{tr(locale, '開合', 'Hinge')}</span>
+                        <span>{Math.round((settings.articulator.strokes?.hinge ?? 0) * 100)}%</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.02"
+                        data-testid="hud-stroke-hinge"
+                        value={settings.articulator.strokes?.hinge ?? 0}
+                        onChange={(e) => {
+                          const val = parseFloat(e.target.value);
+                          onSettingsChange((prev) => ({
+                            ...prev,
+                            articulator: {
+                              ...prev.articulator,
+                              strokes: {
+                                ...(prev.articulator.strokes ?? DEFAULT_ARTICULATOR_STROKES),
+                                hinge: val,
+                              },
+                              progress: Math.max(prev.articulator.progress, 0.01),
+                            },
+                          }));
+                        }}
+                        className="w-full h-1 bg-slate-300 dark:bg-slate-700 rounded appearance-none cursor-pointer accent-sky-500"
+                      />
+                    </div>
+                    <div>
+                      <div className="flex justify-between text-[9px] text-slate-500 dark:text-slate-400">
+                        <span>{tr(locale, '前突', 'Protr')}</span>
+                        <span>{Math.round((settings.articulator.strokes?.protrusion ?? 0) * 100)}%</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.02"
+                        data-testid="hud-stroke-protrusion"
+                        value={settings.articulator.strokes?.protrusion ?? 0}
+                        onChange={(e) => {
+                          const val = parseFloat(e.target.value);
+                          onSettingsChange((prev) => ({
+                            ...prev,
+                            articulator: {
+                              ...prev.articulator,
+                              strokes: {
+                                ...(prev.articulator.strokes ?? DEFAULT_ARTICULATOR_STROKES),
+                                protrusion: val,
+                              },
+                              progress: Math.max(prev.articulator.progress, 0.01),
+                            },
+                          }));
+                        }}
+                        className="w-full h-1 bg-slate-300 dark:bg-slate-700 rounded appearance-none cursor-pointer accent-sky-500"
+                      />
+                    </div>
+                    <div>
+                      <div className="flex justify-between text-[9px] text-slate-500 dark:text-slate-400">
+                        <span>{tr(locale, '側方', 'Lat')}</span>
+                        <span>
+                          {(settings.articulator.strokes?.lateral ?? 0) > 0
+                            ? `+${Math.round((settings.articulator.strokes?.lateral ?? 0) * 100)}% L`
+                            : (settings.articulator.strokes?.lateral ?? 0) < 0
+                            ? `${Math.round((settings.articulator.strokes?.lateral ?? 0) * 100)}% R`
+                            : '0'}
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min="-1"
+                        max="1"
+                        step="0.04"
+                        data-testid="hud-stroke-lateral"
+                        value={settings.articulator.strokes?.lateral ?? 0}
+                        onChange={(e) => {
+                          const val = parseFloat(e.target.value);
+                          onSettingsChange((prev) => ({
+                            ...prev,
+                            articulator: {
+                              ...prev.articulator,
+                              strokes: {
+                                ...(prev.articulator.strokes ?? DEFAULT_ARTICULATOR_STROKES),
+                                lateral: val,
+                              },
+                              progress: Math.max(prev.articulator.progress, 0.01),
+                            },
+                          }));
+                        }}
+                        className="w-full h-1 bg-slate-300 dark:bg-slate-700 rounded appearance-none cursor-pointer accent-sky-500"
+                      />
+                    </div>
+                    <div>
+                      <div className="flex justify-between text-[9px] text-slate-500 dark:text-slate-400">
+                        <span>{tr(locale, '平行', 'Sep')}</span>
+                        <span>{Math.round((settings.articulator.strokes?.parallel ?? 0) * 100)}%</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.02"
+                        data-testid="hud-stroke-parallel"
+                        value={settings.articulator.strokes?.parallel ?? 0}
+                        onChange={(e) => {
+                          const val = parseFloat(e.target.value);
+                          onSettingsChange((prev) => ({
+                            ...prev,
+                            articulator: {
+                              ...prev.articulator,
+                              strokes: {
+                                ...(prev.articulator.strokes ?? DEFAULT_ARTICULATOR_STROKES),
+                                parallel: val,
+                              },
+                              progress: Math.max(prev.articulator.progress, 0.01),
+                            },
+                          }));
+                        }}
+                        className="w-full h-1 bg-slate-300 dark:bg-slate-700 rounded appearance-none cursor-pointer accent-sky-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Articulation Progress Slider & Play Button */}
               <div className="space-y-1">

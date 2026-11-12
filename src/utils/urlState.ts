@@ -1,4 +1,11 @@
-import { CameraPreset, LocaleMode, ShadingMode, ThemeMode } from '../types/dental';
+import {
+  CameraPreset,
+  LocaleMode,
+  ShadingMode,
+  ThemeMode,
+  ArticulationMode,
+  ArticulationStrokes,
+} from '../types/dental';
 
 export type ViewerTabType = 'dossier' | 'articulator' | 'gallery' | 'tools' | 'xml';
 
@@ -20,6 +27,8 @@ export interface ViewerUrlState {
   activeTab?: ViewerTabType;
   theme?: ThemeMode;
   locale?: LocaleMode;
+  articulationMode?: ArticulationMode;
+  articulationStrokes?: ArticulationStrokes;
 }
 
 export const VIEWER_STATE_STORAGE_KEY = 'dentalcad_viewer_url_state';
@@ -49,6 +58,59 @@ const VALID_TABS = new Set<string>([
   'tools',
   'xml',
 ]);
+
+const VALID_ART_MODES = new Set<ArticulationMode>([
+  'hinge',
+  'protrusion',
+  'lateral_left',
+  'lateral_right',
+  'chewing',
+  'parallel',
+  'compound',
+]);
+
+/**
+ * Parses strokes string in format "h0.3,p0.5,l-0.2,s0.1"
+ */
+export function parseStrokesString(val: string): ArticulationStrokes | undefined {
+  const result: ArticulationStrokes = { hinge: 0, protrusion: 0, lateral: 0, parallel: 0 };
+  let found = false;
+  const parts = val.split(',');
+  for (const part of parts) {
+    const trimmed = part.trim();
+    if (!trimmed) continue;
+    const prefix = trimmed.charAt(0).toLowerCase();
+    const num = parseFloat(trimmed.slice(1));
+    if (Number.isFinite(num)) {
+      if (prefix === 'h') {
+        result.hinge = Math.max(0, Math.min(1, num));
+        found = true;
+      } else if (prefix === 'p') {
+        result.protrusion = Math.max(0, Math.min(1, num));
+        found = true;
+      } else if (prefix === 'l') {
+        result.lateral = Math.max(-1, Math.min(1, num));
+        found = true;
+      } else if (prefix === 's') {
+        result.parallel = Math.max(0, Math.min(1, num));
+        found = true;
+      }
+    }
+  }
+  return found ? result : undefined;
+}
+
+/**
+ * Serializes ArticulationStrokes to compact "h0.3,p0.5,l-0.2,s0.1" string
+ */
+export function serializeStrokesString(strokes: ArticulationStrokes): string {
+  const parts: string[] = [];
+  if (strokes.hinge > 0) parts.push(`h${Math.round(strokes.hinge * 100) / 100}`);
+  if (strokes.protrusion > 0) parts.push(`p${Math.round(strokes.protrusion * 100) / 100}`);
+  if (strokes.lateral !== 0) parts.push(`l${Math.round(strokes.lateral * 100) / 100}`);
+  if (strokes.parallel > 0) parts.push(`s${Math.round(strokes.parallel * 100) / 100}`);
+  return parts.join(',');
+}
 
 /**
  * Parses camera transform string in the format "px,py,pz,tx,ty,tz"
@@ -166,6 +228,23 @@ export function parseViewerUrlParams(search: string): Partial<ViewerUrlState> {
     }
   }
 
+  if (params.has('art')) {
+    const art = params.get('art') as ArticulationMode;
+    if (VALID_ART_MODES.has(art)) {
+      state.articulationMode = art;
+    }
+  }
+
+  if (params.has('strokes')) {
+    const strokes = parseStrokesString(params.get('strokes') || '');
+    if (strokes) {
+      state.articulationStrokes = strokes;
+      if (!state.articulationMode) {
+        state.articulationMode = 'compound';
+      }
+    }
+  }
+
   return state;
 }
 
@@ -212,6 +291,17 @@ export function serializeViewerUrlParams(state: ViewerUrlState): string {
 
   if (state.theme) params.set('theme', state.theme);
   if (state.locale) params.set('lang', state.locale);
+
+  if (state.articulationMode && state.articulationMode !== 'hinge') {
+    params.set('art', state.articulationMode);
+  }
+
+  if (state.articulationStrokes) {
+    const sStr = serializeStrokesString(state.articulationStrokes);
+    if (sStr) {
+      params.set('strokes', sStr);
+    }
+  }
 
   return params.toString();
 }

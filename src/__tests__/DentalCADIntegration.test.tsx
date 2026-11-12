@@ -192,6 +192,19 @@ describe('DentalCAD Pages Application Integration Tests', () => {
     expect(
       parseFloat(screen.getByTestId('kinematic-incisal-opening').textContent!)
     ).toBeGreaterThan(2);
+
+    // Switch to Compound mixed strokes mode and adjust independent stroke sliders
+    fireEvent.click(screen.getByTestId('articulation-mode-compound'));
+    expect(screen.getByTestId('compound-mixed-strokes-console')).toBeInTheDocument();
+
+    const hingeSlider = screen.getByTestId('stroke-slider-hinge');
+    const protrusionSlider = screen.getByTestId('stroke-slider-protrusion');
+    fireEvent.change(hingeSlider, { target: { value: '0.4' } });
+    fireEvent.change(protrusionSlider, { target: { value: '0.6' } });
+
+    expect(
+      parseFloat(screen.getByTestId('kinematic-incisal-opening').textContent!)
+    ).toBeGreaterThan(5);
   });
 
   it('toggles Occlusogram heatmap and manages 3D Digital Caliper measurements', () => {

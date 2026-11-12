@@ -20,7 +20,15 @@ export type ArticulationMode =
   | 'lateral_left'
   | 'lateral_right'
   | 'chewing'
-  | 'parallel';
+  | 'parallel'
+  | 'compound';
+
+export interface ArticulationStrokes {
+  hinge: number; // 0.0 to 1.0 (生理樞軸開合行程)
+  protrusion: number; // 0.0 to 1.0 (前突行程)
+  lateral: number; // -1.0 to +1.0 (負值為右側方，正值為左側方；0 為中立 CO)
+  parallel: number; // 0.0 to 1.0 (垂直平行分離行程)
+}
 
 export type ArticulationCurvePresetId =
   | 'posselt'
@@ -51,6 +59,7 @@ export interface ArticulatorSettings {
   curvePresetId: ArticulationCurvePresetId;
   bezier: BezierControlPoints;
   manualExcursion?: { x: number; y: number }; // Continuous 2D direct joystick excursion (x: -1 to 1 lateral, y: -1 to 1 protrusion/opening)
+  strokes?: ArticulationStrokes; // 獨立行程參數（開合、前突、側方、平行，可各自獨立調整並自由混用）
 }
 
 export interface ViewportSettings {

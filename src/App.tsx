@@ -476,7 +476,13 @@ export const App: React.FC = () => {
     clippingOffset: 0,
     autoRotate: false,
     lightingIntensity: 1.0,
-    articulator: { ...DEFAULT_ARTICULATOR_SETTINGS },
+    articulator: {
+      ...DEFAULT_ARTICULATOR_SETTINGS,
+      mode: initialViewerParams.articulationMode || DEFAULT_ARTICULATOR_SETTINGS.mode,
+      strokes:
+        initialViewerParams.articulationStrokes ||
+        DEFAULT_ARTICULATOR_SETTINGS.strokes,
+    },
   }));
 
   // Synchronize viewer state changes to URL query string and localStorage (for parameterless reloads)
@@ -495,6 +501,8 @@ export const App: React.FC = () => {
         activeTab,
         theme,
         locale,
+        articulationMode: viewportSettings.articulator.mode,
+        articulationStrokes: viewportSettings.articulator.strokes,
       };
       savePersistedViewerState(viewerState);
       updateBrowserUrl(viewerState);
@@ -511,6 +519,8 @@ export const App: React.FC = () => {
     viewportSettings.showLower,
     viewportSettings.occlusionSeparation,
     viewportSettings.occlusogramEnabled,
+    viewportSettings.articulator.mode,
+    viewportSettings.articulator.strokes,
     activeTab,
     theme,
     locale,
