@@ -134,7 +134,7 @@ export function createProceduralDentalArchGeometry(isUpper: boolean): THREE.Buff
     const isCanine = toothType === 'canine';
     const isIncisor = toothType === 'central' || toothType === 'lateral';
 
-    // Alveolar bone base has smooth anatomical radius (no fluting)
+    // Alveolar bone base has smooth anatomical radius with root prominences (Juga alveolaria)
     const alveolarRadius = isPosterior ? 4.9 : 3.5;
 
     for (let j = 0; j <= segV; j++) {
@@ -149,7 +149,26 @@ export function createProceduralDentalArchGeometry(isUpper: boolean): THREE.Buff
       // Labial/buccal crown bulge
       const bulgeMagnitude = isCanine ? 1.15 : isPosterior ? 1.0 : 0.65;
       const crownBulge = bulgeMagnitude * Math.pow(bestToothWeight, 1.2) * crownWeight;
-      const effectiveRadius = alveolarRadius + crownBulge;
+
+      // Anatomical Juga Alveolaria (牙槽隆起):
+      // Facial root prominence over tooth center; gentle interdental depression at the tooth gaps
+      const isBuccal = v > 0.48;
+      const rootProminence = isBuccal
+        ? (0.75 * Math.pow(bestToothWeight, 1.4) - 0.35 * papillaPeak) * Math.pow(Math.sin(angle), 1.8)
+        : 0;
+
+      // Scalloped Cervical Margin (CEJ):
+      // In human anatomy, clinical crowns occupy ~38% of total labial height at the tooth center,
+      // while interdental papillae extend coronally into embrasures towards the contact point (crownDist ≈ 0.16).
+      const crownDist = Math.abs(v - 0.5) / 0.5; // [0, 1]
+      const cervicalMargin = 0.38 - 0.22 * Math.pow(papillaPeak, 1.4);
+
+      // 3D Marginal Gingival Collar (游離齦緣卷邊):
+      // A rounded 0.32mm outward lip precisely along the scalloped gingival margin
+      const distToCervical = Math.abs(crownDist - cervicalMargin);
+      const marginalCollar = isBuccal ? 0.32 * Math.exp(-Math.pow(distToCervical / 0.06, 2)) : 0;
+
+      const effectiveRadius = alveolarRadius + crownBulge + rootProminence + marginalCollar;
 
       const radialOffset = Math.sin(angle) * effectiveRadius;
       const px = archX + nx * radialOffset;
@@ -173,13 +192,16 @@ export function createProceduralDentalArchGeometry(isUpper: boolean): THREE.Buff
       if (toothType === 'central') crownLen = 8.8; // Central incisor is broad and long
       if (toothType === 'lateral') crownLen = 8.1; // Lateral incisor is slightly shorter
 
-      // Scalloped interdental papillae:
-      // At the tooth gap (papillaPeak > 0), the gingival collar extends pointedly towards the biting table!
-      // At the tooth facial center (papillaPeak ≈ 0, bestToothWeight ≈ 1), the gingival collar recedes to expose full crown!
-      const papillaExtension = 2.4 * Math.pow(papillaPeak, 1.8);
+      // Coronal projection:
+      // At tooth center: full crown length down to incisal edge
+      // At tooth gap: interdental papilla reaches down towards the contact point (4.8mm)
+      const toothHeight = crownLen * cuspGroove;
+      const papillaCoronalReach = 5.2; // mm coronal extension into embrasure
+      const zCoronalSpan =
+        (1.0 - papillaPeak) * toothHeight * (0.35 + 0.65 * bestToothWeight) +
+        papillaPeak * papillaCoronalReach;
 
-      // Crown Z projection
-      const zProjection = crownFactor * (5.2 + (crownLen * cuspGroove - papillaExtension) * (0.35 + 0.65 * bestToothWeight));
+      const zProjection = crownFactor * (4.4 + zCoronalSpan);
 
       let pz: number;
       if (isUpper) {
@@ -190,26 +212,23 @@ export function createProceduralDentalArchGeometry(isUpper: boolean): THREE.Buff
 
       positions.push(px, py, pz);
 
-      // Normalized distance from crown incisal edge (0 at incisal edge, 1 at root base)
-      const crownDist = Math.abs(v - 0.5) / 0.5; // [0, 1]
-
-      // Anatomical Cervical Line (CEJ) with Papilla Scalloping:
-      // 1. At tooth gaps (papillaPeak > 0): Gingival margin extends downward towards incisal edge (pointed papilla!)
-      // 2. At tooth facial center: Gingival margin recedes apically (smooth concave scallop exposing crown)
-      const cervicalCutoff = 0.48 - 0.22 * papillaPeak + 0.12 * bestToothWeight;
-      const enamelWeight = smoothstep(cervicalCutoff - 0.06, cervicalCutoff + 0.04, 1 - crownDist) * smoothstep(0.12, 0.35, bestToothWeight) * (1.0 - 0.85 * papillaPeak);
+      // Enamel Weight: 1.0 inside tooth crown, 0.0 on gingiva
+      const enamelWeight =
+        (1.0 - smoothstep(cervicalMargin - 0.035, cervicalMargin + 0.025, crownDist)) *
+        smoothstep(0.08, 0.28, bestToothWeight) *
+        (1.0 - 0.95 * papillaPeak);
 
       const vertexColor = new THREE.Color();
 
       if (enamelWeight > 0.01) {
         const toothCol = new THREE.Color();
-        if (crownDist < 0.16) {
+        if (crownDist < 0.12) {
           // Incisal edge translucency
-          const tInc = 1 - crownDist / 0.16;
+          const tInc = 1 - crownDist / 0.12;
           toothCol.copy(colToothBody).lerp(colToothIncisal, tInc * 0.7);
-        } else if (crownDist > 0.36) {
+        } else if (crownDist > 0.22) {
           // Warm cervical enamel near the margin
-          const tCerv = Math.min(1, (crownDist - 0.36) / 0.24);
+          const tCerv = Math.min(1, Math.max(0, (crownDist - 0.22) / 0.16));
           toothCol.copy(colToothBody).lerp(colToothCervical, tCerv * 0.65);
         } else {
           toothCol.copy(colToothBody);
@@ -220,7 +239,7 @@ export function createProceduralDentalArchGeometry(isUpper: boolean): THREE.Buff
       } else {
         // Continuous gingival gradient:
         // Free margin (pale pink) -> Attached gingiva (coral) -> Alveolar mucosa (deep rose)
-        const gingivaT = smoothstep(0.46, 0.95, crownDist);
+        const gingivaT = smoothstep(cervicalMargin, 0.95, crownDist);
         if (gingivaT < 0.45) {
           const t = gingivaT / 0.45;
           vertexColor.copy(colGingivaMargin).lerp(colGingivaAttached, t);
@@ -230,8 +249,8 @@ export function createProceduralDentalArchGeometry(isUpper: boolean): THREE.Buff
         }
 
         // Interdental papilla has delicate light mucosal tip
-        if (papillaPeak > 0.2) {
-          vertexColor.lerp(colGingivaMargin, papillaPeak * 0.4);
+        if (papillaPeak > 0.15) {
+          vertexColor.lerp(colGingivaMargin, papillaPeak * 0.45);
         }
       }
 

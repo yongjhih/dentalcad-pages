@@ -368,7 +368,7 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
 
   // Build Material based on settings, Occlusogram state & loaded 5-view textures
   const createDentalMaterial = useCallback(
-    (isUpper: boolean) => {
+    (isUpper: boolean, geometry?: THREE.BufferGeometry) => {
       const {
         shadingMode,
         photoTextureMapped,
@@ -380,6 +380,10 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
       } = settings;
       const clippingPlanes =
         clippingEnabled && clippingPlaneRef.current ? [clippingPlaneRef.current] : [];
+
+      const activeGeom =
+        geometry || (isUpper ? upperMeshRef.current?.geometry : lowerMeshRef.current?.geometry);
+      const hasVertexColors = Boolean(activeGeom?.attributes?.color);
 
       if (isUpper) {
         upperOccUpdaterRef.current = null;
@@ -540,7 +544,7 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
       }
 
       if (shadingMode === 'plaster') {
-        const color = isUpper
+        const defaultColor = isUpper
           ? archDistinction
             ? 0xfef3c7
             : 0xf1f5f9
@@ -548,7 +552,8 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
           ? 0xdbeafe
           : 0xf1f5f9;
         const mat = new THREE.MeshStandardMaterial({
-          color,
+          color: hasVertexColors ? 0xffffff : defaultColor,
+          vertexColors: hasVertexColors,
           roughness: 0.75,
           metalness: 0.02,
           side: THREE.DoubleSide,
@@ -559,7 +564,7 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
       }
 
       // Default: Clinical Enamel
-      const color = isUpper
+      const defaultColor = isUpper
         ? archDistinction
           ? 0xfffaf0
           : 0xf8fafc
@@ -567,7 +572,8 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
         ? 0xf0fdf4
         : 0xf8fafc;
       const mat = new THREE.MeshPhysicalMaterial({
-        color,
+        color: hasVertexColors ? 0xffffff : defaultColor,
+        vertexColors: hasVertexColors,
         roughness: 0.28,
         metalness: 0.04,
         clearcoat: 0.45,
@@ -1251,7 +1257,7 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
           lowerMeshRef.current.geometry.dispose();
         }
 
-        const upperMesh = new THREE.Mesh(upperGeom, createDentalMaterial(true));
+        const upperMesh = new THREE.Mesh(upperGeom, createDentalMaterial(true, upperGeom));
         upperMesh.visible = settings.showUpper;
         upperMesh.position.set(
           currentKinematics.upperPosition.x,
@@ -1259,7 +1265,7 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
           currentKinematics.upperPosition.z
         );
 
-        const lowerMesh = new THREE.Mesh(lowerGeom, createDentalMaterial(false));
+        const lowerMesh = new THREE.Mesh(lowerGeom, createDentalMaterial(false, lowerGeom));
         lowerMesh.visible = settings.showLower;
         lowerMesh.position.set(
           currentKinematics.lowerPosition.x,

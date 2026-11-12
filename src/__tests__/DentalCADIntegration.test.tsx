@@ -8,6 +8,7 @@ import {
   createUncompressedZipBuffer,
   extractDentalFilesFromZip,
   buildCaseBundleFromFiles,
+  buildCaseBundlesFromFiles,
   DEFAULT_CASE_BUNDLE,
   detectInitialLocale,
   LOCALE_STORAGE_KEY,
@@ -325,7 +326,31 @@ describe('DentalCAD Pages Application Integration Tests', () => {
     expect(bundleFromZip.assets.upperStlFileName).toBe('99887766_shell_occlusion_u.stl');
     expect(bundleFromZip.assets.lowerStlFileName).toBe('99887766_shell_occlusion_l.stl');
 
-    // 4. Test ?url= local path banner rendering when opening with ?url="/Users/.../Export_99887766.zip"
+    // 4. Test uploading multiple .zip files creating multiple distinct cases & automatic deduplication
+    const zipBuffer2 = createUncompressedZipBuffer([
+      { name: 'Export_11223344/11223344_u.stl', content: 'solid upper 2' },
+      { name: 'Export_11223344/11223344_l.stl', content: 'solid lower 2' },
+      {
+        name: 'Export_11223344/11223344_v50.xml',
+        content: '<DentalCAD><OrderID>11223344</OrderID><PatientName>Alice Wang</PatientName></DentalCAD>',
+      },
+    ]);
+    const zipFile2 = new File([zipBuffer2], 'Export_11223344.zip', { type: 'application/zip' });
+    const duplicateZipFile1 = new File([zipBuffer], 'Export_99887766_copy.zip', {
+      type: 'application/zip',
+    });
+
+    // Pass 3 zips (2 unique + 1 duplicate)
+    const multiBundles = await buildCaseBundlesFromFiles(
+      [zipFile, zipFile2, duplicateZipFile1],
+      DEFAULT_CASE_BUNDLE
+    );
+    // Automatic deduplication should produce exactly 2 distinct bundles
+    expect(multiBundles).toHaveLength(2);
+    expect(multiBundles.map((b) => b.id)).toEqual(['99887766', '11223344']);
+    expect(multiBundles[1].metadata.patientName).toBe('Alice Wang');
+
+    // 5. Test ?url= local path banner rendering when opening with ?url="/Users/.../Export_99887766.zip"
     const originalUrl = window.location.href;
     window.history.replaceState(
       {},

@@ -237,15 +237,15 @@ export function parseScannerXmlString(
 }
 
 /**
- * Build a complete DentalCaseBundle from user-selected or dropped files AND persist to IndexedDB.
- * Supports multi-vendor intraoral scanner exports (STL + XML + JPG + PDF + HTML).
+ * Internal helper to build a single DentalCaseBundle from files (and unpack its zip if present).
  */
-export async function buildCaseBundleFromFiles(
-  fileList: FileList | File[],
-  currentBundle: DentalCaseBundle
+async function buildSingleCaseBundleFromExpandedFiles(
+  rawInputFiles: File[],
+  currentBundle: DentalCaseBundle,
+  originZipFile?: File
 ): Promise<DentalCaseBundle> {
-  const rawInputFiles = Array.from(fileList);
-  const zipArchiveFile = rawInputFiles.find((f) => f.name.toLowerCase().endsWith('.zip'));
+  const zipArchiveFile =
+    originZipFile || rawInputFiles.find((f) => f.name.toLowerCase().endsWith('.zip'));
   const files = await expandUploadedFilesWithZip(rawInputFiles);
 
   const stlFiles = files.filter((f) => f.name.toLowerCase().endsWith('.stl'));
@@ -287,12 +287,17 @@ export async function buildCaseBundleFromFiles(
     rawXmlV30 = await xmlV30File.text();
   }
 
+  const zipBaseName = zipArchiveFile?.name.replace(/\.zip$/i, '').trim();
   const idMatch =
     upperStl?.name.match(/^(\d+)_/) ||
     lowerStl?.name.match(/^(\d+)_/) ||
     xmlV50File?.name.match(/#?(\d+)/) ||
     zipArchiveFile?.name.match(/(\d{5,})/);
-  const inferredId = idMatch ? idMatch[1] : `dcad-${Date.now().toString().slice(-5)}`;
+  const inferredId = idMatch
+    ? idMatch[1]
+    : zipBaseName
+    ? zipBaseName.replace(/[^a-zA-Z0-9_-]/g, '_').toLowerCase()
+    : `dcad-${Date.now().toString().slice(-5)}`;
 
   const detected = detectScannerVendor(files, rawXmlV50 || rawXmlV30 || '');
 
@@ -309,6 +314,7 @@ export async function buildCaseBundleFromFiles(
           procedureType: 'Browser Local STL Import',
           patientName:
             upperStl?.name.replace(/(_shell_occlusion_[ul]|_u|_l|\.stl)$/gi, '') ||
+            zipBaseName ||
             currentBundle.metadata.patientName,
           scanDate: new Date().toISOString().slice(0, 10),
         };
@@ -462,6 +468,76 @@ export async function buildCaseBundleFromFiles(
   );
 
   return hydrateCaseBundleFromRecord(record);
+}
+
+/**
+ * Build one or more DentalCaseBundles from user-selected or dropped files.
+ * If multiple .zip archives are provided, each .zip is processed independently as its own case.
+ * Loose files (non-zip) are grouped together as a single case.
+ * Automatically deduplicates cases by case ID / orderId so duplicate uploads are safely merged/updated in-place.
+ */
+export async function buildCaseBundlesFromFiles(
+  fileList: FileList | File[],
+  currentBundle: DentalCaseBundle = DEFAULT_CASE_BUNDLE
+): Promise<DentalCaseBundle[]> {
+  const rawInputFiles = Array.from(fileList);
+  const zipFiles = rawInputFiles.filter((f) => f.name.toLowerCase().endsWith('.zip'));
+  const nonZipFiles = rawInputFiles.filter((f) => !f.name.toLowerCase().endsWith('.zip'));
+
+  const createdBundles: DentalCaseBundle[] = [];
+
+  // 1. Process each .zip archive independently
+  for (const zipFile of zipFiles) {
+    try {
+      const bundle = await buildSingleCaseBundleFromExpandedFiles([zipFile], currentBundle, zipFile);
+      createdBundles.push(bundle);
+    } catch (err) {
+      console.warn(`Failed to process zip file ${zipFile.name}:`, err);
+    }
+  }
+
+  // 2. If non-zip files are present (and either no zips were uploaded, or non-zip contains STL/XML assets)
+  if (nonZipFiles.length > 0) {
+    const hasDentalAssets = nonZipFiles.some((f) => {
+      const n = f.name.toLowerCase();
+      return n.endsWith('.stl') || n.endsWith('.xml') || n.endsWith('.html') || n.endsWith('.pdf');
+    });
+    if (hasDentalAssets || zipFiles.length === 0) {
+      try {
+        const bundle = await buildSingleCaseBundleFromExpandedFiles(nonZipFiles, currentBundle);
+        createdBundles.push(bundle);
+      } catch (err) {
+        console.warn('Failed to process loose files:', err);
+      }
+    }
+  }
+
+  // 3. Automatic Deduplication (自動去重):
+  // Deduplicate bundles by orderId / id. If multiple bundles have the same id,
+  // keep the latest one.
+  const deduplicated: DentalCaseBundle[] = [];
+  const seenIds = new Set<string>();
+  for (const b of createdBundles) {
+    const key = b.metadata.orderId || b.id;
+    if (!seenIds.has(key)) {
+      seenIds.add(key);
+      deduplicated.push(b);
+    }
+  }
+
+  return deduplicated.length > 0 ? deduplicated : [currentBundle];
+}
+
+/**
+ * Build a complete DentalCaseBundle from user-selected or dropped files AND persist to IndexedDB.
+ * Supports multi-vendor intraoral scanner exports (STL + XML + JPG + PDF + HTML).
+ */
+export async function buildCaseBundleFromFiles(
+  fileList: FileList | File[],
+  currentBundle: DentalCaseBundle = DEFAULT_CASE_BUNDLE
+): Promise<DentalCaseBundle> {
+  const bundles = await buildCaseBundlesFromFiles(fileList, currentBundle);
+  return bundles[0] || currentBundle;
 }
 
 /**

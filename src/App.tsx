@@ -3,6 +3,7 @@ import {
   DEFAULT_CASE_BUNDLE,
   fetchCaseManifest,
   buildCaseBundleFromFiles,
+  buildCaseBundlesFromFiles,
   updateCaseStlInIndexedDB,
   loadAllCasesFromIndexedDB,
   deleteCaseFromIndexedDB,
@@ -575,14 +576,19 @@ export const App: React.FC = () => {
     };
   }, [handleApplyViewerControl]);
 
-  // Import an entire new case bundle (e.g. .zip or .stl + .xml + .jpg + .pdf) at runtime and persist to IndexedDB
-  const handleImportCaseFiles = async (fileList: FileList) => {
-    const newBundle = await buildCaseBundleFromFiles(fileList, activeCase);
+  // Import one or multiple new case bundles (supports multiple .zip archives, independent cases & auto-deduplication)
+  const handleImportCaseFiles = async (fileList: FileList | File[]) => {
+    const newBundles = await buildCaseBundlesFromFiles(fileList, activeCase);
+    if (!newBundles || newBundles.length === 0) return;
+
     setCases((prev) => {
-      const filtered = prev.filter((c) => c.id !== newBundle.id);
-      return [newBundle, ...filtered];
+      const newIds = new Set(newBundles.map((b) => b.id));
+      const remainingPrev = prev.filter((c) => !newIds.has(c.id));
+      return [...newBundles, ...remainingPrev];
     });
-    handleSelectCase(newBundle.id);
+
+    // Select the first imported case
+    handleSelectCase(newBundles[0].id);
     setPendingUrlDataParam(null);
   };
 
