@@ -206,6 +206,16 @@ describe('DentalCAD Pages Application Integration Tests', () => {
     expect(
       parseFloat(screen.getByTestId('kinematic-incisal-opening').textContent!)
     ).toBeGreaterThan(5);
+
+    // Test unified stroke quick jump buttons (e.g. 50% jump)
+    const latLeftJump50 = screen.getByTestId('stroke-slider-lateral-left-jump-50');
+    fireEvent.click(latLeftJump50);
+    expect(latLeftJump50).toHaveClass('bg-sky-500');
+
+    // Test Global Reset to CO
+    const resetCoBtn = screen.getByTestId('compound-reset-co-btn');
+    fireEvent.click(resetCoBtn);
+    expect(screen.getByTestId('kinematic-incisal-opening')).toHaveTextContent('0.0 mm');
   });
 
   it('toggles Occlusogram heatmap and manages 3D Digital Caliper measurements', () => {

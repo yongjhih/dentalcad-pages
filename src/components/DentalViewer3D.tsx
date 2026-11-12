@@ -2005,11 +2005,13 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
                       CO (0%)
                     </button>
                   </div>
-                  <div className="grid grid-cols-2 gap-x-2 gap-y-1">
+                  <div className="grid grid-cols-2 gap-x-2 gap-y-1.5">
                     <div>
                       <div className="flex justify-between text-[9px] text-slate-500 dark:text-slate-400">
-                        <span>{tr(locale, '開合', 'Hinge')}</span>
-                        <span>{Math.round((settings.articulator.strokes?.hinge ?? 0) * 100)}%</span>
+                        <span>{tr(locale, '1. 開合', '1. Hinge')}</span>
+                        <span className="font-mono text-sky-600 dark:text-sky-400">
+                          {Math.round((settings.articulator.strokes?.hinge ?? 0) * 100)}%
+                        </span>
                       </div>
                       <input
                         type="range"
@@ -2035,10 +2037,13 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
                         className="w-full h-1 bg-slate-300 dark:bg-slate-700 rounded appearance-none cursor-pointer accent-sky-500"
                       />
                     </div>
+
                     <div>
                       <div className="flex justify-between text-[9px] text-slate-500 dark:text-slate-400">
-                        <span>{tr(locale, '前突', 'Protr')}</span>
-                        <span>{Math.round((settings.articulator.strokes?.protrusion ?? 0) * 100)}%</span>
+                        <span>{tr(locale, '2. 前突', '2. Protr')}</span>
+                        <span className="font-mono text-sky-600 dark:text-sky-400">
+                          {Math.round((settings.articulator.strokes?.protrusion ?? 0) * 100)}%
+                        </span>
                       </div>
                       <input
                         type="range"
@@ -2064,24 +2069,21 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
                         className="w-full h-1 bg-slate-300 dark:bg-slate-700 rounded appearance-none cursor-pointer accent-sky-500"
                       />
                     </div>
+
                     <div>
                       <div className="flex justify-between text-[9px] text-slate-500 dark:text-slate-400">
-                        <span>{tr(locale, '側方', 'Lat')}</span>
-                        <span>
-                          {(settings.articulator.strokes?.lateral ?? 0) > 0
-                            ? `+${Math.round((settings.articulator.strokes?.lateral ?? 0) * 100)}% L`
-                            : (settings.articulator.strokes?.lateral ?? 0) < 0
-                            ? `${Math.round((settings.articulator.strokes?.lateral ?? 0) * 100)}% R`
-                            : '0'}
+                        <span>{tr(locale, '3. 左側方', '3. Lat L')}</span>
+                        <span className="font-mono text-sky-600 dark:text-sky-400">
+                          {Math.round(Math.max(0, settings.articulator.strokes?.lateral ?? 0) * 100)}%
                         </span>
                       </div>
                       <input
                         type="range"
-                        min="-1"
+                        min="0"
                         max="1"
-                        step="0.04"
-                        data-testid="hud-stroke-lateral"
-                        value={settings.articulator.strokes?.lateral ?? 0}
+                        step="0.02"
+                        data-testid="hud-stroke-lateral-left"
+                        value={Math.max(0, settings.articulator.strokes?.lateral ?? 0)}
                         onChange={(e) => {
                           const val = parseFloat(e.target.value);
                           onSettingsChange((prev) => ({
@@ -2099,10 +2101,45 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
                         className="w-full h-1 bg-slate-300 dark:bg-slate-700 rounded appearance-none cursor-pointer accent-sky-500"
                       />
                     </div>
+
                     <div>
                       <div className="flex justify-between text-[9px] text-slate-500 dark:text-slate-400">
-                        <span>{tr(locale, '平行', 'Sep')}</span>
-                        <span>{Math.round((settings.articulator.strokes?.parallel ?? 0) * 100)}%</span>
+                        <span>{tr(locale, '4. 右側方', '4. Lat R')}</span>
+                        <span className="font-mono text-sky-600 dark:text-sky-400">
+                          {Math.round(Math.max(0, -(settings.articulator.strokes?.lateral ?? 0)) * 100)}%
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.02"
+                        data-testid="hud-stroke-lateral-right"
+                        value={Math.max(0, -(settings.articulator.strokes?.lateral ?? 0))}
+                        onChange={(e) => {
+                          const val = parseFloat(e.target.value);
+                          onSettingsChange((prev) => ({
+                            ...prev,
+                            articulator: {
+                              ...prev.articulator,
+                              strokes: {
+                                ...(prev.articulator.strokes ?? DEFAULT_ARTICULATOR_STROKES),
+                                lateral: -val,
+                              },
+                              progress: Math.max(prev.articulator.progress, 0.01),
+                            },
+                          }));
+                        }}
+                        className="w-full h-1 bg-slate-300 dark:bg-slate-700 rounded appearance-none cursor-pointer accent-sky-500"
+                      />
+                    </div>
+
+                    <div className="col-span-2">
+                      <div className="flex justify-between text-[9px] text-slate-500 dark:text-slate-400">
+                        <span>{tr(locale, '5. 垂直平行開離', '5. Parallel Z-Sep')}</span>
+                        <span className="font-mono text-sky-600 dark:text-sky-400">
+                          {Math.round((settings.articulator.strokes?.parallel ?? 0) * 100)}%
+                        </span>
                       </div>
                       <input
                         type="range"

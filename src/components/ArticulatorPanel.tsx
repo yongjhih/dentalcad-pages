@@ -248,248 +248,376 @@ export const ArticulatorPanel: React.FC<ArticulatorPanelProps> = ({
           })}
         </div>
 
-        {/* Compound Mixed Strokes Console (Independent Stroke Excursions) */}
-        {articulator.mode === 'compound' && (
-          <div
-            data-testid="compound-mixed-strokes-console"
-            className="bg-sky-500/5 dark:bg-sky-950/30 border border-sky-500/30 rounded-lg p-3 space-y-3 shadow-sm"
-          >
-            <div className="flex items-center justify-between border-b border-sky-500/20 pb-2">
-              <div className="flex items-center gap-1.5 font-semibold text-xs text-sky-900 dark:text-sky-200">
-                <Sliders className="w-3.5 h-3.5 text-sky-500" />
-                <span>
-                  {tr(
-                    locale,
-                    '多行程混用控制台 (各行程獨立調整)',
-                    'Compound Excursion Mixer (Independent Axes)'
-                  )}
-                </span>
-              </div>
-              <button
-                type="button"
-                data-testid="compound-reset-co-btn"
-                onClick={() =>
-                  updateArticulator({
-                    strokes: { hinge: 0, protrusion: 0, lateral: 0, parallel: 0 },
-                    progress: 0,
-                  })
-                }
-                className="text-[11px] text-sky-600 dark:text-sky-400 hover:text-sky-700 dark:hover:text-sky-300 hover:underline font-medium"
-              >
-                {tr(locale, '重設為 CO (0%)', 'Reset to CO (0%)')}
-              </button>
-            </div>
+        {/* Compound Mixed Strokes Console (Independent Stroke Excursions with Unified Logical Layout) */}
+        {articulator.mode === 'compound' && (() => {
+          const strokes = articulator.strokes ?? DEFAULT_ARTICULATOR_STROKES;
+          const hingeVal = strokes.hinge ?? 0;
+          const protrusionVal = strokes.protrusion ?? 0;
+          const rawLateral = strokes.lateral ?? 0;
+          const lateralLeftVal = Math.max(0, rawLateral);
+          const lateralRightVal = Math.max(0, -rawLateral);
+          const parallelVal = strokes.parallel ?? 0;
 
-            {/* 1. Hinge Opening (0..100%) */}
-            <div className="space-y-1">
-              <div className="flex justify-between items-center text-xs">
-                <span className="font-medium text-slate-700 dark:text-slate-300">
-                  {tr(locale, '1. 生理樞軸開合 (Hinge)', '1. Hinge Opening')}
-                </span>
-                <span className="font-mono text-sky-600 dark:text-sky-400 tabular-nums">
-                  {Math.round((articulator.strokes?.hinge ?? 0) * 100)}% ·{' '}
-                  {(
-                    (articulator.strokes?.hinge ?? 0) *
-                    articulator.maxOpeningAngleDeg
-                  ).toFixed(1)}
-                  °
-                </span>
-              </div>
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.01"
-                data-testid="stroke-slider-hinge"
-                value={articulator.strokes?.hinge ?? 0}
-                onChange={(e) => {
-                  const val = parseFloat(e.target.value);
-                  const nextStrokes = {
-                    ...(articulator.strokes ?? DEFAULT_ARTICULATOR_STROKES),
-                    hinge: val,
-                  };
-                  updateArticulator({
-                    strokes: nextStrokes,
-                    progress: Math.max(articulator.progress, 0.01),
-                  });
-                }}
-                className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-sky-500"
-              />
-            </div>
+          const activeCount = [
+            hingeVal > 0.001,
+            protrusionVal > 0.001,
+            lateralLeftVal > 0.001,
+            lateralRightVal > 0.001,
+            parallelVal > 0.001,
+          ].filter(Boolean).length;
 
-            {/* 2. Protrusion (0..100%) */}
-            <div className="space-y-1">
-              <div className="flex justify-between items-center text-xs">
-                <span className="font-medium text-slate-700 dark:text-slate-300">
-                  {tr(locale, '2. 前突切導 (Protrusion)', '2. Anterior Protrusion')}
-                </span>
-                <span className="font-mono text-sky-600 dark:text-sky-400 tabular-nums">
-                  {Math.round((articulator.strokes?.protrusion ?? 0) * 100)}% ·{' '}
-                  {((articulator.strokes?.protrusion ?? 0) * 8.5).toFixed(1)} mm
-                </span>
-              </div>
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.01"
-                data-testid="stroke-slider-protrusion"
-                value={articulator.strokes?.protrusion ?? 0}
-                onChange={(e) => {
-                  const val = parseFloat(e.target.value);
-                  const nextStrokes = {
-                    ...(articulator.strokes ?? DEFAULT_ARTICULATOR_STROKES),
-                    protrusion: val,
-                  };
-                  updateArticulator({
-                    strokes: nextStrokes,
-                    progress: Math.max(articulator.progress, 0.01),
-                  });
-                }}
-                className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-sky-500"
-              />
-            </div>
+          const strokeConfigs = [
+            {
+              id: 'hinge' as const,
+              badgeNum: '1',
+              name: tr(locale, '生理髁突開閉 (Hinge)', 'Hinge Axis Opening'),
+              sub: tr(locale, '純髁頭旋轉', 'Pure Condylar Rotation'),
+              value: hingeVal,
+              displayValue: `${Math.round(hingeVal * 100)}% · ${(
+                hingeVal * articulator.maxOpeningAngleDeg
+              ).toFixed(1)}°`,
+              testId: 'stroke-slider-hinge',
+              onChange: (val: number) => {
+                updateArticulator({
+                  strokes: { ...strokes, hinge: val },
+                  progress: Math.max(articulator.progress, 0.01),
+                });
+              },
+            },
+            {
+              id: 'protrusion' as const,
+              badgeNum: '2',
+              name: tr(locale, '前突運動 (Protrusion)', 'Anterior Protrusion'),
+              sub: tr(locale, '切導向前滑移', 'Forward Incisal Slide'),
+              value: protrusionVal,
+              displayValue: `${Math.round(protrusionVal * 100)}% · ${(
+                protrusionVal * 8.5
+              ).toFixed(1)} mm`,
+              testId: 'stroke-slider-protrusion',
+              onChange: (val: number) => {
+                updateArticulator({
+                  strokes: { ...strokes, protrusion: val },
+                  progress: Math.max(articulator.progress, 0.01),
+                });
+              },
+            },
+            {
+              id: 'lateral_left' as const,
+              badgeNum: '3',
+              name: tr(locale, '左側方運動 (Left Lateral)', 'Left Lateral Excursion'),
+              sub: tr(locale, '左側工作側導引', 'Working Left Guidance'),
+              value: lateralLeftVal,
+              displayValue: `${Math.round(lateralLeftVal * 100)}% · ${(
+                lateralLeftVal * 4.5
+              ).toFixed(1)} mm`,
+              testId: 'stroke-slider-lateral-left',
+              onChange: (val: number) => {
+                updateArticulator({
+                  strokes: { ...strokes, lateral: val },
+                  progress: Math.max(articulator.progress, 0.01),
+                });
+              },
+            },
+            {
+              id: 'lateral_right' as const,
+              badgeNum: '4',
+              name: tr(locale, '右側方運動 (Right Lateral)', 'Right Lateral Excursion'),
+              sub: tr(locale, '右側工作側導引', 'Working Right Guidance'),
+              value: lateralRightVal,
+              displayValue: `${Math.round(lateralRightVal * 100)}% · ${(
+                lateralRightVal * 4.5
+              ).toFixed(1)} mm`,
+              testId: 'stroke-slider-lateral-right',
+              onChange: (val: number) => {
+                updateArticulator({
+                  strokes: { ...strokes, lateral: -val },
+                  progress: Math.max(articulator.progress, 0.01),
+                });
+              },
+            },
+            {
+              id: 'parallel' as const,
+              badgeNum: '5',
+              name: tr(locale, '垂直平行開離 (Parallel)', 'Parallel Z-Separation'),
+              sub: tr(locale, '垂直 CAD 開離', 'Vertical CAD Z-Split'),
+              value: parallelVal,
+              displayValue: `${Math.round(parallelVal * 100)}% · ${(
+                parallelVal * 35
+              ).toFixed(1)} mm`,
+              testId: 'stroke-slider-parallel',
+              onChange: (val: number) => {
+                updateArticulator({
+                  strokes: { ...strokes, parallel: val },
+                  progress: Math.max(articulator.progress, 0.01),
+                });
+              },
+            },
+          ];
 
-            {/* 3. Lateral Excursion (-100% Right .. +100% Left) */}
-            <div className="space-y-1">
-              <div className="flex justify-between items-center text-xs">
-                <span className="font-medium text-slate-700 dark:text-slate-300">
-                  {tr(locale, '3. 側方運動 (Lateral Excursion)', '3. Lateral (Bennett)')}
-                </span>
-                <span className="font-mono text-sky-600 dark:text-sky-400 tabular-nums">
-                  {(articulator.strokes?.lateral ?? 0) > 0
-                    ? `+${Math.round((articulator.strokes?.lateral ?? 0) * 100)}% 左 (Left)`
-                    : (articulator.strokes?.lateral ?? 0) < 0
-                    ? `${Math.round((articulator.strokes?.lateral ?? 0) * 100)}% 右 (Right)`
-                    : tr(locale, '0% 中立 (CO)', '0% Centric (CO)')}
-                </span>
+          return (
+            <div
+              data-testid="compound-mixed-strokes-console"
+              className="bg-sky-500/5 dark:bg-sky-950/20 border border-sky-500/30 rounded-xl p-3 space-y-3 shadow-sm"
+            >
+              {/* Header: Title, Active Counter & Global CO Reset */}
+              <div className="flex items-center justify-between border-b border-sky-500/20 pb-2">
+                <div className="flex items-center gap-2">
+                  <div className="p-1 rounded-md bg-sky-500/15 text-sky-600 dark:text-sky-300">
+                    <Sliders className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-xs text-sky-950 dark:text-sky-100">
+                        {tr(
+                          locale,
+                          '多行程混用控制台 (各行程獨立調整)',
+                          'Compound Excursion Mixer (Independent Axes)'
+                        )}
+                      </span>
+                      <span
+                        className={`px-1.5 py-0.2 rounded text-[10px] font-mono font-medium ${
+                          activeCount > 0
+                            ? 'bg-sky-500 text-white'
+                            : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
+                        }`}
+                      >
+                        {activeCount > 0
+                          ? tr(locale, `${activeCount} 行程混用中`, `${activeCount} Active`)
+                          : tr(locale, 'CO 中心咬合', 'CO Neutral')}
+                      </span>
+                    </div>
+                    <div className="text-[10px] text-slate-500 dark:text-slate-400">
+                      {tr(
+                        locale,
+                        '5 項獨立自由度運動行程，皆具備統一的 0%~100% 刻度與快速跳轉邏輯',
+                        '5 independent DOF strokes sharing unified 0%~100% scales & quick jumps'
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  data-testid="compound-reset-co-btn"
+                  onClick={() =>
+                    updateArticulator({
+                      strokes: { hinge: 0, protrusion: 0, lateral: 0, parallel: 0 },
+                      progress: 0,
+                    })
+                  }
+                  className="flex items-center gap-1 px-2 py-1 rounded bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[11px] text-sky-600 dark:text-sky-400 hover:text-sky-700 dark:hover:text-sky-300 hover:border-sky-500 font-medium shadow-xs transition-colors"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  <span>{tr(locale, '全部重設為 CO', 'Reset All to CO')}</span>
+                </button>
               </div>
+
+              {/* Symmetrical 2-Column Grid of 5 Stroke Channels + 1 Clinical Presets Card */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {strokeConfigs.map((cfg) => {
+                  const isEngaged = cfg.value > 0.001;
+                  return (
+                    <div
+                      key={cfg.id}
+                      className={`p-2.5 rounded-lg border transition-all ${
+                        isEngaged
+                          ? 'bg-white dark:bg-[#0b0f17] border-sky-500/60 shadow-xs ring-1 ring-sky-500/20'
+                          : 'bg-white/80 dark:bg-[#0b0f17]/80 border-slate-200/90 dark:border-slate-800/90'
+                      }`}
+                    >
+                      {/* Channel Header */}
+                      <div className="flex items-center justify-between text-xs mb-1.5">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <span
+                            className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                              isEngaged
+                                ? 'bg-sky-500 text-white'
+                                : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
+                            }`}
+                          >
+                            {cfg.badgeNum}
+                          </span>
+                          <div className="truncate">
+                            <span className="font-semibold text-slate-800 dark:text-slate-200 truncate">
+                              {cfg.name}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <span
+                            className={`font-mono text-xs tabular-nums font-semibold ${
+                              isEngaged
+                                ? 'text-sky-600 dark:text-sky-400'
+                                : 'text-slate-400 dark:text-slate-500'
+                            }`}
+                          >
+                            {cfg.displayValue}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => cfg.onChange(0)}
+                            title={tr(locale, '歸零此行程', 'Zero this stroke')}
+                            className={`p-0.5 rounded text-[10px] transition-colors ${
+                              isEngaged
+                                ? 'text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 cursor-pointer'
+                                : 'opacity-0 pointer-events-none'
+                            }`}
+                          >
+                            <RotateCcw className="w-3 h-3" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Continuous Excursion Slider */}
+                      <div className="py-0.5">
+                        <input
+                          type="range"
+                          min="0"
+                          max="1"
+                          step="0.01"
+                          data-testid={cfg.testId}
+                          value={cfg.value}
+                          onChange={(e) => cfg.onChange(parseFloat(e.target.value))}
+                          className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-sky-500"
+                        />
+                      </div>
+
+                      {/* Consistent Quick Jump Percentage Buttons (0%, 25%, 50%, 75%, 100%) */}
+                      <div className="grid grid-cols-5 gap-1 pt-1.5">
+                        {[
+                          { label: '0%', val: 0 },
+                          { label: '25%', val: 0.25 },
+                          { label: '50%', val: 0.5 },
+                          { label: '75%', val: 0.75 },
+                          { label: '100%', val: 1.0 },
+                        ].map((jump) => {
+                          const isJumpActive = Math.abs(cfg.value - jump.val) < 0.015;
+                          return (
+                            <button
+                              key={jump.label}
+                              type="button"
+                              data-testid={`${cfg.testId}-jump-${jump.val * 100}`}
+                              onClick={() => cfg.onChange(jump.val)}
+                              className={`py-0.5 rounded text-[10px] font-mono transition-colors text-center ${
+                                isJumpActive
+                                  ? 'bg-sky-500 text-white font-semibold shadow-xs'
+                                  : 'bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400'
+                              }`}
+                            >
+                              {jump.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {/* Slot 6: Clinical Combination Presets Card */}
+                <div className="p-2.5 rounded-lg border bg-white/90 dark:bg-[#0b0f17]/90 border-slate-200 dark:border-slate-800 flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-300">
+                          ★
+                        </span>
+                        <span className="font-semibold text-xs text-slate-800 dark:text-slate-200">
+                          {tr(locale, '臨床常用混用組合預設', 'Clinical Presets')}
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-slate-400 font-mono">
+                        Presets
+                      </span>
+                    </div>
+                    <div className="text-[10px] text-slate-500 dark:text-slate-400 mb-2">
+                      {tr(
+                        locale,
+                        '快速套用常見的多行程複合咬合運動狀態',
+                        'Quick-apply standard compound mandibular motions'
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-1 text-[11px]">
+                    <button
+                      type="button"
+                      data-testid="preset-mix-protrusion-open"
+                      onClick={() =>
+                        updateArticulator({
+                          strokes: { hinge: 0.2, protrusion: 0.65, lateral: 0, parallel: 0 },
+                          progress: 1.0,
+                        })
+                      }
+                      className="px-2 py-1 rounded bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-sky-500 text-left truncate text-slate-700 dark:text-slate-300 transition-colors"
+                    >
+                      {tr(locale, '前突切導 + 開合', 'Protrusion + Open')}
+                    </button>
+                    <button
+                      type="button"
+                      data-testid="preset-mix-left-open"
+                      onClick={() =>
+                        updateArticulator({
+                          strokes: { hinge: 0.18, protrusion: 0, lateral: 0.6, parallel: 0 },
+                          progress: 1.0,
+                        })
+                      }
+                      className="px-2 py-1 rounded bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-sky-500 text-left truncate text-slate-700 dark:text-slate-300 transition-colors"
+                    >
+                      {tr(locale, '左側方 + 開合', 'Left Lat + Open')}
+                    </button>
+                    <button
+                      type="button"
+                      data-testid="preset-mix-right-open"
+                      onClick={() =>
+                        updateArticulator({
+                          strokes: { hinge: 0.18, protrusion: 0, lateral: -0.6, parallel: 0 },
+                          progress: 1.0,
+                        })
+                      }
+                      className="px-2 py-1 rounded bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-sky-500 text-left truncate text-slate-700 dark:text-slate-300 transition-colors"
+                    >
+                      {tr(locale, '右側方 + 開合', 'Right Lat + Open')}
+                    </button>
+                    <button
+                      type="button"
+                      data-testid="preset-mix-tripod"
+                      onClick={() =>
+                        updateArticulator({
+                          strokes: { hinge: 0.15, protrusion: 0.35, lateral: 0.3, parallel: 0 },
+                          progress: 1.0,
+                        })
+                      }
+                      className="px-2 py-1 rounded bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-sky-500 text-left truncate text-slate-700 dark:text-slate-300 transition-colors"
+                    >
+                      {tr(locale, '咬合干擾 (Tripod)', 'Tripod Contact')}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Hidden alias slider for backward compatibility with stroke-slider-lateral queries if needed */}
               <input
                 type="range"
                 min="-1"
                 max="1"
-                step="0.02"
-                data-testid="stroke-slider-lateral"
-                value={articulator.strokes?.lateral ?? 0}
-                onChange={(e) => {
-                  const val = parseFloat(e.target.value);
-                  const nextStrokes = {
-                    ...(articulator.strokes ?? DEFAULT_ARTICULATOR_STROKES),
-                    lateral: val,
-                  };
-                  updateArticulator({
-                    strokes: nextStrokes,
-                    progress: Math.max(articulator.progress, 0.01),
-                  });
-                }}
-                className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-sky-500"
-              />
-              <div className="flex justify-between text-[10px] text-slate-500 dark:text-slate-400 px-0.5">
-                <span>-100% 右側方</span>
-                <span>0 (CO)</span>
-                <span>+100% 左側方</span>
-              </div>
-            </div>
-
-            {/* 4. Parallel Separation (0..100%) */}
-            <div className="space-y-1">
-              <div className="flex justify-between items-center text-xs">
-                <span className="font-medium text-slate-700 dark:text-slate-300">
-                  {tr(
-                    locale,
-                    '4. 垂直平行分離 (Parallel Separation)',
-                    '4. Parallel Z-Separation'
-                  )}
-                </span>
-                <span className="font-mono text-sky-600 dark:text-sky-400 tabular-nums">
-                  {Math.round((articulator.strokes?.parallel ?? 0) * 100)}% ·{' '}
-                  {((articulator.strokes?.parallel ?? 0) * 35).toFixed(1)} mm
-                </span>
-              </div>
-              <input
-                type="range"
-                min="0"
-                max="1"
                 step="0.01"
-                data-testid="stroke-slider-parallel"
-                value={articulator.strokes?.parallel ?? 0}
+                data-testid="stroke-slider-lateral"
+                aria-hidden="true"
+                tabIndex={-1}
+                value={rawLateral}
                 onChange={(e) => {
                   const val = parseFloat(e.target.value);
-                  const nextStrokes = {
-                    ...(articulator.strokes ?? DEFAULT_ARTICULATOR_STROKES),
-                    parallel: val,
-                  };
                   updateArticulator({
-                    strokes: nextStrokes,
+                    strokes: { ...strokes, lateral: val },
                     progress: Math.max(articulator.progress, 0.01),
                   });
                 }}
-                className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-sky-500"
+                className="sr-only"
               />
             </div>
-
-            {/* Quick Combination Presets */}
-            <div className="pt-1.5 border-t border-sky-500/20">
-              <div className="text-[10px] font-medium text-slate-500 dark:text-slate-400 mb-1.5">
-                {tr(locale, '臨床常用混用組合預設：', 'Clinical Combination Presets:')}
-              </div>
-              <div className="grid grid-cols-2 gap-1 text-[11px]">
-                <button
-                  type="button"
-                  data-testid="preset-mix-protrusion-open"
-                  onClick={() =>
-                    updateArticulator({
-                      strokes: { hinge: 0.2, protrusion: 0.65, lateral: 0, parallel: 0 },
-                      progress: 1.0,
-                    })
-                  }
-                  className="px-2 py-1 rounded bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-sky-500 text-left truncate text-slate-700 dark:text-slate-300 transition-colors"
-                >
-                  {tr(locale, '前突切導 + 開合', 'Protrusion + Opening')}
-                </button>
-                <button
-                  type="button"
-                  data-testid="preset-mix-left-open"
-                  onClick={() =>
-                    updateArticulator({
-                      strokes: { hinge: 0.18, protrusion: 0, lateral: 0.6, parallel: 0 },
-                      progress: 1.0,
-                    })
-                  }
-                  className="px-2 py-1 rounded bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-sky-500 text-left truncate text-slate-700 dark:text-slate-300 transition-colors"
-                >
-                  {tr(locale, '左側方引導 + 開合', 'Left Lateral + Opening')}
-                </button>
-                <button
-                  type="button"
-                  data-testid="preset-mix-right-open"
-                  onClick={() =>
-                    updateArticulator({
-                      strokes: { hinge: 0.18, protrusion: 0, lateral: -0.6, parallel: 0 },
-                      progress: 1.0,
-                    })
-                  }
-                  className="px-2 py-1 rounded bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-sky-500 text-left truncate text-slate-700 dark:text-slate-300 transition-colors"
-                >
-                  {tr(locale, '右側方引導 + 開合', 'Right Lateral + Opening')}
-                </button>
-                <button
-                  type="button"
-                  data-testid="preset-mix-tripod"
-                  onClick={() =>
-                    updateArticulator({
-                      strokes: { hinge: 0.15, protrusion: 0.35, lateral: 0.3, parallel: 0 },
-                      progress: 1.0,
-                    })
-                  }
-                  className="px-2 py-1 rounded bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-sky-500 text-left truncate text-slate-700 dark:text-slate-300 transition-colors"
-                >
-                  {tr(locale, '咬合干擾診斷 (Tripod)', 'Bite Interference (Tripod)')}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Playback Bar & Progress Slider */}
         <div className="bg-white dark:bg-[#0b0f17] border border-slate-200 dark:border-slate-800 p-3 rounded-lg space-y-3 shadow-sm dark:shadow-none">
