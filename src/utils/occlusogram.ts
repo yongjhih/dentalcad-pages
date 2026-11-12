@@ -484,7 +484,10 @@ export function createOcclusogramMaterial(params: {
             ? mix(uRectOcclusal.w, uRectOcclusal.z, nArch.y)
             : mix(uRectOcclusal.z, uRectOcclusal.w, nArch.y);
           vec2 uvOcclusal = vec2(mix(uRectOcclusal.x, uRectOcclusal.y, nArch.x), vOcc);
-          vec2 uvFront = vec2(mix(uRectFront.x, uRectFront.y, nComb.x), mix(uRectFront.z, uRectFront.w, nComb.z));
+          float frontSpanX = max(uCombMax.x - uCombMin.x, 0.001) * 0.72;
+          float frontCenterX = (uCombMax.x + uCombMin.x) * 0.5;
+          float nFrontX = clamp((P.x - frontCenterX) / frontSpanX + 0.5, 0.0, 1.0);
+          vec2 uvFront = vec2(mix(uRectFront.x, uRectFront.y, nFrontX), mix(uRectFront.z, uRectFront.w, nComb.z));
           vec2 uvRight = vec2(mix(uRectRight.y, uRectRight.x, nComb.y), mix(uRectRight.z, uRectRight.w, nComb.z));
           vec2 uvLeft  = vec2(mix(uRectLeft.x, uRectLeft.y, nComb.y), mix(uRectLeft.z, uRectLeft.w, nComb.z));
 

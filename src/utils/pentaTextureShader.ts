@@ -193,9 +193,14 @@ export function computePentaProjectedUVs(params: {
       : mix(rects.occlusal.z, rects.occlusal.w, nArch.y),
   };
 
-  // 3. Front (penta_front): X_min (nX=0) is LEFT (uMin = x), X_max (nX=1) is RIGHT (uMax = y)
+  // 3. Front (penta_front): Centered at anterior dental midline (X=0)
+  // FOV covers anterior arch width (~72% of full molar-to-molar combined width)
+  const frontSpanX = Math.max(0.001, (combMax.x - combMin.x) * 0.72);
+  const frontCenterX = (combMax.x + combMin.x) * 0.5;
+  const nFrontX = clamp01((P.x - frontCenterX) / frontSpanX + 0.5);
+
   const uvFront = {
-    u: mix(rects.front.x, rects.front.y, nComb.x),
+    u: mix(rects.front.x, rects.front.y, nFrontX),
     v: mix(rects.front.z, rects.front.w, nComb.z),
   };
 
@@ -345,9 +350,14 @@ export function createPentaTexturedMaterial(params: {
             vOcc
           );
 
-          // 2. Front UV (Anterior is -Y looking toward +Y; X_min is left, X_max is right)
+          // 2. Front UV: Centered at anterior dental midline (X=0)
+          // FOV covers anterior arch width (~72% of full molar width)
+          float frontSpanX = max(uCombMax.x - uCombMin.x, 0.001) * 0.72;
+          float frontCenterX = (uCombMax.x + uCombMin.x) * 0.5;
+          float nFrontX = clamp((P.x - frontCenterX) / frontSpanX + 0.5, 0.0, 1.0);
+
           vec2 uvFront = vec2(
-            mix(uRectFront.x, uRectFront.y, nComb.x),
+            mix(uRectFront.x, uRectFront.y, nFrontX),
             mix(uRectFront.z, uRectFront.w, nComb.z)
           );
 
