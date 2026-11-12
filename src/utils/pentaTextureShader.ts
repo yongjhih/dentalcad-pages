@@ -47,18 +47,8 @@ export function computeImageContentUVRect(img: HTMLImageElement): THREE.Vector4 
         const b = data[idx + 2];
         const a = data[idx + 3];
 
-        if (a <= 20) continue;
-
-        const maxC = Math.max(r, Math.max(g, b));
-        const minC = Math.min(r, Math.min(g, b));
-        const diff = maxC - minC;
-
-        // Light neutral background (pure white, near-white, or neutral light grey like #edf2f7)
-        const isLightNeutralBg = minC > 215 && diff < 16;
-        // Dark neutral background (black contrastor / oral cavity dark shadow)
-        const isDarkNeutralBg = maxC < 30 && diff < 10;
-
-        if (!isLightNeutralBg && !isDarkNeutralBg) {
+        // Non-white and non-transparent pixel (exact logic from 7c782036)
+        if (a > 20 && (r < 245 || g < 245 || b < 245)) {
           if (x < minX) minX = x;
           if (x > maxX) maxX = x;
           if (y < minY) minY = y;
@@ -305,20 +295,14 @@ export function createPentaTexturedMaterial(params: {
 
       // Return foreground weight (0 if transparent/white background pixel, 1 if valid dental pixel)
       float pentaForegroundMask(vec4 col, vec2 uv, vec4 rect) {
-        if (uv.x < rect.x - 0.005 || uv.x > rect.y + 0.005 || uv.y < rect.z - 0.005 || uv.y > rect.w + 0.005) {
+        if (uv.x < rect.x || uv.x > rect.y || uv.y < rect.z || uv.y > rect.w) {
           return 0.0;
         }
         if (col.a < 0.1) {
           return 0.0;
         }
-        float maxC = max(col.r, max(col.g, col.b));
-        float minC = min(col.r, min(col.g, col.b));
-        float diff = maxC - minC;
-        // White/light-neutral background attenuation
-        float lightBg = smoothstep(0.88, 0.98, minC) * (1.0 - smoothstep(0.04, 0.14, diff));
-        // Dark neutral background attenuation
-        float darkBg = (1.0 - smoothstep(0.06, 0.18, maxC)) * (1.0 - smoothstep(0.03, 0.08, diff));
-        return clamp((1.0 - lightBg - darkBg) * col.a, 0.0, 1.0);
+        float minChannel = min(col.r, min(col.g, col.b));
+        return (1.0 - smoothstep(0.90, 0.965, minChannel)) * col.a;
       }
       ` +
       shader.fragmentShader.replace(
@@ -389,11 +373,6 @@ export function createPentaTexturedMaterial(params: {
             ? smoothstep(-0.2, 2.5, P.z)
             : smoothstep(0.2, -2.2, P.z);
 
-          // Occlusal zone: teeth crowns & cusps (prevents fissure projection onto flat alveolar base cut)
-          float isOcclusalZone = uIsUpper > 0.5
-            ? (1.0 - smoothstep(8.0, 14.0, P.z))
-            : smoothstep(-14.0, -8.0, P.z);
-
           // Directional weights:
           // Front: Anterior is -Y (labial faces -Y so -N.y > 0)
           float wFront = pow(max(0.0, -N.y), 1.5) * outward * (1.0 - smoothstep(-32.0, -18.0, P.y)) * archZMask * maskFront;
@@ -402,15 +381,14 @@ export function createPentaTexturedMaterial(params: {
           // Left Buccal: Patient Left is +X (buccal faces +X so N.x > 0)
           float wLeft  = pow(max(0.0,  N.x), 1.5) * outward * smoothstep( 4.0,  14.0, P.x) * archZMask * maskLeft;
           // Occlusal: Top/bottom occlusal table + lingual/palatal anatomy
-          float wOcc   = (pow(abs(N.z), 0.9) + (1.0 - outward * archZMask) * 1.15 + 0.18) * isOcclusalZone * maskOcc;
+          float wOcc   = (pow(abs(N.z), 0.9) + (1.0 - outward * archZMask) * 1.15 + 0.18) * maskOcc;
 
           float totalW = wFront + wRight + wLeft + wOcc;
-          vec3 gingivaBaseColor = vec3(0.82, 0.44, 0.50);
-          vec3 fallbackColor = isOcclusalZone > 0.5 ? vec3(0.92, 0.88, 0.82) : gingivaBaseColor;
+          vec3 fallbackColor = vec3(0.88, 0.78, 0.74);
 
           vec3 blended = totalW > 0.001
             ? (colFront * wFront + colRight * wRight + colLeft * wLeft + colOcc * wOcc) / totalW
-            : (maskOcc > 0.01 && isOcclusalZone > 0.1 ? colOcc : fallbackColor);
+            : (maskOcc > 0.01 ? colOcc : fallbackColor);
 
           diffuseColor.rgb = blended;
         }

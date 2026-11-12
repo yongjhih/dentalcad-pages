@@ -454,18 +454,14 @@ export function createOcclusogramMaterial(params: {
       uniform vec3 uCombMax;
 
       float pentaForegroundMask(vec4 col, vec2 uv, vec4 rect) {
-        if (uv.x < rect.x - 0.005 || uv.x > rect.y + 0.005 || uv.y < rect.z - 0.005 || uv.y > rect.w + 0.005) {
+        if (uv.x < rect.x || uv.x > rect.y || uv.y < rect.z || uv.y > rect.w) {
           return 0.0;
         }
         if (col.a < 0.1) {
           return 0.0;
         }
-        float maxC = max(col.r, max(col.g, col.b));
-        float minC = min(col.r, min(col.g, col.b));
-        float diff = maxC - minC;
-        float lightBg = smoothstep(0.88, 0.98, minC) * (1.0 - smoothstep(0.04, 0.14, diff));
-        float darkBg = (1.0 - smoothstep(0.06, 0.18, maxC)) * (1.0 - smoothstep(0.03, 0.08, diff));
-        return clamp((1.0 - lightBg - darkBg) * col.a, 0.0, 1.0);
+        float minChannel = min(col.r, min(col.g, col.b));
+        return (1.0 - smoothstep(0.90, 0.965, minChannel)) * col.a;
       }
       `
       : '';
@@ -513,23 +509,17 @@ export function createOcclusogramMaterial(params: {
             ? smoothstep(-0.2, 2.5, P.z)
             : smoothstep(0.2, -2.2, P.z);
 
-          // Occlusal zone: teeth crowns & cusps (prevents fissure projection onto flat alveolar base cut)
-          float isOcclusalZone = uIsUpper > 0.5
-            ? (1.0 - smoothstep(8.0, 14.0, P.z))
-            : smoothstep(-14.0, -8.0, P.z);
-
           float wFront = pow(max(0.0, -N.y), 1.5) * outward * (1.0 - smoothstep(-32.0, -18.0, P.y)) * archZMask * maskFront;
           float wRight = pow(max(0.0, -N.x), 1.5) * outward * (1.0 - smoothstep(-14.0, -4.0, P.x)) * archZMask * maskRight;
           float wLeft  = pow(max(0.0,  N.x), 1.5) * outward * smoothstep( 4.0,  14.0, P.x) * archZMask * maskLeft;
-          float wOcc   = (pow(abs(N.z), 0.9) + (1.0 - outward * archZMask) * 1.15 + 0.18) * isOcclusalZone * maskOcc;
+          float wOcc   = (pow(abs(N.z), 0.9) + (1.0 - outward * archZMask) * 1.15 + 0.18) * maskOcc;
 
           float totalW = wFront + wRight + wLeft + wOcc;
-          vec3 gingivaBaseColor = vec3(0.82, 0.44, 0.50);
-          vec3 fallbackColor = isOcclusalZone > 0.5 ? vec3(0.92, 0.88, 0.82) : gingivaBaseColor;
+          vec3 fallbackColor = vec3(0.88, 0.78, 0.74);
 
           if (totalW > 0.001) {
             diffuseColor.rgb = (colFront * wFront + colRight * wRight + colLeft * wLeft + colOcc * wOcc) / totalW;
-          } else if (maskOcc > 0.01 && isOcclusalZone > 0.1) {
+          } else if (maskOcc > 0.01) {
             diffuseColor.rgb = colOcc;
           } else {
             diffuseColor.rgb = fallbackColor;
