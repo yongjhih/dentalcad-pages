@@ -3,24 +3,50 @@ import * as THREE from 'three';
 /**
  * Generate a realistic anatomical 3D dental arch BufferGeometry (14 teeth + alveolar gingiva + upper palate)
  * in the standard coordinate system (Anterior = -Y, Posterior = +Y, Left = +X, Right = -X).
- * Used as an automatic zero-dependency fallback on GitHub Pages when private patient STL files
- * are not committed to the public repository.
+ *
+ * Anatomical Characteristics:
+ * 1. Incisors (Central 11/21 & Lateral 12/22) have flat, chisel-like incisal edges (水平切緣，非尖形).
+ * 2. Only Canines (13/23 "虎牙") have prominent, pointed conical cusp tips (尖銳犬齒尖).
+ * 3. Premolars & Molars have broad bicuspid/multicuspid occlusal tables with central fissures.
+ * 4. Interdental Papillae (齒間乳頭): Pointed triangular gingival peaks located specifically at tooth gaps (牙縫處尖起).
+ * 5. Facial Gingival Margin (唇側齒頸緣): Smooth concave parabolic scallops at the facial center of each tooth crown.
  */
 export function createProceduralDentalArchGeometry(isUpper: boolean): THREE.BufferGeometry {
-  const segU = 160; // Along the parabolic arch (from Right 2nd Molar to Left 2nd Molar)
-  const segV = 50; // Cross-sectional profile (from lingual gingiva -> crown cusps -> buccal gingiva)
+  const segU = 180; // High resolution along the parabolic arch (from Right 2nd Molar to Left 2nd Molar)
+  const segV = 54; // Cross-sectional profile (from lingual gingiva -> crown cusps -> buccal gingiva)
 
   const positions: number[] = [];
   const colors: number[] = [];
   const indices: number[] = [];
 
-  // 14 teeth along the arch parameter s in [-1, 1]
-  const toothCenters = [
-    -0.91, -0.76, -0.62, -0.49, -0.36, -0.22, -0.07,
-     0.07,  0.22,  0.36,  0.49,  0.62,  0.76,  0.91,
+  // 14 teeth along arch parameter s in [-1, 1]:
+  // Incisors: ±0.07 (Central), ±0.22 (Lateral) -> Flat incisal edge!
+  // Canines:  ±0.36 (Canine/虎牙) -> Pointed conical cusp!
+  // Premolars: ±0.49 (1st PM), ±0.62 (2nd PM) -> Bicuspid
+  // Molars:   ±0.76 (1st M), ±0.91 (2nd M) -> Multicuspid
+  const toothDefs = [
+    { type: 'molar',   center: -0.91, halfW: 0.072 },
+    { type: 'molar',   center: -0.76, halfW: 0.072 },
+    { type: 'premolar',center: -0.62, halfW: 0.062 },
+    { type: 'premolar',center: -0.49, halfW: 0.058 },
+    { type: 'canine',  center: -0.36, halfW: 0.058 }, // 虎牙 (尖的)
+    { type: 'lateral', center: -0.22, halfW: 0.052 }, // 門牙 (平的)
+    { type: 'central', center: -0.07, halfW: 0.056 }, // 門牙 (平的)
+    { type: 'central', center:  0.07, halfW: 0.056 }, // 門牙 (平的)
+    { type: 'lateral', center:  0.22, halfW: 0.052 }, // 門牙 (平的)
+    { type: 'canine',  center:  0.36, halfW: 0.058 }, // 虎牙 (尖的)
+    { type: 'premolar',center:  0.49, halfW: 0.058 },
+    { type: 'premolar',center:  0.62, halfW: 0.062 },
+    { type: 'molar',   center:  0.76, halfW: 0.072 },
+    { type: 'molar',   center:  0.91, halfW: 0.072 },
   ];
 
-  // Smoothstep helper for continuous transitions without discrete banding
+  // Interdental gap centers (where gingival papillae form pointed triangular peaks)
+  const gapCenters = [
+    -0.835, -0.69, -0.555, -0.425, -0.29, -0.145, 0.0,
+     0.145,  0.29,  0.425,  0.555,  0.69,  0.835,
+  ];
+
   const smoothstep = (edge0: number, edge1: number, x: number) => {
     const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)));
     return t * t * (3 - 2 * t);
@@ -28,11 +54,11 @@ export function createProceduralDentalArchGeometry(isUpper: boolean): THREE.Buff
 
   // Anatomical color palette
   const colToothBody = new THREE.Color(0xf6f3ea); // VITA A1/A2 Body Enamel
-  const colToothIncisal = new THREE.Color(0xdce7ef); // Translucent incisal edge
+  const colToothIncisal = new THREE.Color(0xdce7ef); // Translucent bluish incisal edge
   const colToothCervical = new THREE.Color(0xeee2c9); // Warm cervical neck enamel
   const colGingivaMargin = new THREE.Color(0xdf798b); // Free gingival margin collar
   const colGingivaAttached = new THREE.Color(0xce6577); // Stippled attached gingiva
-  const colGingivaAlveolar = new THREE.Color(0xb2384a); // Deeper alveolar mucosa / vestibule
+  const colGingivaAlveolar = new THREE.Color(0xb2384a); // Deeper alveolar mucosa
   const colPalateMucosa = new THREE.Color(0xd46e7f); // Palatal mucosa
   const colPalateRaphe = new THREE.Color(0xe59aa8); // Pale median palatine raphe
 
@@ -44,7 +70,6 @@ export function createProceduralDentalArchGeometry(isUpper: boolean): THREE.Buff
     const absS = Math.abs(s);
 
     // Parabolic arch centerline in (X, Y):
-    // Anterior incisors at (0, -43.5), Posterior molars at (±28.5, +6.5)
     const archWidth = isUpper ? 29.5 : 27.5;
     const archX = Math.sign(s) * Math.pow(absS, 0.78) * archWidth;
     const archY = -43.5 + Math.pow(absS, 1.55) * 50.0 + (isUpper ? -1.2 : 0.6);
@@ -56,52 +81,105 @@ export function createProceduralDentalArchGeometry(isUpper: boolean): THREE.Buff
     const nx = dY / len;
     const ny = -dX / len;
 
-    // Continuous tooth crown envelope & interproximal embrasures
-    let toothEnv = 0;
-    const isMolar = absS > 0.42;
-    for (const tc of toothCenters) {
-      const dist = Math.abs(s - tc);
-      const halfW = Math.abs(tc) > 0.42 ? 0.072 : 0.054;
-      if (dist < halfW) {
-        // Smooth cosine tooth crown envelope
-        const local = Math.cos((dist / halfW) * (Math.PI * 0.5));
-        if (local > toothEnv) toothEnv = local;
+    // Identify nearest tooth and compute crown morphology
+    let bestToothWeight = 0;
+    let toothType = 'molar';
+
+    for (const t of toothDefs) {
+      const dist = Math.abs(s - t.center);
+      if (dist < t.halfW) {
+        const u = dist / t.halfW; // 0 at tooth center, 1 at embrasure margin
+        let w = 0;
+        if (t.type === 'canine') {
+          // Canine: Pointed conical cusp (尖銳犬齒)
+          w = Math.cos(u * (Math.PI * 0.5));
+        } else if (t.type === 'central' || t.type === 'lateral') {
+          // Incisors: Flat chisel incisal edge (平切緣，非尖形!)
+          // Flat plateau across 75% of tooth width, then rounding at line angles
+          if (u < 0.75) {
+            w = 1.0;
+          } else {
+            const corner = (u - 0.75) / 0.25;
+            w = Math.cos(corner * (Math.PI * 0.5));
+          }
+        } else {
+          // Premolar / Molar: Broad occlusal table
+          if (u < 0.68) {
+            w = 1.0;
+          } else {
+            const edge = (u - 0.68) / 0.32;
+            w = Math.cos(edge * (Math.PI * 0.5));
+          }
+        }
+
+        if (w > bestToothWeight) {
+          bestToothWeight = w;
+          toothType = t.type;
+        }
       }
     }
 
-    // Decouple alveolar base radius from tooth corrugation to eliminate vertical fluting:
-    // Alveolar gingiva base is smooth and continuous; only the crown bulges anatomically
-    const alveolarRadius = isMolar ? 4.9 : 3.5;
+    // Interdental papilla factor: peaks pointedly at tooth gaps (牙縫處尖起)
+    let papillaPeak = 0;
+    for (const gc of gapCenters) {
+      const dGap = Math.abs(s - gc);
+      if (dGap < 0.045) {
+        // Sharp triangular peak in the gap
+        const p = 1.0 - dGap / 0.045;
+        if (p > papillaPeak) papillaPeak = p;
+      }
+    }
+
+    const isPosterior = absS > 0.42;
+    const isCanine = toothType === 'canine';
+    const isIncisor = toothType === 'central' || toothType === 'lateral';
+
+    // Alveolar bone base has smooth anatomical radius (no fluting)
+    const alveolarRadius = isPosterior ? 4.9 : 3.5;
 
     for (let j = 0; j <= segV; j++) {
-      // v in [0, 1] from inner palatal/lingual base (0) -> crown cusps (0.5) -> outer buccal base (1)
+      // v in [0, 1] from inner lingual base (0) -> crown incisal/occlusal edge (0.5) -> outer buccal base (1)
       const v = j / segV;
       const angle = (v - 0.5) * Math.PI; // -pi/2 (lingual) to +pi/2 (buccal)
 
-      // Crown profile factor: 1 at occlusal/incisal edge (v=0.5), 0 at alveolar margins (v=0 and v=1)
-      const crownFactor = Math.cos(angle); // [0, 1]
-      // Crown influence fades smoothly towards the gingiva base so the alveolar wall remains uniform
+      // Crown profile factor (1 at occlusal/incisal edge, 0 at root base)
+      const crownFactor = Math.cos(angle);
       const crownWeight = Math.pow(crownFactor, 2.0);
 
-      // Radial crown projection (bulges only where tooth is present and near crown)
-      const toothBulge = (isMolar ? 1.0 : 0.75) * Math.pow(toothEnv, 1.2) * crownWeight;
-      const effectiveRadius = alveolarRadius + toothBulge;
+      // Labial/buccal crown bulge
+      const bulgeMagnitude = isCanine ? 1.15 : isPosterior ? 1.0 : 0.65;
+      const crownBulge = bulgeMagnitude * Math.pow(bestToothWeight, 1.2) * crownWeight;
+      const effectiveRadius = alveolarRadius + crownBulge;
 
       const radialOffset = Math.sin(angle) * effectiveRadius;
       const px = archX + nx * radialOffset;
       const py = archY + ny * radialOffset;
 
-      // Vertical Z profile:
-      // Base alveolar height is smooth across the entire arch (no vertical creases)
-      // Only the crown cusps project downward (upper) or upward (lower)
-      const cuspGroove = isMolar
-        ? 1.0 - 0.25 * Math.exp(-Math.pow(angle / 0.22, 2))
-        : 1.0;
+      // Vertical Z morphology:
+      // Incisors: thin blade labio-lingually, flat incisal edge
+      // Canines: pointed cusp tip extending 0.9mm longer
+      // Posterior: double cusps with central occlusal groove
+      let cuspGroove = 1.0;
+      if (isPosterior) {
+        // Double cusp groove along occlusal table
+        cuspGroove = 1.0 - 0.28 * Math.exp(-Math.pow(angle / 0.22, 2));
+      } else if (isIncisor) {
+        // Chisel incisal edge: thin at the incisal edge (v ≈ 0.5)
+        cuspGroove = 1.0 - 0.08 * Math.pow(angle / 0.4, 2);
+      }
 
-      // Crown length extends from the scalloped cervical margin down to the biting table
-      const toothLength = (isMolar ? 7.6 : 8.5) * cuspGroove;
-      // Between teeth (embrasure papilla), the height only dips slightly; cusps reach Z ≈ 0.2
-      const zProjection = crownFactor * (5.5 + toothLength * (0.35 + 0.65 * toothEnv));
+      // Height of tooth crown
+      let crownLen = isCanine ? 9.2 : isPosterior ? 7.6 : 8.5;
+      if (toothType === 'central') crownLen = 8.8; // Central incisor is broad and long
+      if (toothType === 'lateral') crownLen = 8.1; // Lateral incisor is slightly shorter
+
+      // Scalloped interdental papillae:
+      // At the tooth gap (papillaPeak > 0), the gingival collar extends pointedly towards the biting table!
+      // At the tooth facial center (papillaPeak ≈ 0, bestToothWeight ≈ 1), the gingival collar recedes to expose full crown!
+      const papillaExtension = 2.4 * Math.pow(papillaPeak, 1.8);
+
+      // Crown Z projection
+      const zProjection = crownFactor * (5.2 + (crownLen * cuspGroove - papillaExtension) * (0.35 + 0.65 * bestToothWeight));
 
       let pz: number;
       if (isUpper) {
@@ -112,46 +190,48 @@ export function createProceduralDentalArchGeometry(isUpper: boolean): THREE.Buff
 
       positions.push(px, py, pz);
 
-      // Compute smooth continuous anatomical vertex coloring (Zero discrete step functions)
-      // Normalized distance from crown center (0 at cusp/incisal edge, 1 at gingival base)
+      // Normalized distance from crown incisal edge (0 at incisal edge, 1 at root base)
       const crownDist = Math.abs(v - 0.5) / 0.5; // [0, 1]
 
-      // Anatomical cervical line (scalloped gingival margin)
-      // Cervical line is higher at tooth center (crownDist ~ 0.52) and dips interdentally (crownDist ~ 0.38)
-      const cervicalLine = 0.36 + 0.22 * toothEnv;
-      // Smooth enamel transition factor [0 = pure gingiva, 1 = pure tooth enamel]
-      const enamelWeight = smoothstep(cervicalLine - 0.08, cervicalLine + 0.04, 1 - crownDist) * smoothstep(0.08, 0.25, toothEnv);
+      // Anatomical Cervical Line (CEJ) with Papilla Scalloping:
+      // 1. At tooth gaps (papillaPeak > 0): Gingival margin extends downward towards incisal edge (pointed papilla!)
+      // 2. At tooth facial center: Gingival margin recedes apically (smooth concave scallop exposing crown)
+      const cervicalCutoff = 0.48 - 0.22 * papillaPeak + 0.12 * bestToothWeight;
+      const enamelWeight = smoothstep(cervicalCutoff - 0.06, cervicalCutoff + 0.04, 1 - crownDist) * smoothstep(0.12, 0.35, bestToothWeight) * (1.0 - 0.85 * papillaPeak);
 
       const vertexColor = new THREE.Color();
 
       if (enamelWeight > 0.01) {
-        // Enamel gradient: Cervical -> Body -> Incisal edge
         const toothCol = new THREE.Color();
-        if (crownDist < 0.18) {
+        if (crownDist < 0.16) {
           // Incisal edge translucency
-          const tInc = 1 - crownDist / 0.18;
+          const tInc = 1 - crownDist / 0.16;
           toothCol.copy(colToothBody).lerp(colToothIncisal, tInc * 0.7);
-        } else if (crownDist > 0.35) {
+        } else if (crownDist > 0.36) {
           // Warm cervical enamel near the margin
-          const tCerv = Math.min(1, (crownDist - 0.35) / 0.25);
-          toothCol.copy(colToothBody).lerp(colToothCervical, tCerv * 0.7);
+          const tCerv = Math.min(1, (crownDist - 0.36) / 0.24);
+          toothCol.copy(colToothBody).lerp(colToothCervical, tCerv * 0.65);
         } else {
           toothCol.copy(colToothBody);
         }
 
-        // Gingiva color for blending at the cervical margin
         const marginCol = new THREE.Color().copy(colGingivaMargin);
         vertexColor.copy(marginCol).lerp(toothCol, enamelWeight);
       } else {
-        // Continuous gingival mucosal gradient:
-        // Margin (light coral pink) -> Attached gingiva (stippled rose) -> Alveolar mucosa (deep vascular pink)
-        const gingivaT = smoothstep(0.48, 0.95, crownDist);
+        // Continuous gingival gradient:
+        // Free margin (pale pink) -> Attached gingiva (coral) -> Alveolar mucosa (deep rose)
+        const gingivaT = smoothstep(0.46, 0.95, crownDist);
         if (gingivaT < 0.45) {
           const t = gingivaT / 0.45;
           vertexColor.copy(colGingivaMargin).lerp(colGingivaAttached, t);
         } else {
           const t = (gingivaT - 0.45) / 0.55;
           vertexColor.copy(colGingivaAttached).lerp(colGingivaAlveolar, t);
+        }
+
+        // Interdental papilla has delicate light mucosal tip
+        if (papillaPeak > 0.2) {
+          vertexColor.lerp(colGingivaMargin, papillaPeak * 0.4);
         }
       }
 
