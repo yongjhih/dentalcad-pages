@@ -19,6 +19,8 @@ import {
   redoModelEdit,
   deleteSelectedTooth,
   autoAddMatchingTooth,
+  copySelectedTooth,
+  pasteToothFromClipboard,
 } from '../utils/modelEditor';
 
 describe('3D Dental Model & Tooth Editor Engine (modelEditor.ts)', () => {
@@ -340,5 +342,49 @@ describe('3D Dental Model & Tooth Editor Engine (modelEditor.ts)', () => {
       21: { fdi: 21, deleted: true, offsetMm: { x: 0, y: 0, z: 0 }, rotationDeg: 0, scale: 1 },
     });
     expect(gingivaDeleted).toBeDefined();
+  });
+
+  it('supports Ctrl-C and Ctrl-V copying and pasting teeth with copySelectedTooth and pasteToothFromClipboard', () => {
+    const upperGeom = createProceduralDentalArchGeometry(true);
+    const upperTeeth = segmentArchGeometryTeeth(upperGeom, true);
+
+    // 1. Select tooth #11 (Upper Central Incisor)
+    let settings: ModelEditSettings = {
+      ...DEFAULT_MODEL_EDIT_SETTINGS,
+      enabled: true,
+      selectedTarget: { kind: 'native', fdi: 11 as const },
+    };
+
+    // 2. Copy (Ctrl-C)
+    settings = copySelectedTooth(settings, upperTeeth);
+    expect(settings.clipboard).toBeDefined();
+    expect(settings.clipboard?.morphology).toBe('central');
+    expect(settings.clipboard?.isUpper).toBe(true);
+    expect(settings.clipboard?.sourceFdi).toBe(11);
+
+    // 3. Paste (Ctrl-V)
+    settings = pasteToothFromClipboard(settings, upperTeeth);
+    expect(settings.placedTeeth).toHaveLength(1);
+    const pastedTooth = settings.placedTeeth[0];
+    expect(pastedTooth.morphology).toBe('central');
+    expect(pastedTooth.labelZh).toContain('貼上');
+    expect(settings.selectedTarget).toEqual({ kind: 'placed', placedId: pastedTooth.id });
+    expect(canUndo(settings)).toBe(true);
+
+    // 4. Copy the placed tooth (Ctrl-C on placed tooth)
+    settings = copySelectedTooth(settings, upperTeeth);
+    expect(settings.clipboard?.sourceLabelZh).toContain('貼上');
+
+    // 5. Paste again (Ctrl-V second tooth)
+    settings = pasteToothFromClipboard(settings, upperTeeth);
+    expect(settings.placedTeeth).toHaveLength(2);
+
+    // 6. Undo removes the second pasted tooth
+    settings = undoModelEdit(settings);
+    expect(settings.placedTeeth).toHaveLength(1);
+
+    // 7. Undo removes the first pasted tooth
+    settings = undoModelEdit(settings);
+    expect(settings.placedTeeth).toHaveLength(0);
   });
 });

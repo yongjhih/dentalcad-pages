@@ -1,13 +1,11 @@
-import React, { useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ViewportSettings,
   SegmentedToothInfo,
   LocaleMode,
-  PlacedLibraryTooth,
 } from '../../types/dental';
 import {
   DEFAULT_MODEL_EDIT_SETTINGS,
-  getLibraryItemMeta,
   canUndo,
   canRedo,
   undoModelEdit,
@@ -15,6 +13,8 @@ import {
   pushModelEditSnapshot,
   deleteSelectedTooth,
   autoAddMatchingTooth,
+  copySelectedTooth,
+  pasteToothFromClipboard,
 } from '../../utils/modelEditor';
 import { tr } from '../../utils/i18n';
 import {
@@ -45,6 +45,7 @@ export const ViewportEditorBanner: React.FC<ViewportEditorBannerProps> = ({
   locale = 'en',
 }) => {
   const modelEdit = settings.modelEdit || DEFAULT_MODEL_EDIT_SETTINGS;
+  const [copiedFeedback, setCopiedFeedback] = useState<boolean>(false);
 
   const selectedTarget = modelEdit.selectedTarget;
   const selectedNative =
@@ -129,99 +130,25 @@ export const ViewportEditorBanner: React.FC<ViewportEditorBannerProps> = ({
   };
 
   const handleCopySelected = () => {
-    if (selectedPlaced) {
-      onSettingsChange((prev) => {
-        const cur = prev.modelEdit || DEFAULT_MODEL_EDIT_SETTINGS;
-        return {
-          ...prev,
-          modelEdit: {
-            ...cur,
-            clipboard: {
-              sourceLabelZh: selectedPlaced.labelZh,
-              sourceLabelEn: selectedPlaced.labelEn,
-              morphology: selectedPlaced.morphology,
-              isUpper: selectedPlaced.isUpper,
-              rotationDeg: selectedPlaced.rotationDeg,
-              scale: selectedPlaced.scale,
-            },
-          },
-        };
-      });
-      return;
-    }
-
-    if (selectedNative) {
-      const edit = modelEdit.nativeEdits[selectedNative.fdi];
-      onSettingsChange((prev) => {
-        const cur = prev.modelEdit || DEFAULT_MODEL_EDIT_SETTINGS;
-        return {
-          ...prev,
-          modelEdit: {
-            ...cur,
-            clipboard: {
-              sourceLabelZh: `#${selectedNative.fdi} ${selectedNative.labelZh}`,
-              sourceLabelEn: `#${selectedNative.fdi} ${selectedNative.labelEn}`,
-              morphology: selectedNative.morphology,
-              isUpper: selectedNative.isUpper,
-              sourceFdi: selectedNative.fdi,
-              rotationDeg: edit?.rotationDeg || 0,
-              scale: edit?.scale || 1,
-            },
-          },
-        };
-      });
-    }
+    onSettingsChange((prev) => {
+      const cur = prev.modelEdit || DEFAULT_MODEL_EDIT_SETTINGS;
+      if (!cur.selectedTarget) return prev;
+      return {
+        ...prev,
+        modelEdit: copySelectedTooth(cur, segmentedTeeth),
+      };
+    });
+    setCopiedFeedback(true);
+    setTimeout(() => setCopiedFeedback(false), 1500);
   };
 
   const handlePasteClipboard = () => {
-    const clip = modelEdit.clipboard;
-    if (!clip) return;
-
-    // Place near the currently selected tooth or slightly offset on the arch
-    let targetPos = { x: 0, y: -14, z: clip.isUpper ? 1.5 : -1.5 };
-    let targetIsUpper = clip.isUpper;
-
-    if (selectedNative) {
-      const edit = modelEdit.nativeEdits[selectedNative.fdi];
-      const isDeletedSite = Boolean(edit?.deleted) || !selectedNative.presentInBaseline;
-      targetIsUpper = selectedNative.isUpper;
-      targetPos = {
-        x: Number((selectedNative.center.x + (isDeletedSite ? 0 : 3.2)).toFixed(2)),
-        y: Number((selectedNative.center.y + (isDeletedSite ? 0 : 1.5)).toFixed(2)),
-        z: Number(selectedNative.zOcclusal.toFixed(2)),
-      };
-    } else if (selectedPlaced) {
-      targetIsUpper = selectedPlaced.isUpper;
-      targetPos = {
-        x: Number((selectedPlaced.position.x + 3.5).toFixed(2)),
-        y: Number((selectedPlaced.position.y + 1.5).toFixed(2)),
-        z: Number(selectedPlaced.position.z.toFixed(2)),
-      };
-    }
-
-    const meta = getLibraryItemMeta(clip.morphology);
-    const newId = `placed-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-    const newTooth: PlacedLibraryTooth = {
-      id: newId,
-      labelZh: `${clip.sourceLabelZh} (貼上)`,
-      labelEn: `${clip.sourceLabelEn} (Pasted)`,
-      morphology: clip.morphology || meta.morphology,
-      isUpper: targetIsUpper,
-      fdiHint: selectedNative?.fdi || clip.sourceFdi,
-      position: targetPos,
-      rotationDeg: clip.rotationDeg,
-      scale: clip.scale,
-    };
-
     onSettingsChange((prev) => {
-      const cur = pushModelEditSnapshot(prev.modelEdit || DEFAULT_MODEL_EDIT_SETTINGS);
+      const cur = prev.modelEdit || DEFAULT_MODEL_EDIT_SETTINGS;
+      if (!cur.clipboard) return prev;
       return {
         ...prev,
-        modelEdit: {
-          ...cur,
-          placedTeeth: [...cur.placedTeeth, newTooth],
-          selectedTarget: { kind: 'placed', placedId: newId },
-        },
+        modelEdit: pasteToothFromClipboard(cur, segmentedTeeth),
       };
     });
   };
@@ -256,6 +183,7 @@ export const ViewportEditorBanner: React.FC<ViewportEditorBannerProps> = ({
     if (!modelEdit.enabled) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.defaultPrevented) return;
       if (
         e.target instanceof HTMLInputElement ||
         e.target instanceof HTMLTextAreaElement ||
@@ -268,6 +196,7 @@ export const ViewportEditorBanner: React.FC<ViewportEditorBannerProps> = ({
       if (e.key === 'Delete' || e.key === 'Backspace') {
         if (modelEdit.selectedTarget) {
           e.preventDefault();
+          e.stopImmediatePropagation?.();
           handleDeleteSelected();
         }
         return;
@@ -277,26 +206,41 @@ export const ViewportEditorBanner: React.FC<ViewportEditorBannerProps> = ({
       if (!isCmdOrCtrl) return;
 
       const key = e.key.toLowerCase();
+      if (key === 'c') {
+        const hasTextSelection = Boolean(window.getSelection()?.toString().trim().length);
+        if (!hasTextSelection && modelEdit.selectedTarget) {
+          e.preventDefault();
+          e.stopImmediatePropagation?.();
+          handleCopySelected();
+        }
+        return;
+      }
+
+      if (key === 'v') {
+        if (modelEdit.clipboard) {
+          e.preventDefault();
+          e.stopImmediatePropagation?.();
+          handlePasteClipboard();
+        }
+        return;
+      }
+
       if (key === 'z') {
         e.preventDefault();
+        e.stopImmediatePropagation?.();
         if (e.shiftKey) {
           handleRedo();
         } else {
           handleUndo();
         }
-      } else if (key === 'y') {
+        return;
+      }
+
+      if (key === 'y') {
         e.preventDefault();
+        e.stopImmediatePropagation?.();
         handleRedo();
-      } else if (key === 'c') {
-        if (modelEdit.selectedTarget) {
-          e.preventDefault();
-          handleCopySelected();
-        }
-      } else if (key === 'v') {
-        if (modelEdit.clipboard) {
-          e.preventDefault();
-          handlePasteClipboard();
-        }
+        return;
       }
     };
 
@@ -306,6 +250,7 @@ export const ViewportEditorBanner: React.FC<ViewportEditorBannerProps> = ({
     modelEdit.enabled,
     modelEdit.selectedTarget,
     modelEdit.clipboard,
+    segmentedTeeth,
     onSettingsChange,
   ]);
 
@@ -407,11 +352,19 @@ export const ViewportEditorBanner: React.FC<ViewportEditorBannerProps> = ({
             type="button"
             data-testid="viewport-editor-copy-btn"
             onClick={handleCopySelected}
-            title={tr(locale, '複製選取牙齒 (⌘C / Ctrl+C)', 'Copy tooth (⌘C / Ctrl+C)')}
-            className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-[11px] font-medium flex items-center gap-1 border border-slate-300 dark:border-slate-700"
+            title={tr(locale, '複製選取牙齒 (鍵盤快捷鍵：⌘C / Ctrl+C)', 'Copy tooth (Key: ⌘C / Ctrl+C)')}
+            className={`px-2 py-0.5 rounded text-[11px] font-medium flex items-center gap-1 border transition-colors ${
+              copiedFeedback
+                ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/40 shadow-sm'
+                : 'bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border-slate-300 dark:border-slate-700'
+            }`}
           >
-            <Copy className="w-3 h-3" />
-            <span>{tr(locale, '複製', 'Copy')}</span>
+            <Copy className={`w-3 h-3 ${copiedFeedback ? 'text-emerald-500' : ''}`} />
+            <span>
+              {copiedFeedback
+                ? tr(locale, '已複製！', 'Copied!')
+                : tr(locale, '複製 (⌘C)', 'Copy (⌘C)')}
+            </span>
           </button>
 
           <button
@@ -433,10 +386,11 @@ export const ViewportEditorBanner: React.FC<ViewportEditorBannerProps> = ({
           type="button"
           data-testid="viewport-editor-paste-btn"
           onClick={handlePasteClipboard}
-          className="px-2 py-0.5 rounded bg-sky-600 hover:bg-sky-500 text-white text-[11px] font-medium flex items-center gap-1 shadow-sm"
+          title={tr(locale, '貼上剪貼簿牙齒 (鍵盤快捷鍵：⌘V / Ctrl+V)', 'Paste tooth (Key: ⌘V / Ctrl+V)')}
+          className="px-2 py-0.5 rounded bg-sky-600 hover:bg-sky-500 text-white text-[11px] font-medium flex items-center gap-1 shadow-sm transition-colors"
         >
           <ClipboardPaste className="w-3 h-3" />
-          <span>{tr(locale, '貼上牙齒', 'Paste')}</span>
+          <span>{tr(locale, '貼上 (⌘V)', 'Paste (⌘V)')}</span>
         </button>
       )}
 

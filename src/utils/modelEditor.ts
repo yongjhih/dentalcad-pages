@@ -345,6 +345,120 @@ export function autoAddMatchingTooth(
   };
 }
 
+/**
+ * Copies the currently selected tooth (native tooth or placed library tooth) into the clipboard.
+ */
+export function copySelectedTooth(
+  settings: ModelEditSettings,
+  segmentedTeeth: SegmentedToothInfo[]
+): ModelEditSettings {
+  const target = settings.selectedTarget;
+  if (!target) return settings;
+
+  if (target.kind === 'placed' && target.placedId) {
+    const placed = settings.placedTeeth.find((p) => p.id === target.placedId);
+    if (!placed) return settings;
+    return {
+      ...settings,
+      clipboard: {
+        sourceLabelZh: placed.labelZh,
+        sourceLabelEn: placed.labelEn,
+        morphology: placed.morphology,
+        isUpper: placed.isUpper,
+        sourceFdi: placed.fdiHint,
+        rotationDeg: placed.rotationDeg,
+        scale: placed.scale,
+      },
+    };
+  }
+
+  if (target.kind === 'native' && target.fdi) {
+    const native = segmentedTeeth.find((t) => t.fdi === target.fdi);
+    if (!native) return settings;
+    const edit = settings.nativeEdits[native.fdi];
+    return {
+      ...settings,
+      clipboard: {
+        sourceLabelZh: `#${native.fdi} ${native.labelZh}`,
+        sourceLabelEn: `#${native.fdi} ${native.labelEn}`,
+        morphology: native.morphology,
+        isUpper: native.isUpper,
+        sourceFdi: native.fdi,
+        rotationDeg: edit?.rotationDeg || 0,
+        scale: edit?.scale || 1,
+      },
+    };
+  }
+
+  return settings;
+}
+
+/**
+ * Pastes a tooth from the clipboard onto the dental arch near the current selected target or arch center.
+ * Records an undoable snapshot in history.
+ */
+export function pasteToothFromClipboard(
+  settings: ModelEditSettings,
+  segmentedTeeth: SegmentedToothInfo[]
+): ModelEditSettings {
+  const clip = settings.clipboard;
+  if (!clip) return settings;
+
+  const target = settings.selectedTarget;
+  const selectedNative =
+    target?.kind === 'native' && target.fdi
+      ? segmentedTeeth.find((t) => t.fdi === target.fdi) || null
+      : null;
+  const selectedPlaced =
+    target?.kind === 'placed' && target.placedId
+      ? settings.placedTeeth.find((p) => p.id === target.placedId) || null
+      : null;
+
+  let targetPos = { x: 0, y: -14, z: clip.isUpper ? 1.5 : -1.5 };
+  let targetIsUpper = clip.isUpper;
+
+  if (selectedNative) {
+    const edit = settings.nativeEdits[selectedNative.fdi];
+    const isDeletedSite = Boolean(edit?.deleted) || !selectedNative.presentInBaseline;
+    targetIsUpper = selectedNative.isUpper;
+    targetPos = {
+      x: Number((selectedNative.center.x + (isDeletedSite ? 0 : 3.2)).toFixed(2)),
+      y: Number((selectedNative.center.y + (isDeletedSite ? 0 : 1.5)).toFixed(2)),
+      z: Number(selectedNative.zOcclusal.toFixed(2)),
+    };
+  } else if (selectedPlaced) {
+    targetIsUpper = selectedPlaced.isUpper;
+    targetPos = {
+      x: Number((selectedPlaced.position.x + 3.5).toFixed(2)),
+      y: Number((selectedPlaced.position.y + 1.5).toFixed(2)),
+      z: Number(selectedPlaced.position.z.toFixed(2)),
+    };
+  }
+
+  const meta = getLibraryItemMeta(clip.morphology);
+  const newId = `placed-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+  const newTooth: PlacedLibraryTooth = {
+    id: newId,
+    labelZh: `${clip.sourceLabelZh} (貼上)`,
+    labelEn: `${clip.sourceLabelEn} (Pasted)`,
+    morphology: clip.morphology || meta.morphology,
+    isUpper: targetIsUpper,
+    fdiHint: selectedNative?.fdi || clip.sourceFdi,
+    position: targetPos,
+    rotationDeg: clip.rotationDeg,
+    scale: clip.scale,
+  };
+
+  const next = pushModelEditSnapshot(settings);
+  return {
+    ...next,
+    enabled: true,
+    toolMode: 'drag',
+    placedTeeth: [...next.placedTeeth, newTooth],
+    selectedTarget: { kind: 'placed', placedId: newId },
+  };
+}
+
 interface FdiSeedEntry {
   fdi: FdiToothNumber;
   isUpper: boolean;

@@ -21,6 +21,8 @@ import {
   pushModelEditSnapshot,
   deleteSelectedTooth,
   autoAddMatchingTooth,
+  copySelectedTooth,
+  pasteToothFromClipboard,
 } from '../utils/modelEditor';
 import { tr } from '../utils/i18n';
 import {
@@ -57,6 +59,7 @@ export const ModelEditorPanel: React.FC<ModelEditorPanelProps> = ({
 }) => {
   const modelEdit = settings.modelEdit || DEFAULT_MODEL_EDIT_SETTINGS;
   const [libraryIsUpper, setLibraryIsUpper] = useState<boolean>(true);
+  const [copiedFeedback, setCopiedFeedback] = useState<boolean>(false);
 
   const selectedTarget = modelEdit.selectedTarget;
   const selectedNative =
@@ -265,9 +268,34 @@ export const ModelEditorPanel: React.FC<ModelEditorPanelProps> = ({
     });
   };
 
+  const handleCopySelected = () => {
+    onSettingsChange((prev) => {
+      const cur = prev.modelEdit || DEFAULT_MODEL_EDIT_SETTINGS;
+      if (!cur.selectedTarget) return prev;
+      return {
+        ...prev,
+        modelEdit: copySelectedTooth(cur, segmentedTeeth),
+      };
+    });
+    setCopiedFeedback(true);
+    setTimeout(() => setCopiedFeedback(false), 1500);
+  };
+
+  const handlePasteClipboard = () => {
+    onSettingsChange((prev) => {
+      const cur = prev.modelEdit || DEFAULT_MODEL_EDIT_SETTINGS;
+      if (!cur.clipboard) return prev;
+      return {
+        ...prev,
+        modelEdit: pasteToothFromClipboard(cur, segmentedTeeth),
+      };
+    });
+  };
+
   useEffect(() => {
     if (!modelEdit.enabled) return;
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.defaultPrevented) return;
       if (
         e.target instanceof HTMLInputElement ||
         e.target instanceof HTMLTextAreaElement ||
@@ -275,117 +303,69 @@ export const ModelEditorPanel: React.FC<ModelEditorPanelProps> = ({
       ) {
         return;
       }
+
       if (e.key === 'Delete' || e.key === 'Backspace') {
         if (modelEdit.selectedTarget) {
           e.preventDefault();
+          e.stopImmediatePropagation?.();
           onSettingsChange((prev) => ({
             ...prev,
             modelEdit: deleteSelectedTooth(prev.modelEdit || DEFAULT_MODEL_EDIT_SETTINGS),
           }));
         }
+        return;
+      }
+
+      const isCmdOrCtrl = e.metaKey || e.ctrlKey;
+      if (!isCmdOrCtrl) return;
+
+      const key = e.key.toLowerCase();
+      if (key === 'c') {
+        const hasTextSelection = Boolean(window.getSelection()?.toString().trim().length);
+        if (!hasTextSelection && modelEdit.selectedTarget) {
+          e.preventDefault();
+          e.stopImmediatePropagation?.();
+          handleCopySelected();
+        }
+        return;
+      }
+
+      if (key === 'v') {
+        if (modelEdit.clipboard) {
+          e.preventDefault();
+          e.stopImmediatePropagation?.();
+          handlePasteClipboard();
+        }
+        return;
+      }
+
+      if (key === 'z') {
+        e.preventDefault();
+        e.stopImmediatePropagation?.();
+        if (e.shiftKey) {
+          handleRedo();
+        } else {
+          handleUndo();
+        }
+        return;
+      }
+
+      if (key === 'y') {
+        e.preventDefault();
+        e.stopImmediatePropagation?.();
+        handleRedo();
+        return;
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [modelEdit.enabled, modelEdit.selectedTarget, onSettingsChange]);
-
-  const handleCopySelected = () => {
-    if (selectedPlaced) {
-      onSettingsChange((prev) => {
-        const cur = prev.modelEdit || DEFAULT_MODEL_EDIT_SETTINGS;
-        return {
-          ...prev,
-          modelEdit: {
-            ...cur,
-            clipboard: {
-              sourceLabelZh: selectedPlaced.labelZh,
-              sourceLabelEn: selectedPlaced.labelEn,
-              morphology: selectedPlaced.morphology,
-              isUpper: selectedPlaced.isUpper,
-              rotationDeg: selectedPlaced.rotationDeg,
-              scale: selectedPlaced.scale,
-            },
-          },
-        };
-      });
-      return;
-    }
-
-    if (selectedNative) {
-      const edit = modelEdit.nativeEdits[selectedNative.fdi];
-      onSettingsChange((prev) => {
-        const cur = prev.modelEdit || DEFAULT_MODEL_EDIT_SETTINGS;
-        return {
-          ...prev,
-          modelEdit: {
-            ...cur,
-            clipboard: {
-              sourceLabelZh: `#${selectedNative.fdi} ${selectedNative.labelZh}`,
-              sourceLabelEn: `#${selectedNative.fdi} ${selectedNative.labelEn}`,
-              morphology: selectedNative.morphology,
-              isUpper: selectedNative.isUpper,
-              sourceFdi: selectedNative.fdi,
-              rotationDeg: edit?.rotationDeg || 0,
-              scale: edit?.scale || 1,
-            },
-          },
-        };
-      });
-    }
-  };
-
-  const handlePasteClipboard = () => {
-    const clip = modelEdit.clipboard;
-    if (!clip) return;
-
-    let targetPos = { x: 0, y: -14, z: clip.isUpper ? 1.5 : -1.5 };
-    let targetIsUpper = clip.isUpper;
-
-    if (selectedNative) {
-      const edit = modelEdit.nativeEdits[selectedNative.fdi];
-      const isDeletedSite = Boolean(edit?.deleted) || !selectedNative.presentInBaseline;
-      targetIsUpper = selectedNative.isUpper;
-      targetPos = {
-        x: Number((selectedNative.center.x + (isDeletedSite ? 0 : 3.2)).toFixed(2)),
-        y: Number((selectedNative.center.y + (isDeletedSite ? 0 : 1.5)).toFixed(2)),
-        z: Number(selectedNative.zOcclusal.toFixed(2)),
-      };
-    } else if (selectedPlaced) {
-      targetIsUpper = selectedPlaced.isUpper;
-      targetPos = {
-        x: Number((selectedPlaced.position.x + 3.5).toFixed(2)),
-        y: Number((selectedPlaced.position.y + 1.5).toFixed(2)),
-        z: Number(selectedPlaced.position.z.toFixed(2)),
-      };
-    }
-
-    const newId = `placed-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-    const newTooth: PlacedLibraryTooth = {
-      id: newId,
-      labelZh: `${clip.sourceLabelZh} (貼上)`,
-      labelEn: `${clip.sourceLabelEn} (Pasted)`,
-      morphology: clip.morphology,
-      isUpper: targetIsUpper,
-      fdiHint: selectedNative?.fdi || clip.sourceFdi,
-      position: targetPos,
-      rotationDeg: clip.rotationDeg,
-      scale: clip.scale,
-    };
-
-    onSettingsChange((prev) => {
-      const cur = pushModelEditSnapshot(prev.modelEdit || DEFAULT_MODEL_EDIT_SETTINGS);
-      return {
-        ...prev,
-        modelEdit: {
-          ...cur,
-          enabled: true,
-          toolMode: 'drag',
-          placedTeeth: [...cur.placedTeeth, newTooth],
-          selectedTarget: { kind: 'placed', placedId: newId },
-        },
-      };
-    });
-  };
+  }, [
+    modelEdit.enabled,
+    modelEdit.selectedTarget,
+    modelEdit.clipboard,
+    segmentedTeeth,
+    onSettingsChange,
+  ]);
 
   const handleAddToothFromLibrary = (morphology: ToothMorphologyType) => {
     const libMeta =
@@ -851,11 +831,22 @@ export const ModelEditorPanel: React.FC<ModelEditorPanelProps> = ({
                   type="button"
                   data-testid="editor-copy-tooth-btn"
                   onClick={handleCopySelected}
-                  title={tr(locale, '複製選取牙齒', 'Copy tooth')}
-                  className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 border border-slate-300 dark:border-slate-700 flex items-center gap-1 transition-colors"
+                  title={tr(locale, '複製選取牙齒 (鍵盤快捷鍵：⌘C / Ctrl+C)', 'Copy tooth (Key: ⌘C / Ctrl+C)')}
+                  className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold border flex items-center gap-1.5 transition-colors ${
+                    copiedFeedback
+                      ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/40 shadow-sm'
+                      : 'bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 border-slate-300 dark:border-slate-700'
+                  }`}
                 >
-                  <Copy className="w-3.5 h-3.5 text-sky-500" />
-                  <span>{tr(locale, '複製牙齒', 'Copy Tooth')}</span>
+                  <Copy className={`w-3.5 h-3.5 ${copiedFeedback ? 'text-emerald-500' : 'text-sky-500'}`} />
+                  <span>
+                    {copiedFeedback
+                      ? tr(locale, '已複製！', 'Copied!')
+                      : tr(locale, '複製牙齒', 'Copy Tooth')}
+                  </span>
+                  <span className="text-[10px] px-1 py-0.5 rounded bg-black/10 dark:bg-black/30 font-mono font-normal">
+                    Ctrl+C
+                  </span>
                 </button>
 
                 <button
@@ -880,7 +871,8 @@ export const ModelEditorPanel: React.FC<ModelEditorPanelProps> = ({
               data-testid="editor-paste-tooth-btn"
               disabled={!modelEdit.clipboard}
               onClick={handlePasteClipboard}
-              className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors ${
+              title={tr(locale, '貼上剪貼簿牙齒 (鍵盤快捷鍵：⌘V / Ctrl+V)', 'Paste tooth (Key: ⌘V / Ctrl+V)')}
+              className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors ${
                 modelEdit.clipboard
                   ? 'bg-sky-600 hover:bg-sky-500 text-white shadow-sm'
                   : 'bg-slate-100 dark:bg-slate-800/50 text-slate-400 dark:text-slate-600 border border-slate-200 dark:border-slate-800 cursor-not-allowed'
@@ -895,6 +887,9 @@ export const ModelEditorPanel: React.FC<ModelEditorPanelProps> = ({
                       'Paste Tooth'
                     )
                   : tr(locale, '貼上牙齒', 'Paste Tooth')}
+              </span>
+              <span className="text-[10px] px-1 py-0.5 rounded bg-black/20 font-mono font-normal">
+                Ctrl+V
               </span>
             </button>
           </div>
