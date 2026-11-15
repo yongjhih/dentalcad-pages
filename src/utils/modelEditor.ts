@@ -586,12 +586,15 @@ export function extractToothCrownGeometry(
 
 /**
  * Generates an oral mucosal Gingiva Base BufferGeometry with smoothed alveolar ridges / tooth sockets.
- * This separates the gingival jaw tissue from the discrete tooth objects.
+ * Sites of deleted or displaced teeth are smoothly recessed into healed mucosal sockets,
+ * while intact teeth sites retain their natural full geometry without tearing or jagged cliffs.
  */
 export function createGingivaBaseGeometry(
   sourceGeom: THREE.BufferGeometry,
   segmentedTeeth: SegmentedToothInfo[],
-  isUpper: boolean
+  isUpper: boolean,
+  nativeEdits?: Record<number, NativeToothEditOperation>,
+  forceAllRecessed?: boolean
 ): THREE.BufferGeometry {
   const geom = sourceGeom.clone();
   const posAttr = geom.getAttribute('position') as THREE.BufferAttribute;
@@ -599,45 +602,102 @@ export function createGingivaBaseGeometry(
 
   const count = posAttr.count;
   const pos = posAttr.array as Float32Array;
-  const col = new Float32Array(count * 3);
+
+  // Cache original unedited positions on geom.userData
+  if (!geom.userData.origEditPos) {
+    geom.userData.origEditPos = new Float32Array(pos);
+  }
+  const origPos = geom.userData.origEditPos as Float32Array;
+
+  // Setup per-vertex colors
+  const origColAttr = sourceGeom.getAttribute('color') as THREE.BufferAttribute | undefined;
+  let col: Float32Array;
+  if (origColAttr && origColAttr.array.length === count * 3) {
+    col = new Float32Array(origColAttr.array);
+  } else {
+    col = new Float32Array(count * 3);
+    for (let i = 0; i < count; i++) {
+      col[i * 3] = 0.96;
+      col[i * 3 + 1] = 0.95;
+      col[i * 3 + 2] = 0.91;
+    }
+  }
 
   const archTeeth = segmentedTeeth.filter((t) => t.isUpper === isUpper);
 
-  for (let i = 0; i < count; i++) {
-    const idx = i * 3;
-    const x = pos[idx];
-    const y = pos[idx + 1];
-    let z = pos[idx + 2];
+  // Determine which tooth sites require alveolar socket recessing:
+  // - Sites where the tooth is deleted (extracted)
+  // - Sites where the tooth has been moved away from its native position
+  // - Or all sites if forceAllRecessed is explicitly set (e.g. edentulous base inspection)
+  const recessedFdis = new Set<number>();
+  for (const t of archTeeth) {
+    const edit = nativeEdits?.[t.fdi];
+    const isDeleted = Boolean(edit?.deleted);
+    const isMoved = Boolean(
+      edit &&
+      !isDeleted &&
+      (Math.hypot(edit.offsetMm.x, edit.offsetMm.y, edit.offsetMm.z) > 0.35 ||
+        Math.abs(edit.rotationDeg) > 0.5 ||
+        Math.abs(edit.scale - 1.0) > 0.05)
+    );
+    if (forceAllRecessed || isDeleted || isMoved) {
+      recessedFdis.add(t.fdi);
+    }
+  }
 
-    let maxCrownProtrusion = 0;
+  const smoothstep = (e0: number, e1: number, x: number) => {
+    const t = Math.max(0, Math.min(1, (x - e0) / (e1 - e0)));
+    return t * t * (3 - 2 * t);
+  };
 
-    for (const t of archTeeth) {
-      const rad = (t.angleDeg * Math.PI) / 180;
-      const cosA = Math.cos(rad);
-      const sinA = Math.sin(rad);
-      const dx = x - t.center.x;
-      const dy = y - t.center.y;
-      const u = (dx * cosA + dy * sinA) / t.radiusXY.rx;
-      const v = (-dx * sinA + dy * cosA) / t.radiusXY.ry;
-      const r2 = u * u + v * v;
-      if (r2 <= 1.25) {
-        const protrusion = isUpper ? t.zCervical - z : z - t.zCervical;
-        if (protrusion > maxCrownProtrusion) {
-          maxCrownProtrusion = protrusion;
+  if (recessedFdis.size > 0) {
+    const targetTeeth = archTeeth.filter((t) => recessedFdis.has(t.fdi));
+
+    for (let i = 0; i < count; i++) {
+      const idx = i * 3;
+      const x = origPos[idx];
+      const y = origPos[idx + 1];
+      let z = origPos[idx + 2];
+
+      let maxRecessWeight = 0;
+      let targetZ = z;
+
+      for (const t of targetTeeth) {
+        const rad = (t.angleDeg * Math.PI) / 180;
+        const cosA = Math.cos(rad);
+        const sinA = Math.sin(rad);
+        const dx = x - t.center.x;
+        const dy = y - t.center.y;
+        const u = (dx * cosA + dy * sinA) / t.radiusXY.rx;
+        const v = (-dx * sinA + dy * cosA) / t.radiusXY.ry;
+        const dist2 = u * u + v * v;
+        if (dist2 <= 1.44) {
+          const dist = Math.sqrt(dist2);
+          const weight = 1.0 - smoothstep(0.40, 1.25, dist);
+          if (weight > maxRecessWeight) {
+            maxRecessWeight = weight;
+            targetZ = t.zCervical + (isUpper ? 0.4 : -0.4);
+          }
         }
       }
-    }
 
-    if (maxCrownProtrusion > 0.5) {
-      const recessAmount = maxCrownProtrusion * 0.88;
-      z = isUpper ? z + recessAmount : z - recessAmount;
-      pos[idx + 2] = z;
-    }
+      if (maxRecessWeight > 0.01) {
+        const protrusion = isUpper ? targetZ - z : z - targetZ;
+        if (protrusion > 0) {
+          z = z + (isUpper ? protrusion : -protrusion) * maxRecessWeight * 0.90;
+          pos[idx + 2] = z;
 
-    // Oral mucosal coral pink gingiva color (RGB: 0.88, 0.46, 0.54)
-    col[idx] = 0.88;
-    col[idx + 1] = 0.46;
-    col[idx + 2] = 0.54;
+          // Oral mucosal coral pink color for healed/exposed alveolar socket (RGB: 0.88, 0.46, 0.54)
+          col[idx] = col[idx] * (1 - maxRecessWeight) + 0.88 * maxRecessWeight;
+          col[idx + 1] = col[idx + 1] * (1 - maxRecessWeight) + 0.46 * maxRecessWeight;
+          col[idx + 2] = col[idx + 2] * (1 - maxRecessWeight) + 0.54 * maxRecessWeight;
+        }
+      } else {
+        pos[idx + 2] = origPos[idx + 2];
+      }
+    }
+  } else {
+    pos.set(origPos);
   }
 
   posAttr.needsUpdate = true;
@@ -1102,20 +1162,25 @@ export function exportEditedArchToBinaryStl(
     );
 
   if (hasDiscreteNativeEdits && segmentedTeeth) {
-    const gingivaGeom = createGingivaBaseGeometry(archGeom, segmentedTeeth, isUpper);
+    const gingivaGeom = createGingivaBaseGeometry(archGeom, segmentedTeeth, isUpper, nativeEdits);
     appendGeometryTriangles(gingivaGeom);
 
     for (const t of segmentedTeeth) {
       if (t.isUpper !== isUpper) continue;
       const op = nativeEdits[t.fdi];
-      if (op?.deleted) continue;
+      if (!op || op.deleted) continue;
+      const isMoved =
+        Math.hypot(op.offsetMm.x, op.offsetMm.y, op.offsetMm.z) > 0.01 ||
+        Math.abs(op.rotationDeg) > 0.1 ||
+        Math.abs(op.scale - 1) > 0.01;
+      if (!isMoved) continue;
 
-      const tGeom = extractToothCrownGeometry(archGeom, t);
-      const ox = op?.offsetMm.x || 0;
-      const oy = op?.offsetMm.y || 0;
-      const oz = op?.offsetMm.z || 0;
-      const rot = op?.rotationDeg || 0;
-      const scale = op?.scale || 1.0;
+      const tGeom = createLibraryToothGeometry(t.morphology, t.isUpper);
+      const ox = op.offsetMm.x || 0;
+      const oy = op.offsetMm.y || 0;
+      const oz = op.offsetMm.z || 0;
+      const rot = op.rotationDeg || 0;
+      const scale = op.scale || 1.0;
 
       const mat = new THREE.Matrix4();
       const pos = new THREE.Vector3(t.center.x + ox, t.center.y + oy, t.center.z + oz);

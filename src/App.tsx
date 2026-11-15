@@ -527,6 +527,10 @@ export const App: React.FC = () => {
     },
     modelEdit: {
       ...DEFAULT_MODEL_EDIT_SETTINGS,
+      enabled:
+        typeof initialViewerParams.modelEditEnabled === 'boolean'
+          ? initialViewerParams.modelEditEnabled
+          : DEFAULT_MODEL_EDIT_SETTINGS.enabled,
     },
   }));
 

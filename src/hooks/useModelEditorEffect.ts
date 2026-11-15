@@ -9,7 +9,6 @@ import {
   DEFAULT_MODEL_EDIT_SETTINGS,
   segmentArchGeometryTeeth,
   restoreNativeGeometryBeforeEdits,
-  extractToothCrownGeometry,
   createGingivaBaseGeometry,
   createLibraryToothGeometry,
 } from '../utils/modelEditor';
@@ -109,42 +108,39 @@ export function useModelEditorEffect({
     }
 
     // A. Gingiva Base Mesh setup (alveolar mucosa underneath teeth)
-    if (!upperGingivaBaseCacheRef.current && upperMesh.geometry) {
-      upperGingivaBaseCacheRef.current = createGingivaBaseGeometry(
-        upperMesh.geometry,
-        segmentedTeeth,
-        true
-      );
-    }
-    if (!lowerGingivaBaseCacheRef.current && lowerMesh.geometry) {
-      lowerGingivaBaseCacheRef.current = createGingivaBaseGeometry(
-        lowerMesh.geometry,
-        segmentedTeeth,
-        false
-      );
-    }
+    const forceAllRecessed = modelEdit.showToothObjects === false;
+    const gingivaUpper = createGingivaBaseGeometry(
+      upperMesh.geometry,
+      segmentedTeeth,
+      true,
+      modelEdit.nativeEdits,
+      forceAllRecessed
+    );
+    const gingivaLower = createGingivaBaseGeometry(
+      lowerMesh.geometry,
+      segmentedTeeth,
+      false,
+      modelEdit.nativeEdits,
+      forceAllRecessed
+    );
 
     const showGingiva = modelEdit.showGingivaBase !== false;
     upperMesh.visible = settings.showUpper && showGingiva;
     lowerMesh.visible = settings.showLower && showGingiva;
 
-    if (upperGingivaBaseCacheRef.current) {
-      const posG = upperGingivaBaseCacheRef.current.getAttribute('position');
-      const colG = upperGingivaBaseCacheRef.current.getAttribute('color');
-      if (posG && upperMesh.geometry) {
-        upperMesh.geometry.setAttribute('position', posG);
-        if (colG) upperMesh.geometry.setAttribute('color', colG);
-        upperMesh.geometry.computeVertexNormals();
-      }
+    const posGU = gingivaUpper.getAttribute('position');
+    const colGU = gingivaUpper.getAttribute('color');
+    if (posGU && upperMesh.geometry) {
+      upperMesh.geometry.setAttribute('position', posGU);
+      if (colGU) upperMesh.geometry.setAttribute('color', colGU);
+      upperMesh.geometry.computeVertexNormals();
     }
-    if (lowerGingivaBaseCacheRef.current) {
-      const posG = lowerGingivaBaseCacheRef.current.getAttribute('position');
-      const colG = lowerGingivaBaseCacheRef.current.getAttribute('color');
-      if (posG && lowerMesh.geometry) {
-        lowerMesh.geometry.setAttribute('position', posG);
-        if (colG) lowerMesh.geometry.setAttribute('color', colG);
-        lowerMesh.geometry.computeVertexNormals();
-      }
+    const posGL = gingivaLower.getAttribute('position');
+    const colGL = gingivaLower.getAttribute('color');
+    if (posGL && lowerMesh.geometry) {
+      lowerMesh.geometry.setAttribute('position', posGL);
+      if (colGL) lowerMesh.geometry.setAttribute('color', colGL);
+      lowerMesh.geometry.computeVertexNormals();
     }
 
     // Refresh gingiva material with healthy mucosal coral-rose shading
@@ -158,14 +154,15 @@ export function useModelEditorEffect({
       settings.clippingEnabled && clippingPlaneRef.current ? [clippingPlaneRef.current] : [];
     const showTeeth = modelEdit.showToothObjects !== false;
 
-    const syncArchTeeth = (isUpper: boolean, group: THREE.Group, origMesh: THREE.Mesh) => {
+    const syncArchTeeth = (isUpper: boolean, group: THREE.Group) => {
       const archTeeth = segmentedTeeth.filter((t) => t.isUpper === isUpper);
       const cache = isUpper ? upperCrownCacheRef.current : lowerCrownCacheRef.current;
 
       for (const t of archTeeth) {
         let crownGeom = cache.get(t.fdi);
-        if (!crownGeom && origMesh.geometry) {
-          crownGeom = extractToothCrownGeometry(origMesh.geometry, t);
+        if (!crownGeom) {
+          // Use anatomical high-precision tooth geometry for watertight discrete tooth objects
+          crownGeom = createLibraryToothGeometry(t.morphology, t.isUpper);
           cache.set(t.fdi, crownGeom);
         }
         if (!crownGeom) continue;
@@ -179,6 +176,13 @@ export function useModelEditorEffect({
         const isSelected =
           modelEdit.selectedTarget?.kind === 'native' &&
           modelEdit.selectedTarget.fdi === t.fdi;
+        const isMoved = Boolean(
+          edit &&
+          !isDeleted &&
+          (Math.hypot(edit.offsetMm.x, edit.offsetMm.y, edit.offsetMm.z) > 0.35 ||
+            Math.abs(edit.rotationDeg) > 0.5 ||
+            Math.abs(edit.scale - 1.0) > 0.05)
+        );
 
         if (!toothMesh) {
           const mat = new THREE.MeshPhysicalMaterial({
@@ -224,12 +228,24 @@ export function useModelEditorEffect({
         toothMesh.position.set(t.center.x + ox, t.center.y + oy, t.center.z + oz);
         toothMesh.rotation.set(0, 0, (rotDeg * Math.PI) / 180);
         toothMesh.scale.setScalar(scale);
-        toothMesh.visible = showTeeth && !isDeleted;
+
+        // Discrete tooth object visibility:
+        // - Hidden if deleted
+        // - Shown if moved (displaced from socket)
+        // - Shown if selected (with emissive purple highlight)
+        // - Shown if gingiva base is hidden (!showGingiva)
+        // - Or if tooth objects are requested
+        const shouldBeVisible =
+          showTeeth &&
+          !isDeleted &&
+          (isMoved || isSelected || !showGingiva);
+
+        toothMesh.visible = shouldBeVisible;
       }
     };
 
-    syncArchTeeth(true, nativeUpperGroup, upperMesh);
-    syncArchTeeth(false, nativeLowerGroup, lowerMesh);
+    syncArchTeeth(true, nativeUpperGroup);
+    syncArchTeeth(false, nativeLowerGroup);
   }, [
     mapsReady,
     segmentedTeeth,
