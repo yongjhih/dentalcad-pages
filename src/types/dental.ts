@@ -135,6 +135,8 @@ export interface NativeToothEditOperation {
   scale: number;
 }
 
+export type EmergenceProfileType = 'anatomical' | 'ovate' | 'implant';
+
 export interface PlacedLibraryTooth {
   id: string;
   sourceType?: 'library' | 'pasted';
@@ -148,6 +150,9 @@ export interface PlacedLibraryTooth {
   position: Point3D;
   rotationDeg: number;
   scale: number;
+  emergenceProfile?: EmergenceProfileType;
+  subgingivalDepthMm?: number;
+  gingivalAdaptation?: number;
 }
 
 export interface CopiedToothClipboard {
@@ -158,6 +163,9 @@ export interface CopiedToothClipboard {
   sourceFdi?: FdiToothNumber;
   rotationDeg: number;
   scale: number;
+  emergenceProfile?: EmergenceProfileType;
+  subgingivalDepthMm?: number;
+  gingivalAdaptation?: number;
 }
 
 export type ModelEditorToolMode = 'select' | 'drag';

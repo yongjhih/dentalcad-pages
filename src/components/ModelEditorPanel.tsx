@@ -40,6 +40,8 @@ import {
   Sparkles,
   CheckCircle2,
   GripVertical,
+  Layers,
+  Info,
 } from 'lucide-react';
 
 export interface ModelEditorPanelProps {
@@ -408,6 +410,9 @@ export const ModelEditorPanel: React.FC<ModelEditorPanelProps> = ({
       position: spawnPos,
       rotationDeg: spawnRotDeg,
       scale: 1.0,
+      emergenceProfile: 'anatomical',
+      subgingivalDepthMm: 0,
+      gingivalAdaptation: 1.0,
     };
 
     onSettingsChange((prev) => {
@@ -1101,6 +1106,153 @@ export const ModelEditorPanel: React.FC<ModelEditorPanelProps> = ({
                 />
               </div>
             </div>
+
+            {/* Emergence Profile & Gingival Tissue Fusion Controls (Active for Placed Tooth Objects) */}
+            {selectedPlaced && (
+              <div
+                data-testid="emergence-profile-section"
+                className="mt-3 pt-3 border-t border-slate-200/80 dark:border-slate-800/80 space-y-3"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <Layers className="w-3.5 h-3.5 text-violet-500" />
+                    <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                      {tr(
+                        locale,
+                        '穿齦外形與齒齦融合 (Emergence Profile & Fusion)',
+                        'Emergence Profile & Gingival Fusion'
+                      )}
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-violet-600 dark:text-violet-400 font-medium">
+                    {tr(locale, '臨床專業參數', 'Clinical CAD Params')}
+                  </span>
+                </div>
+
+                {/* Profile Mode Segmented Buttons */}
+                <div className="space-y-1">
+                  <label className="text-[11px] font-medium text-slate-600 dark:text-slate-400">
+                    {tr(locale, '穿齦形態模式', 'Emergence Profile Mode')}
+                  </label>
+                  <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-100 dark:bg-slate-950 rounded-lg border border-slate-200 dark:border-slate-800">
+                    <button
+                      type="button"
+                      data-testid="profile-mode-anatomical"
+                      onClick={() =>
+                        updateSelectedPlacedTooth((p) => ({ ...p, emergenceProfile: 'anatomical' }))
+                      }
+                      className={`px-2 py-1.5 rounded-md text-[11px] font-medium text-center transition-all ${
+                        (!selectedPlaced.emergenceProfile || selectedPlaced.emergenceProfile === 'anatomical')
+                          ? 'bg-violet-600 text-white shadow-sm font-semibold'
+                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                      }`}
+                    >
+                      {tr(locale, '自然解剖型', 'Anatomical S')}
+                    </button>
+                    <button
+                      type="button"
+                      data-testid="profile-mode-ovate"
+                      onClick={() =>
+                        updateSelectedPlacedTooth((p) => ({ ...p, emergenceProfile: 'ovate' }))
+                      }
+                      className={`px-2 py-1.5 rounded-md text-[11px] font-medium text-center transition-all ${
+                        selectedPlaced.emergenceProfile === 'ovate'
+                          ? 'bg-violet-600 text-white shadow-sm font-semibold'
+                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                      }`}
+                    >
+                      {tr(locale, '卵圓形橋體', 'Ovate Pontic')}
+                    </button>
+                    <button
+                      type="button"
+                      data-testid="profile-mode-implant"
+                      onClick={() =>
+                        updateSelectedPlacedTooth((p) => ({ ...p, emergenceProfile: 'implant' }))
+                      }
+                      className={`px-2 py-1.5 rounded-md text-[11px] font-medium text-center transition-all ${
+                        selectedPlaced.emergenceProfile === 'implant'
+                          ? 'bg-violet-600 text-white shadow-sm font-semibold'
+                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                      }`}
+                    >
+                      {tr(locale, '植體穿齦袖口', 'Implant Collar')}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Subgingival Depth & Adaptation Intensity Sliders */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-slate-600 dark:text-slate-300">
+                        {tr(locale, '齒頸深入度 (Subgingival)', 'Subgingival Depth')}
+                      </span>
+                      <span className="font-mono tabular-nums font-semibold text-violet-600 dark:text-violet-400">
+                        {(selectedPlaced.subgingivalDepthMm || 0).toFixed(1)} mm
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      data-testid="editor-slider-subgingival"
+                      min={-1.5}
+                      max={1.5}
+                      step={0.1}
+                      value={selectedPlaced.subgingivalDepthMm || 0}
+                      onPointerDown={handleSliderPointerDown}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value);
+                        updateSelectedPlacedTooth((p) => ({ ...p, subgingivalDepthMm: val }));
+                      }}
+                      className="w-full accent-violet-600"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-slate-600 dark:text-slate-300">
+                        {tr(locale, '牙齦邊緣貼合度', 'Gingival Adaptation')}
+                      </span>
+                      <span className="font-mono tabular-nums font-semibold text-violet-600 dark:text-violet-400">
+                        {Math.round((selectedPlaced.gingivalAdaptation !== undefined ? selectedPlaced.gingivalAdaptation : 1.0) * 100)}%
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      data-testid="editor-slider-adaptation"
+                      min={0}
+                      max={1.0}
+                      step={0.05}
+                      value={selectedPlaced.gingivalAdaptation !== undefined ? selectedPlaced.gingivalAdaptation : 1.0}
+                      onPointerDown={handleSliderPointerDown}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value);
+                        updateSelectedPlacedTooth((p) => ({ ...p, gingivalAdaptation: val }));
+                      }}
+                      className="w-full accent-violet-600"
+                    />
+                  </div>
+                </div>
+
+                {/* Educational Clinical Knowledge Card */}
+                <div className="p-2.5 rounded-lg bg-violet-50/70 dark:bg-violet-950/30 border border-violet-100 dark:border-violet-900/40 text-[11px] text-violet-900 dark:text-violet-200 space-y-1">
+                  <div className="flex items-center gap-1 font-semibold text-violet-700 dark:text-violet-300">
+                    <Info className="w-3.5 h-3.5 text-violet-500" />
+                    <span>{tr(locale, '臨床矯正與植牙知識導引', 'Clinical CAD Ortho & Implant Reference')}</span>
+                  </div>
+                  <ul className="list-disc list-inside space-y-0.5 text-slate-600 dark:text-slate-300 text-[10.5px] leading-relaxed">
+                    <li>
+                      <strong className="text-slate-800 dark:text-slate-100">Su & Weisgold 穿齦準則</strong>：關鍵輪廓 (Critical) 支撐游離齦天頂；次臨界 (Subcritical) 採微凹以保障生物學寬度。
+                    </li>
+                    <li>
+                      <strong className="text-slate-800 dark:text-slate-100">Tarnow 牙間乳頭原則</strong>：在鄰牙接觸點處自然隆起牙間乳頭 (Interdental Papilla)，封閉外展隙避免黑三角。
+                    </li>
+                    <li>
+                      <strong className="text-slate-800 dark:text-slate-100">卵圓形橋體 (Ovate Pontic)</strong>：隱形矯正與前牙美觀常用，凸面基底輕壓齒槽脊，塑造無縫穿齦與豐滿袖口。
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

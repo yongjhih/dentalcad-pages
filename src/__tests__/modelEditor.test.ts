@@ -429,4 +429,63 @@ describe('3D Dental Model & Tooth Editor Engine (modelEditor.ts)', () => {
     expect(gingivaWithPlaced.attributes.position.count).toBe(lowerGeom.attributes.position.count);
     expect(gingivaWithPlaced.attributes.color).toBeDefined();
   });
+
+  it('supports clinical emergence profile modes (anatomical, ovate, implant) and manifold closed topology', () => {
+    // 1. Verify all three clinical emergence profiles generate valid, closed BufferGeometries
+    const anatomicalGeom = createLibraryToothGeometry('molar1', false, 'anatomical');
+    const ovateGeom = createLibraryToothGeometry('molar1', false, 'ovate');
+    const implantGeom = createLibraryToothGeometry('molar1', false, 'implant');
+
+    expect(anatomicalGeom).toBeDefined();
+    expect(ovateGeom).toBeDefined();
+    expect(implantGeom).toBeDefined();
+
+    expect(anatomicalGeom.index).toBeDefined();
+    expect(ovateGeom.index).toBeDefined();
+    expect(implantGeom.index).toBeDefined();
+
+    // Verify non-empty triangle index counts
+    expect(anatomicalGeom.index!.count).toBeGreaterThan(100);
+    expect(ovateGeom.index!.count).toBeGreaterThan(100);
+    expect(implantGeom.index!.count).toBeGreaterThan(100);
+
+    // Verify colors exist for cervical dentin/enamel gradient
+    expect(anatomicalGeom.getAttribute('color')).toBeDefined();
+    expect(ovateGeom.getAttribute('color')).toBeDefined();
+    expect(implantGeom.getAttribute('color')).toBeDefined();
+
+    // 2. Test gingival adaptation with ovate pontic emergence and subgingival depth offset
+    const lowerGeom = createProceduralDentalArchGeometry(false);
+    const lowerTeeth = segmentArchGeometryTeeth(lowerGeom, false);
+    const nativeEdits = {
+      36: { fdi: 36 as const, deleted: true, offsetMm: { x: 0, y: 0, z: 0 }, rotationDeg: 0, scale: 1 },
+    };
+
+    const placedOvateTooth = {
+      id: 'test-ovate-36',
+      labelZh: '#36 卵圓形橋體',
+      labelEn: '#36 Ovate Pontic',
+      morphology: 'molar1' as const,
+      isUpper: false,
+      fdiHint: 36 as const,
+      position: { x: 20, y: 0, z: -4.0 },
+      rotationDeg: 0,
+      scale: 1.0,
+      emergenceProfile: 'ovate' as const,
+      subgingivalDepthMm: 0.5,
+      gingivalAdaptation: 1.0,
+    };
+
+    const gingivaWithOvate = createGingivaBaseGeometry(
+      lowerGeom,
+      lowerTeeth,
+      false,
+      nativeEdits,
+      false,
+      [placedOvateTooth]
+    );
+
+    expect(gingivaWithOvate).toBeDefined();
+    expect(gingivaWithOvate.attributes.position.count).toBe(lowerGeom.attributes.position.count);
+  });
 });

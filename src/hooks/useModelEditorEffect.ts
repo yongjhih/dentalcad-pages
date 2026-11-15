@@ -310,7 +310,7 @@ export function useModelEditorEffect({
       settings.clippingEnabled && clippingPlaneRef.current ? [clippingPlaneRef.current] : [];
 
     for (const item of placedTeeth) {
-      const baseGeom = createLibraryToothGeometry(item.morphology, item.isUpper);
+      const baseGeom = createLibraryToothGeometry(item.morphology, item.isUpper, item.emergenceProfile);
       const isSelected =
         modelEdit.enabled &&
         modelEdit.selectedTarget?.kind === 'placed' &&
