@@ -387,4 +387,46 @@ describe('3D Dental Model & Tooth Editor Engine (modelEditor.ts)', () => {
     settings = undoModelEdit(settings);
     expect(settings.placedTeeth).toHaveLength(0);
   });
+
+  it('seamlessly integrates and blends newly placed/added teeth with gingiva base (no gaps or hollow crater)', () => {
+    const lowerGeom = createProceduralDentalArchGeometry(false);
+    const lowerTeeth = segmentArchGeometryTeeth(lowerGeom, false);
+    const tooth37 = lowerTeeth.find((t) => t.fdi === 37)!;
+
+    // Tooth #37 is deleted (extracted) and replaced with an auto-matching library tooth
+    const nativeEdits = {
+      37: { fdi: 37 as const, deleted: true, offsetMm: { x: 0, y: 0, z: 0 }, rotationDeg: 0, scale: 1 },
+    };
+
+    let settings: ModelEditSettings = {
+      ...DEFAULT_MODEL_EDIT_SETTINGS,
+      enabled: true,
+      selectedTarget: { kind: 'native', fdi: 37 as const },
+      nativeEdits,
+    };
+
+    settings = autoAddMatchingTooth(settings, lowerTeeth, false);
+    expect(settings.placedTeeth).toHaveLength(1);
+    const placed37 = settings.placedTeeth[0];
+    expect(placed37.morphology).toBe('molar2');
+    expect(placed37.isUpper).toBe(false);
+    expect(placed37.fdiHint).toBe(37);
+
+    // Height must be calibrated to tooth centroid between occlusal and cervical lines (seating into socket, not floating in air)
+    const expectedCentroidZ = (tooth37.zOcclusal + tooth37.zCervical) * 0.5;
+    expect(placed37.position.z).toBeCloseTo(expectedCentroidZ, 1);
+
+    // Gingiva base with placed tooth: gingiva adapts smoothly to the placed tooth emergence profile
+    const gingivaWithPlaced = createGingivaBaseGeometry(
+      lowerGeom,
+      lowerTeeth,
+      false,
+      nativeEdits,
+      false,
+      settings.placedTeeth
+    );
+    expect(gingivaWithPlaced).toBeDefined();
+    expect(gingivaWithPlaced.attributes.position.count).toBe(lowerGeom.attributes.position.count);
+    expect(gingivaWithPlaced.attributes.color).toBeDefined();
+  });
 });

@@ -253,7 +253,7 @@ export function autoAddMatchingTooth(
 
   let morphology: ToothMorphologyType = 'central';
   let isUpper = fallbackIsUpper;
-  let spawnPos = { x: 0, y: -12, z: fallbackIsUpper ? 1.5 : -1.5 };
+  let spawnPos = { x: 0, y: -12, z: fallbackIsUpper ? 3.8 : -3.8 };
   let spawnRotDeg = 0;
   let labelZh = '齒形';
   let labelEn = 'Tooth';
@@ -267,10 +267,11 @@ export function autoAddMatchingTooth(
       fdiHint = native.fdi;
       const edit = next.nativeEdits[native.fdi];
       const isDeletedOrMissing = Boolean(edit?.deleted) || !native.presentInBaseline;
+      const nativeCentroidZ = Number(((native.zOcclusal + native.zCervical) * 0.5).toFixed(2));
       spawnPos = {
         x: Number((native.center.x + (isDeletedOrMissing ? 0 : 2.5)).toFixed(2)),
         y: Number((native.center.y + (isDeletedOrMissing ? 0 : 1.5)).toFixed(2)),
-        z: Number(native.zOcclusal.toFixed(2)),
+        z: nativeCentroidZ,
       };
       spawnRotDeg = Math.round(native.angleDeg);
       labelZh = native.labelZh;
@@ -300,10 +301,11 @@ export function autoAddMatchingTooth(
       morphology = deletedSeed.morphology;
       isUpper = deletedSeed.isUpper;
       fdiHint = deletedSeed.fdi;
+      const deletedCentroidZ = Number(((deletedSeed.zOcclusal + deletedSeed.zCervical) * 0.5).toFixed(2));
       spawnPos = {
         x: Number(deletedSeed.center.x.toFixed(2)),
         y: Number(deletedSeed.center.y.toFixed(2)),
-        z: Number(deletedSeed.zOcclusal.toFixed(2)),
+        z: deletedCentroidZ,
       };
       spawnRotDeg = Math.round(deletedSeed.angleDeg);
       labelZh = deletedSeed.labelZh;
@@ -317,6 +319,7 @@ export function autoAddMatchingTooth(
       fdiHint = defaultSeed.fdi;
       labelZh = defaultSeed.labelZh;
       labelEn = defaultSeed.labelEn;
+      spawnPos = { x: 0, y: -12, z: fallbackIsUpper ? 3.8 : -3.8 };
     }
   }
 
@@ -414,17 +417,18 @@ export function pasteToothFromClipboard(
       ? settings.placedTeeth.find((p) => p.id === target.placedId) || null
       : null;
 
-  let targetPos = { x: 0, y: -14, z: clip.isUpper ? 1.5 : -1.5 };
+  let targetPos = { x: 0, y: -14, z: clip.isUpper ? 3.8 : -3.8 };
   let targetIsUpper = clip.isUpper;
 
   if (selectedNative) {
     const edit = settings.nativeEdits[selectedNative.fdi];
     const isDeletedSite = Boolean(edit?.deleted) || !selectedNative.presentInBaseline;
     targetIsUpper = selectedNative.isUpper;
+    const nativeCentroidZ = Number(((selectedNative.zOcclusal + selectedNative.zCervical) * 0.5).toFixed(2));
     targetPos = {
       x: Number((selectedNative.center.x + (isDeletedSite ? 0 : 3.2)).toFixed(2)),
       y: Number((selectedNative.center.y + (isDeletedSite ? 0 : 1.5)).toFixed(2)),
-      z: Number(selectedNative.zOcclusal.toFixed(2)),
+      z: nativeCentroidZ,
     };
   } else if (selectedPlaced) {
     targetIsUpper = selectedPlaced.isUpper;
@@ -932,7 +936,8 @@ export function createGingivaBaseGeometry(
   segmentedTeeth: SegmentedToothInfo[],
   isUpper: boolean,
   nativeEdits?: Record<number, NativeToothEditOperation>,
-  forceAllRecessed?: boolean
+  forceAllRecessed?: boolean,
+  placedTeeth?: PlacedLibraryTooth[]
 ): THREE.BufferGeometry {
   const geom = sourceGeom.clone();
   const posAttr = geom.getAttribute('position') as THREE.BufferAttribute;
@@ -962,9 +967,10 @@ export function createGingivaBaseGeometry(
   }
 
   const archTeeth = segmentedTeeth.filter((t) => t.isUpper === isUpper);
+  const archPlaced = (placedTeeth || []).filter((p) => p.isUpper === isUpper);
 
   // Determine which tooth sites require alveolar socket recessing:
-  // - Sites where the tooth is deleted (extracted)
+  // - Sites where the tooth is deleted (extracted) and not occupied by a placed tooth
   // - Sites where the tooth has been moved away from its native position
   // - Or all sites if forceAllRecessed is explicitly set (e.g. edentulous base inspection)
   const recessedFdis = new Set<number>();
@@ -978,7 +984,16 @@ export function createGingivaBaseGeometry(
         Math.abs(edit.rotationDeg) > 0.5 ||
         Math.abs(edit.scale - 1.0) > 0.05)
     );
-    if (forceAllRecessed || isDeleted || isMoved) {
+
+    // If a placed tooth is placed directly over this deleted site, don't leave an empty crater
+    const isOccupiedByPlaced = archPlaced.some(
+      (p) =>
+        p.fdiHint === t.fdi ||
+        Math.hypot(p.position.x - t.center.x, p.position.y - t.center.y) <
+          Math.max(t.radiusXY.rx, t.radiusXY.ry) * 1.15
+    );
+
+    if (forceAllRecessed || isMoved || (isDeleted && !isOccupiedByPlaced)) {
       recessedFdis.add(t.fdi);
     }
   }
@@ -988,7 +1003,9 @@ export function createGingivaBaseGeometry(
     return t * t * (3 - 2 * t);
   };
 
-  if (recessedFdis.size > 0) {
+  const hasModifications = recessedFdis.size > 0 || archPlaced.length > 0;
+
+  if (hasModifications) {
     const targetTeeth = archTeeth.filter((t) => recessedFdis.has(t.fdi));
 
     for (let i = 0; i < count; i++) {
@@ -1000,6 +1017,7 @@ export function createGingivaBaseGeometry(
       let maxRecessWeight = 0;
       let targetZ = z;
 
+      // 1. Blend alveolar sockets for missing / displaced native teeth
       for (const t of targetTeeth) {
         const rad = (t.angleDeg * Math.PI) / 180;
         const cosA = Math.cos(rad);
@@ -1032,16 +1050,61 @@ export function createGingivaBaseGeometry(
         const protrusion = isUpper ? targetZ - z : z - targetZ;
         if (protrusion > 0) {
           z = z + (isUpper ? protrusion : -protrusion) * maxRecessWeight * 0.90;
-          pos[idx + 2] = z;
 
           // Oral mucosal coral pink color for healed/exposed alveolar socket (RGB: 0.88, 0.46, 0.54)
           col[idx] = col[idx] * (1 - maxRecessWeight) + 0.88 * maxRecessWeight;
           col[idx + 1] = col[idx + 1] * (1 - maxRecessWeight) + 0.46 * maxRecessWeight;
           col[idx + 2] = col[idx + 2] * (1 - maxRecessWeight) + 0.54 * maxRecessWeight;
         }
-      } else {
-        pos[idx + 2] = origPos[idx + 2];
       }
+
+      // 2. Anatomical emergence profile blending for newly placed library / pasted teeth
+      let maxPlacedWeight = 0;
+      let targetPlacedZ = z;
+
+      for (const p of archPlaced) {
+        const meta = getLibraryItemMeta(p.morphology);
+        const rx = meta.defaultWidthMm * 0.5 * p.scale;
+        const ry = meta.defaultLengthMm * 0.5 * p.scale;
+        const crownH =
+          p.morphology === 'central'
+            ? isUpper ? 8.8 : 7.8
+            : p.morphology === 'molar1'
+            ? 7.0
+            : p.morphology === 'molar2'
+            ? 6.6
+            : 7.6;
+        const rad = (p.rotationDeg * Math.PI) / 180;
+        const cosA = Math.cos(rad);
+        const sinA = Math.sin(rad);
+        const dx = x - p.position.x;
+        const dy = y - p.position.y;
+        const u = (dx * cosA + dy * sinA) / rx;
+        const v = (-dx * sinA + dy * cosA) / ry;
+        const dist2 = u * u + v * v;
+
+        if (dist2 <= 2.25) {
+          const dist = Math.sqrt(dist2);
+          // Cervical emergence contour height: meets tooth root collar (t=0.82)
+          const cervicalZ = p.position.z + (isUpper ? 0.28 : -0.28) * crownH * p.scale;
+          const blendWeight = 1.0 - smoothstep(0.65, 1.45, dist);
+          if (blendWeight > maxPlacedWeight) {
+            maxPlacedWeight = blendWeight;
+            targetPlacedZ = cervicalZ;
+          }
+        }
+      }
+
+      if (maxPlacedWeight > 0.01) {
+        z = z * (1 - maxPlacedWeight * 0.88) + targetPlacedZ * (maxPlacedWeight * 0.88);
+
+        // Healthy gingival collar coral-rose margin shading (RGB: 0.88, 0.46, 0.54)
+        col[idx] = col[idx] * (1 - maxPlacedWeight) + 0.88 * maxPlacedWeight;
+        col[idx + 1] = col[idx + 1] * (1 - maxPlacedWeight) + 0.46 * maxPlacedWeight;
+        col[idx + 2] = col[idx + 2] * (1 - maxPlacedWeight) + 0.54 * maxPlacedWeight;
+      }
+
+      pos[idx + 2] = z;
     }
   } else {
     pos.set(origPos);
@@ -1509,7 +1572,14 @@ export function exportEditedArchToBinaryStl(
     );
 
   if (hasDiscreteNativeEdits && segmentedTeeth) {
-    const gingivaGeom = createGingivaBaseGeometry(archGeom, segmentedTeeth, isUpper, nativeEdits);
+    const gingivaGeom = createGingivaBaseGeometry(
+      archGeom,
+      segmentedTeeth,
+      isUpper,
+      nativeEdits,
+      false,
+      placedTeeth
+    );
     appendGeometryTriangles(gingivaGeom);
 
     for (const t of segmentedTeeth) {

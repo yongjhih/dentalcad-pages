@@ -115,14 +115,16 @@ export function useModelEditorEffect({
       segmentedTeeth,
       true,
       modelEdit.nativeEdits,
-      forceAllRecessed
+      forceAllRecessed,
+      modelEdit.placedTeeth
     );
     const gingivaLower = createGingivaBaseGeometry(
       lowerMesh.geometry,
       segmentedTeeth,
       false,
       modelEdit.nativeEdits,
-      forceAllRecessed
+      forceAllRecessed,
+      modelEdit.placedTeeth
     );
 
     const showGingiva = modelEdit.showGingivaBase !== false;
@@ -264,6 +266,7 @@ export function useModelEditorEffect({
     modelEdit.enabled,
     modelEdit.selectedTarget,
     modelEdit.nativeEdits,
+    modelEdit.placedTeeth,
     modelEdit.showToothObjects,
     modelEdit.showGingivaBase,
     settings.showUpper,
