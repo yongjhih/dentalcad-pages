@@ -268,11 +268,12 @@ export function autoAddMatchingTooth(
       fdiHint = native.fdi;
       const edit = next.nativeEdits[native.fdi];
       const isDeletedOrMissing = Boolean(edit?.deleted) || !native.presentInBaseline;
-      const nativeCentroidZ = Number(((native.zOcclusal + native.zCervical) * 0.5).toFixed(2));
+      const cuspOffsetZ = (native.isUpper ? -1 : 1) * 2.4;
+      const alignedZ = Number((native.zOcclusal - cuspOffsetZ).toFixed(2));
       spawnPos = {
         x: Number((native.center.x + (isDeletedOrMissing ? 0 : 2.5)).toFixed(2)),
         y: Number((native.center.y + (isDeletedOrMissing ? 0 : 1.5)).toFixed(2)),
-        z: nativeCentroidZ,
+        z: alignedZ,
       };
       spawnRotDeg = Math.round(native.angleDeg);
       labelZh = native.labelZh;
@@ -302,11 +303,12 @@ export function autoAddMatchingTooth(
       morphology = deletedSeed.morphology;
       isUpper = deletedSeed.isUpper;
       fdiHint = deletedSeed.fdi;
-      const deletedCentroidZ = Number(((deletedSeed.zOcclusal + deletedSeed.zCervical) * 0.5).toFixed(2));
+      const cuspOffsetZ = (deletedSeed.isUpper ? -1 : 1) * 2.4;
+      const alignedZ = Number((deletedSeed.zOcclusal - cuspOffsetZ).toFixed(2));
       spawnPos = {
         x: Number(deletedSeed.center.x.toFixed(2)),
         y: Number(deletedSeed.center.y.toFixed(2)),
-        z: deletedCentroidZ,
+        z: alignedZ,
       };
       spawnRotDeg = Math.round(deletedSeed.angleDeg);
       labelZh = deletedSeed.labelZh;
@@ -320,7 +322,7 @@ export function autoAddMatchingTooth(
       fdiHint = defaultSeed.fdi;
       labelZh = defaultSeed.labelZh;
       labelEn = defaultSeed.labelEn;
-      spawnPos = { x: 0, y: -12, z: fallbackIsUpper ? 3.8 : -3.8 };
+      spawnPos = { x: 0, y: -12, z: fallbackIsUpper ? 3.2 : -2.6 };
     }
   }
 
@@ -424,18 +426,19 @@ export function pasteToothFromClipboard(
       ? settings.placedTeeth.find((p) => p.id === target.placedId) || null
       : null;
 
-  let targetPos = { x: 0, y: -14, z: clip.isUpper ? 3.8 : -3.8 };
+  let targetPos = { x: 0, y: -14, z: clip.isUpper ? 3.2 : -2.6 };
   let targetIsUpper = clip.isUpper;
 
   if (selectedNative) {
     const edit = settings.nativeEdits[selectedNative.fdi];
     const isDeletedSite = Boolean(edit?.deleted) || !selectedNative.presentInBaseline;
     targetIsUpper = selectedNative.isUpper;
-    const nativeCentroidZ = Number(((selectedNative.zOcclusal + selectedNative.zCervical) * 0.5).toFixed(2));
+    const cuspOffsetZ = (selectedNative.isUpper ? -1 : 1) * 2.4;
+    const alignedZ = Number((selectedNative.zOcclusal - cuspOffsetZ).toFixed(2));
     targetPos = {
       x: Number((selectedNative.center.x + (isDeletedSite ? 0 : 3.2)).toFixed(2)),
       y: Number((selectedNative.center.y + (isDeletedSite ? 0 : 1.5)).toFixed(2)),
-      z: nativeCentroidZ,
+      z: alignedZ,
     };
   } else if (selectedPlaced) {
     targetIsUpper = selectedPlaced.isUpper;
@@ -1009,6 +1012,7 @@ export function createGingivaBaseGeometry(
 
   if (hasModifications) {
     const targetTeeth = archTeeth.filter((t) => recessedFdis.has(t.fdi));
+    const intactTeeth = archTeeth.filter((t) => !recessedFdis.has(t.fdi));
 
     for (let i = 0; i < count; i++) {
       const idx = i * 3;
@@ -1016,10 +1020,30 @@ export function createGingivaBaseGeometry(
       const y = origPos[idx + 1];
       let z = origPos[idx + 2];
 
-      let maxRecessWeight = 0;
-      let targetZ = z;
+      // A. Intact native teeth protection: DO NOT ALTER intact native teeth crowns (prevents cliffs on adjacent teeth)!
+      let isInsideIntactTooth = false;
+      for (const it of intactTeeth) {
+        const rad = (it.angleDeg * Math.PI) / 180;
+        const dx = x - it.center.x;
+        const dy = y - it.center.y;
+        const cosA = Math.cos(rad);
+        const sinA = Math.sin(rad);
+        const u = (dx * cosA + dy * sinA) / it.radiusXY.rx;
+        const v = (-dx * sinA + dy * cosA) / it.radiusXY.ry;
+        if (u * u + v * v <= 1.15) {
+          isInsideIntactTooth = true;
+          break;
+        }
+      }
+      if (isInsideIntactTooth) {
+        pos[idx + 2] = z;
+        continue;
+      }
 
-      // 1. Blend alveolar sockets for missing / displaced native teeth
+      // B. Smooth continuous alveolar ridge for deleted or displaced native teeth
+      let maxRecessWeight = 0;
+      let targetRidgeZ = z;
+
       for (const t of targetTeeth) {
         const rad = (t.angleDeg * Math.PI) / 180;
         const cosA = Math.cos(rad);
@@ -1038,49 +1062,33 @@ export function createGingivaBaseGeometry(
             ? 0.0
             : Math.min(1.0, moveDist / 1.5);
         const dist2 = u * u + v * v;
-        if (dist2 <= 1.56) {
+        if (dist2 <= 1.15) {
           const dist = Math.sqrt(dist2);
-          const weight = (1.0 - smoothstep(0.35, 1.25, dist)) * moveScale;
+          const weight = (1.0 - smoothstep(0.35, 1.05, dist)) * moveScale;
           if (weight > maxRecessWeight) {
             maxRecessWeight = weight;
-            targetZ = t.zCervical + (isUpper ? 0.35 : -0.35);
+            targetRidgeZ = t.zCervical + (isUpper ? 0.35 : -0.35);
           }
         }
       }
 
       if (maxRecessWeight > 0.01) {
-        const protrusion = isUpper ? targetZ - z : z - targetZ;
+        const protrusion = isUpper ? targetRidgeZ - z : z - targetRidgeZ;
         if (protrusion > 0) {
-          z = z + (isUpper ? protrusion : -protrusion) * maxRecessWeight * 0.90;
+          z = z + (isUpper ? protrusion : -protrusion) * maxRecessWeight * 0.94;
 
-          // Oral mucosal coral pink color for healed/exposed alveolar socket (RGB: 0.88, 0.46, 0.54)
+          // Oral mucosal coral pink color for healed/exposed alveolar ridge
           col[idx] = col[idx] * (1 - maxRecessWeight) + 0.88 * maxRecessWeight;
           col[idx + 1] = col[idx + 1] * (1 - maxRecessWeight) + 0.46 * maxRecessWeight;
           col[idx + 2] = col[idx + 2] * (1 - maxRecessWeight) + 0.54 * maxRecessWeight;
         }
       }
 
-      // 2. Anatomical emergence profile blending for newly placed library / pasted teeth
-      // Follows Su & Weisgold clinical emergence principles (concave subcritical, scalloped critical contour)
-      // and Tarnow's interdental papilla rules for natural pink aesthetics.
-      let maxPlacedWeight = 0;
-      let targetPlacedZ = z;
-      let placedColorR = col[idx];
-      let placedColorG = col[idx + 1];
-      let placedColorB = col[idx + 2];
-
+      // C. Anatomical free gingival margin collar & papillae for placed teeth (NEVER carves craters/holes)
       for (const p of archPlaced) {
         const meta = getLibraryItemMeta(p.morphology);
         const rx = meta.defaultWidthMm * 0.5 * p.scale;
         const ry = meta.defaultLengthMm * 0.5 * p.scale;
-        const crownH =
-          p.morphology === 'central'
-            ? isUpper ? 8.8 : 7.8
-            : p.morphology === 'molar1'
-            ? 7.0
-            : p.morphology === 'molar2'
-            ? 6.6
-            : 7.6;
         const rad = (p.rotationDeg * Math.PI) / 180;
         const cosA = Math.cos(rad);
         const sinA = Math.sin(rad);
@@ -1090,77 +1098,27 @@ export function createGingivaBaseGeometry(
         const v = (-dx * sinA + dy * cosA) / ry;
         const dist2 = u * u + v * v;
 
-        if (dist2 <= 3.8) {
+        if (dist2 <= 1.35) {
           const dist = Math.sqrt(dist2);
-          const phi = Math.atan2(v, u); // Local angle: v is along mesial-distal dental arch, u is buccal-lingual
+          const phi = Math.atan2(v, u);
 
-          // 3D Scalloped Cervical Margin (CEJ):
-          // Peaks coronally at mesial & distal embrasures (sin^2 phi ≈ 1), dips apically at buccal zenith & lingual
-          const scallopMm = (Math.sin(phi) ** 2 * 1.35 - Math.cos(phi) * 0.25) * p.scale;
-          const immersionOffset = (p.subgingivalDepthMm || 0) * (isUpper ? 1 : -1);
-          const cejZ =
-            p.position.z + (isUpper ? 1 : -1) * (0.40 * crownH * p.scale - scallopMm) + immersionOffset;
+          // Subtle natural marginal collar hugging tooth CEJ (0.80 to 1.15)
+          const collarFactor = smoothstep(0.80, 0.96, dist) * (1.0 - smoothstep(1.02, 1.18, dist));
+          const papillaFactor = Math.sin(phi) ** 2 * collarFactor;
 
-          // Interdental papilla elevation towards adjacent interproximal contact areas (mesial & distal)
-          const papillaPeakMm = Math.sin(phi) ** 2 * 1.05 * p.scale * (isUpper ? -1 : 1);
+          const adaptation = p.gingivalAdaptation !== undefined ? p.gingivalAdaptation : 1.0;
+          const liftMm =
+            ((isUpper ? -0.28 : 0.28) * collarFactor + (isUpper ? -0.22 : 0.22) * papillaFactor) * adaptation;
 
-          // User-adjustable gingival adaptation factor (default 1.0 = 100%)
-          const adaptationFactor = p.gingivalAdaptation !== undefined ? p.gingivalAdaptation : 1.0;
+          z += liftMm;
 
-          // Three anatomical zones:
-          // Zone 1 (dist <= 0.88): Receptive Ovate Socket Bed beneath crown
-          // Zone 2 (0.88 < dist <= 1.18): Critical Contour / Free Gingival Margin Collar & Interdental Papilla
-          // Zone 3 (1.18 < dist <= 1.95): Smooth transition into attached gingiva / alveolar ridge
-          let toothTargetZ: number;
-          let weight: number;
-          let toothColR = 0.90;
-          let toothColG = 0.49;
-          let toothColB = 0.56;
-
-          if (dist <= 0.88) {
-            const bedOffset = (isUpper ? 0.70 : -0.70) * (p.emergenceProfile === 'implant' ? 1.15 : 0.85);
-            toothTargetZ = cejZ + bedOffset;
-            weight = 0.96 * adaptationFactor;
-            // Vascular mucosal pink in the sulcus bed
-            toothColR = 0.85;
-            toothColG = 0.42;
-            toothColB = 0.48;
-          } else if (dist <= 1.18) {
-            const collarBlend = smoothstep(0.88, 1.05, dist);
-            const collarZ = cejZ + papillaPeakMm * (1.0 - smoothstep(1.05, 1.18, dist));
-            const bedZ = cejZ + (isUpper ? 0.70 : -0.70) * 0.85;
-            toothTargetZ = bedZ * (1 - collarBlend) + collarZ * collarBlend;
-            weight = (1.0 - smoothstep(1.08, 1.18, dist) * 0.15) * adaptationFactor;
-            // Healthy free gingival margin coral-pink
-            toothColR = 0.90;
-            toothColG = 0.49;
-            toothColB = 0.56;
-          } else {
-            toothTargetZ = cejZ + papillaPeakMm * 0.4;
-            const outerFade = 1.0 - smoothstep(1.18, 1.95, dist);
-            weight = outerFade * adaptationFactor;
-            toothColR = 0.88;
-            toothColG = 0.46;
-            toothColB = 0.54;
-          }
-
-          if (weight > maxPlacedWeight) {
-            maxPlacedWeight = weight;
-            targetPlacedZ = toothTargetZ;
-            placedColorR = toothColR;
-            placedColorG = toothColG;
-            placedColorB = toothColB;
+          const tint = Math.min(1.0, collarFactor * 1.3 * adaptation);
+          if (tint > 0.01) {
+            col[idx] = col[idx] * (1 - tint) + 0.90 * tint;
+            col[idx + 1] = col[idx + 1] * (1 - tint) + 0.49 * tint;
+            col[idx + 2] = col[idx + 2] * (1 - tint) + 0.56 * tint;
           }
         }
-      }
-
-      if (maxPlacedWeight > 0.01) {
-        z = z * (1 - maxPlacedWeight * 0.92) + targetPlacedZ * (maxPlacedWeight * 0.92);
-
-        // Healthy gingival collar coral-rose margin shading
-        col[idx] = col[idx] * (1 - maxPlacedWeight) + placedColorR * maxPlacedWeight;
-        col[idx + 1] = col[idx + 1] * (1 - maxPlacedWeight) + placedColorG * maxPlacedWeight;
-        col[idx + 2] = col[idx + 2] * (1 - maxPlacedWeight) + placedColorB * maxPlacedWeight;
       }
 
       pos[idx + 2] = z;
@@ -1204,32 +1162,32 @@ export function createLibraryToothGeometry(
   // u axis = Buccal (+u) to Lingual (-u), v axis = Mesial (+v) to Distal (-v)
   let ru = 4.2;
   let rv = 4.0;
-  let crownHeight = 7.8;
+  let crownHeight = 5.2;
 
   if (morphology === 'central') {
     ru = 3.6;
     rv = isUpper ? 4.3 : 3.0;
-    crownHeight = isUpper ? 8.8 : 7.8;
+    crownHeight = isUpper ? 6.2 : 5.4;
   } else if (morphology === 'lateral') {
     ru = 3.4;
     rv = isUpper ? 3.5 : 3.1;
-    crownHeight = isUpper ? 8.0 : 7.5;
+    crownHeight = isUpper ? 5.8 : 5.2;
   } else if (morphology === 'canine') {
     ru = 4.1;
     rv = 3.9;
-    crownHeight = 9.0;
+    crownHeight = isUpper ? 6.4 : 5.8;
   } else if (morphology === 'premolar') {
     ru = 4.4;
     rv = 3.7;
-    crownHeight = 7.4;
+    crownHeight = 5.2;
   } else if (morphology === 'molar1') {
     ru = 5.2;
     rv = 5.1;
-    crownHeight = 7.0;
+    crownHeight = 5.2;
   } else if (morphology === 'molar2') {
     ru = 4.9;
     rv = 4.7;
-    crownHeight = 6.6;
+    crownHeight = 5.0;
   }
 
   const sign = isUpper ? -1 : 1; // Upper crown tip points toward -Z, cervical collar toward +Z
@@ -1326,10 +1284,10 @@ export function createLibraryToothGeometry(
       const y = vNorm * rv;
 
       // 3D Anatomical Scalloped CEJ Curve (peaks coronally at mesial/distal, dips apically at buccal/lingual)
-      const cejScallop = (Math.sin(theta) ** 2 * 1.35 - Math.cos(theta) * 0.25) * smoothstep(0.55, 0.82, t);
+      const cejScallop = (Math.sin(theta) ** 2 * 0.40 - Math.cos(theta) * 0.15) * smoothstep(0.65, 0.85, t);
 
-      // Vertical Z coordinate centered around 0 (occlusal at sign * crownHeight * 0.5, cervical at -sign * crownHeight * 0.5)
-      const zBase = (0.48 - smoothstep(0.08, 0.92, t)) * crownHeight;
+      // Vertical Z coordinate centered around 0 (occlusal at sign * crownHeight * 0.46, cervical at -sign * crownHeight * 0.35)
+      const zBase = (0.46 - smoothstep(0.08, 0.92, t) * 0.94) * crownHeight;
       const z = sign * (zBase + anatomyOffset * tableEnv - cejScallop);
 
       positions.push(x, y, z);

@@ -374,7 +374,7 @@ export const ModelEditorPanel: React.FC<ModelEditorPanelProps> = ({
       TOOTH_LIBRARY_ITEMS.find((item) => item.morphology === morphology) ||
       TOOTH_LIBRARY_ITEMS[3];
 
-    let spawnPos = { x: 0, y: -12, z: libraryIsUpper ? 3.8 : -3.8 };
+    let spawnPos = { x: 0, y: -12, z: libraryIsUpper ? 3.2 : -2.6 };
     let targetIsUpper = libraryIsUpper;
     let spawnRotDeg = 0;
 
@@ -382,11 +382,12 @@ export const ModelEditorPanel: React.FC<ModelEditorPanelProps> = ({
       targetIsUpper = selectedNative.isUpper;
       const edit = modelEdit.nativeEdits[selectedNative.fdi];
       const isDeletedOrMissing = Boolean(edit?.deleted) || !selectedNative.presentInBaseline;
-      const nativeCentroidZ = Number(((selectedNative.zOcclusal + selectedNative.zCervical) * 0.5).toFixed(2));
+      const cuspOffsetZ = (selectedNative.isUpper ? -1 : 1) * 2.4;
+      const alignedZ = Number((selectedNative.zOcclusal - cuspOffsetZ).toFixed(2));
       spawnPos = {
         x: Number((selectedNative.center.x + (isDeletedOrMissing ? 0 : 2.5)).toFixed(2)),
         y: Number((selectedNative.center.y + (isDeletedOrMissing ? 0 : 1.5)).toFixed(2)),
-        z: nativeCentroidZ,
+        z: alignedZ,
       };
       spawnRotDeg = Math.round(selectedNative.angleDeg);
     } else if (selectedPlaced) {

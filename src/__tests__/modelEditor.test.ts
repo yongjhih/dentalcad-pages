@@ -412,9 +412,9 @@ describe('3D Dental Model & Tooth Editor Engine (modelEditor.ts)', () => {
     expect(placed37.isUpper).toBe(false);
     expect(placed37.fdiHint).toBe(37);
 
-    // Height must be calibrated to tooth centroid between occlusal and cervical lines (seating into socket, not floating in air)
-    const expectedCentroidZ = (tooth37.zOcclusal + tooth37.zCervical) * 0.5;
-    expect(placed37.position.z).toBeCloseTo(expectedCentroidZ, 1);
+    // Height must be calibrated to align crown occlusal surface with occlusal plane
+    const expectedZ = tooth37.zOcclusal - 2.4;
+    expect(placed37.position.z).toBeCloseTo(expectedZ, 1);
 
     // Gingiva base with placed tooth: gingiva adapts smoothly to the placed tooth emergence profile
     const gingivaWithPlaced = createGingivaBaseGeometry(
