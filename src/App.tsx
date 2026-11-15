@@ -51,6 +51,8 @@ import {
   XmlInspector,
   AskAiDrawer,
   ViewerControlPayload,
+  FeatureShowcaseModal,
+  ShowcaseScenarioId,
 } from '@dentalcad-pages/viewer';
 import {
   FileText,
@@ -429,6 +431,13 @@ export const App: React.FC = () => {
   // Ask AI Assistant slide-over drawer state
   const [askAiOpen, setAskAiOpen] = useState<boolean>(false);
 
+  // Interactive Feature Showcase modal state (supports ?showcase=1 URL parameter)
+  const [showcaseOpen, setShowcaseOpen] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    const p = new URLSearchParams(window.location.search).get('showcase');
+    return p === '1' || p === 'true';
+  });
+
   // Mobile layout ratio mode ('split' | '3d' | 'panel') for small screens
   const [mobileLayoutMode, setMobileLayoutMode] = useState<MobileLayoutMode>('split');
   const mobileBundleInputRef = useRef<HTMLInputElement>(null);
@@ -627,6 +636,104 @@ export const App: React.FC = () => {
     handleSelectCase(updatedBundle.id);
   };
 
+  // Launch an interactive 3D showcase scenario from FeatureShowcaseModal
+  const handleLaunchShowcaseScenario = useCallback(
+    (scenario: ShowcaseScenarioId) => {
+      setShowcaseOpen(false);
+      setSidebarCollapsed(false);
+
+      switch (scenario) {
+        case 'articulator':
+          setActiveTab('articulator');
+          handlePresetSelect('right');
+          setViewportSettings((prev) => ({
+            ...prev,
+            modelDiff: { ...(prev.modelDiff || DEFAULT_MODEL_DIFF_SETTINGS), enabled: false },
+            articulator: {
+              ...prev.articulator,
+              mode: 'compound',
+              strokes: { hinge: 0.28, protrusion: 0.48, lateral: 0.2, parallel: 0 },
+              progress: 1.0,
+              showTrajectoryGizmo: true,
+            },
+          }));
+          break;
+        case 'occlusogram':
+          setActiveTab('articulator');
+          handlePresetSelect('upper');
+          setViewportSettings((prev) => ({
+            ...prev,
+            occlusogramEnabled: true,
+            modelDiff: { ...(prev.modelDiff || DEFAULT_MODEL_DIFF_SETTINGS), enabled: false },
+            articulator: {
+              ...prev.articulator,
+              progress: 0,
+            },
+          }));
+          break;
+        case 'diff_both':
+        case 'diff_heatmap':
+        case 'diff_overlay': {
+          const mode =
+            scenario === 'diff_heatmap'
+              ? 'heatmap'
+              : scenario === 'diff_overlay'
+              ? 'overlay'
+              : 'both';
+          setActiveTab('diff');
+          handlePresetSelect(scenario === 'diff_both' ? 'isometric' : 'front');
+          setViewportSettings((prev) => ({
+            ...prev,
+            occlusogramEnabled: false,
+            modelDiff: {
+              ...(prev.modelDiff || DEFAULT_MODEL_DIFF_SETTINGS),
+              enabled: true,
+              displayMode: mode,
+              compareTargetId: 'simulated:ortho_alignment',
+            },
+          }));
+          break;
+        }
+        case 'texture':
+          setActiveTab('gallery');
+          handlePresetSelect('front');
+          setViewportSettings((prev) => ({
+            ...prev,
+            shadingMode: 'texture',
+            photoTextureMapped: true,
+            occlusogramEnabled: false,
+            modelDiff: { ...(prev.modelDiff || DEFAULT_MODEL_DIFF_SETTINGS), enabled: false },
+          }));
+          break;
+        case 'caliper':
+          setActiveTab('articulator');
+          handlePresetSelect('upper');
+          setViewportSettings((prev) => ({
+            ...prev,
+            caliperToolActive: true,
+            showMeasurements: true,
+            modelDiff: { ...(prev.modelDiff || DEFAULT_MODEL_DIFF_SETTINGS), enabled: false },
+          }));
+          break;
+        case 'clipping':
+          setActiveTab('tools');
+          handlePresetSelect('isometric');
+          setViewportSettings((prev) => ({
+            ...prev,
+            clippingEnabled: true,
+            clippingAxis: 'x',
+            clippingOffset: 2.0,
+            modelDiff: { ...(prev.modelDiff || DEFAULT_MODEL_DIFF_SETTINGS), enabled: false },
+          }));
+          break;
+        case 'ask_ai':
+          setAskAiOpen(true);
+          break;
+      }
+    },
+    [handlePresetSelect]
+  );
+
   // Delete a custom case from IndexedDB
   const handleDeleteCustomCase = async (caseId: string) => {
     await deleteCaseFromIndexedDB(caseId);
@@ -659,6 +766,7 @@ export const App: React.FC = () => {
         locale={locale}
         onToggleLocale={handleToggleLocale}
         onOpenAskAi={() => setAskAiOpen((v) => !v)}
+        onOpenShowcase={() => setShowcaseOpen(true)}
       />
 
       {/* Smart ?url= Local Path / ZIP Quick Loader Banner */}
@@ -1198,6 +1306,14 @@ export const App: React.FC = () => {
         viewportSettings={viewportSettings}
         cameraPreset={cameraPreset}
         onApplyViewerControl={handleApplyViewerControl}
+      />
+
+      {/* Interactive Feature Showcase & Guided Tour Modal */}
+      <FeatureShowcaseModal
+        open={showcaseOpen}
+        onClose={() => setShowcaseOpen(false)}
+        onLaunchScenario={handleLaunchShowcaseScenario}
+        locale={locale}
       />
     </div>
   );

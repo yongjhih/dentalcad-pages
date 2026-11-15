@@ -587,4 +587,28 @@ describe('DentalCAD Pages Application Integration Tests', () => {
     fireEvent.click(screen.getByTestId('viewport-diff-toggle'));
     expect(screen.queryByTestId('viewport-diff-banner')).not.toBeInTheDocument();
   });
+
+  it('provides an interactive Feature Showcase modal with 1-click live 3D scenario launchers', async () => {
+    render(<App />);
+
+    // Open Feature Showcase modal from header button
+    const showcaseBtn = screen.getByTestId('header-showcase-btn');
+    expect(showcaseBtn).toBeInTheDocument();
+    fireEvent.click(showcaseBtn);
+
+    const modal = screen.getByTestId('feature-showcase-modal');
+    expect(modal).toBeInTheDocument();
+    expect(screen.getByTestId('showcase-standalone-page-link')).toHaveAttribute(
+      'href',
+      './features.html'
+    );
+
+    // Click "Launch 3D Model Diff" button inside the showcase modal
+    fireEvent.click(screen.getByTestId('showcase-launch-diff_both'));
+
+    // Modal closes automatically and 3D Model Diff tab + banner become active
+    expect(screen.queryByTestId('feature-showcase-modal')).not.toBeInTheDocument();
+    expect(screen.getByTestId('model-diff-panel')).toBeInTheDocument();
+    expect(screen.getByTestId('viewport-diff-banner')).toBeInTheDocument();
+  });
 });

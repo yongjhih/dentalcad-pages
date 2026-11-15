@@ -10,6 +10,7 @@ import {
   Moon,
   Globe,
   Sparkles,
+  BookOpen,
 } from 'lucide-react';
 import { DentalCaseBundle, ThemeMode, LocaleMode } from '../types/dental';
 import { getDisplayMetadata } from '../utils/anonymize';
@@ -28,6 +29,7 @@ interface HeaderProps {
   locale?: LocaleMode;
   onToggleLocale?: () => void;
   onOpenAskAi?: () => void;
+  onOpenShowcase?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -43,6 +45,7 @@ export const Header: React.FC<HeaderProps> = ({
   locale = 'en',
   onToggleLocale,
   onOpenAskAi,
+  onOpenShowcase,
 }) => {
   const bundleInputRef = useRef<HTMLInputElement>(null);
   const { assets } = activeCase;
@@ -236,6 +239,24 @@ export const Header: React.FC<HeaderProps> = ({
             </>
           )}
         </button>
+
+        {/* Feature Showcase & Interactive Guide Button */}
+        {onOpenShowcase && (
+          <button
+            type="button"
+            data-testid="header-showcase-btn"
+            onClick={onOpenShowcase}
+            className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium bg-cyan-500/15 dark:bg-cyan-950/60 hover:bg-cyan-500/25 dark:hover:bg-cyan-900/70 border border-cyan-500/40 dark:border-cyan-800/60 text-cyan-700 dark:text-cyan-300 transition-colors whitespace-nowrap"
+            title={tr(
+              locale,
+              '開啟功能展示與互動導覽 (Feature Showcase)',
+              'Open Interactive Feature Showcase & Tour'
+            )}
+          >
+            <BookOpen className="w-3.5 h-3.5 text-cyan-500 dark:text-cyan-400" />
+            <span>{tr(locale, '功能介紹', 'Features')}</span>
+          </button>
+        )}
 
         {/* Ask AI Assistant Button (ai-proxy /v1 & MCP Pages) */}
         {onOpenAskAi && (

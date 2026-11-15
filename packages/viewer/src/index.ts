@@ -8,4 +8,7 @@ export { Header } from '../../../src/components/Header';
 export { AskAiDrawer } from '../../../src/components/AskAiDrawer';
 export type { ViewerControlPayload } from '../../../src/components/AskAiDrawer';
 export { ModelDiffPanel } from '../../../src/components/ModelDiffPanel';
+export { FeatureShowcaseModal } from '../../../src/components/FeatureShowcaseModal';
+export type { ShowcaseScenarioId } from '../../../src/components/FeatureShowcaseModal';
+
 
