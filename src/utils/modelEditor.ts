@@ -198,6 +198,153 @@ export function getLibraryItemMeta(morphology: ToothMorphologyType): ToothLibrar
   );
 }
 
+/**
+ * Deletes or extracts the currently selected tooth object (placed library tooth or native tooth).
+ * Records an undoable snapshot in history.
+ */
+export function deleteSelectedTooth(settings: ModelEditSettings): ModelEditSettings {
+  const target = settings.selectedTarget;
+  if (!target) return settings;
+
+  const next = pushModelEditSnapshot(settings);
+  if (target.kind === 'placed' && target.placedId) {
+    return {
+      ...next,
+      placedTeeth: next.placedTeeth.filter((p) => p.id !== target.placedId),
+      selectedTarget: null,
+    };
+  }
+
+  if (target.kind === 'native' && target.fdi) {
+    const fdi = target.fdi;
+    const curOp = next.nativeEdits[fdi] || {
+      fdi,
+      deleted: false,
+      offsetMm: { x: 0, y: 0, z: 0 },
+      rotationDeg: 0,
+      scale: 1,
+    };
+    return {
+      ...next,
+      nativeEdits: {
+        ...next.nativeEdits,
+        [fdi]: {
+          ...curOp,
+          deleted: true,
+        },
+      },
+    };
+  }
+
+  return next;
+}
+
+/**
+ * Automatically creates and places the matching anatomical tooth morphology
+ * based on the currently selected tooth, missing site, or active arch.
+ */
+export function autoAddMatchingTooth(
+  settings: ModelEditSettings,
+  segmentedTeeth: SegmentedToothInfo[],
+  fallbackIsUpper: boolean = true
+): ModelEditSettings {
+  const target = settings.selectedTarget;
+  const next = pushModelEditSnapshot(settings);
+
+  let morphology: ToothMorphologyType = 'central';
+  let isUpper = fallbackIsUpper;
+  let spawnPos = { x: 0, y: -12, z: fallbackIsUpper ? 1.5 : -1.5 };
+  let spawnRotDeg = 0;
+  let labelZh = '齒形';
+  let labelEn = 'Tooth';
+  let fdiHint: FdiToothNumber | undefined = undefined;
+
+  if (target?.kind === 'native' && target.fdi) {
+    const native = segmentedTeeth.find((t) => t.fdi === target.fdi);
+    if (native) {
+      morphology = native.morphology;
+      isUpper = native.isUpper;
+      fdiHint = native.fdi;
+      const edit = next.nativeEdits[native.fdi];
+      const isDeletedOrMissing = Boolean(edit?.deleted) || !native.presentInBaseline;
+      spawnPos = {
+        x: Number((native.center.x + (isDeletedOrMissing ? 0 : 2.5)).toFixed(2)),
+        y: Number((native.center.y + (isDeletedOrMissing ? 0 : 1.5)).toFixed(2)),
+        z: Number(native.zOcclusal.toFixed(2)),
+      };
+      spawnRotDeg = Math.round(native.angleDeg);
+      labelZh = native.labelZh;
+      labelEn = native.labelEn;
+    }
+  } else if (target?.kind === 'placed' && target.placedId) {
+    const placed = next.placedTeeth.find((p) => p.id === target.placedId);
+    if (placed) {
+      morphology = placed.morphology;
+      isUpper = placed.isUpper;
+      fdiHint = placed.fdiHint;
+      spawnPos = {
+        x: Number((placed.position.x + 3.2).toFixed(2)),
+        y: Number((placed.position.y + 1.2).toFixed(2)),
+        z: Number(placed.position.z.toFixed(2)),
+      };
+      spawnRotDeg = placed.rotationDeg;
+      labelZh = placed.labelZh;
+      labelEn = placed.labelEn;
+    }
+  } else {
+    // If no target selected, select the first deleted tooth or default seed on the arch
+    const deletedSeed = segmentedTeeth.find(
+      (t) => t.isUpper === fallbackIsUpper && Boolean(next.nativeEdits[t.fdi]?.deleted)
+    );
+    if (deletedSeed) {
+      morphology = deletedSeed.morphology;
+      isUpper = deletedSeed.isUpper;
+      fdiHint = deletedSeed.fdi;
+      spawnPos = {
+        x: Number(deletedSeed.center.x.toFixed(2)),
+        y: Number(deletedSeed.center.y.toFixed(2)),
+        z: Number(deletedSeed.zOcclusal.toFixed(2)),
+      };
+      spawnRotDeg = Math.round(deletedSeed.angleDeg);
+      labelZh = deletedSeed.labelZh;
+      labelEn = deletedSeed.labelEn;
+    } else {
+      const defaultSeed = FDI_ARCH_SEEDS.find(
+        (s) => s.isUpper === fallbackIsUpper && (s.fdi === 11 || s.fdi === 41)
+      ) || FDI_ARCH_SEEDS[0];
+      morphology = defaultSeed.morphology;
+      isUpper = defaultSeed.isUpper;
+      fdiHint = defaultSeed.fdi;
+      labelZh = defaultSeed.labelZh;
+      labelEn = defaultSeed.labelEn;
+    }
+  }
+
+  const meta = getLibraryItemMeta(morphology);
+  const newId = `auto-${morphology}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+  const toothTitleZh = labelZh || `${isUpper ? '上顎' : '下顎'} ${meta.titleZh}`;
+  const toothTitleEn = labelEn || `${isUpper ? 'Upper' : 'Lower'} ${meta.titleEn}`;
+  const newTooth: PlacedLibraryTooth = {
+    id: newId,
+    labelZh: `${toothTitleZh} (自動配對)`,
+    labelEn: `${toothTitleEn} (Auto Match)`,
+    morphology,
+    isUpper,
+    fdiHint,
+    position: spawnPos,
+    rotationDeg: spawnRotDeg,
+    scale: 1.0,
+  };
+
+  return {
+    ...next,
+    enabled: true,
+    toolMode: 'drag',
+    placedTeeth: [...next.placedTeeth, newTooth],
+    selectedTarget: { kind: 'placed', placedId: newId },
+  };
+}
+
 interface FdiSeedEntry {
   fdi: FdiToothNumber;
   isUpper: boolean;
@@ -590,6 +737,64 @@ export function extractToothCrownGeometry(
 
   // If sufficient triangles were extracted from the scan (at least 24 triangles), return the extracted crown!
   if (triPositions.length >= 72) {
+    // Build smooth anatomical cervical emergence profile / sealing floor
+    // so the tooth object is a watertight manifold entity that smoothly interfaces with gingival tissue
+    const cervicalRingPoints: Array<{ x: number; y: number; z: number; angle: number }> = [];
+    const zThreshold = 1.35;
+    const count = Math.floor(triPositions.length / 3);
+    for (let i = 0; i < count; i++) {
+      const idx = i * 3;
+      const x = triPositions[idx];
+      const y = triPositions[idx + 1];
+      const z = triPositions[idx + 2];
+      const worldZ = z + cz;
+      if (Math.abs(worldZ - zCerv) <= zThreshold) {
+        const u = x * cosA + y * sinA;
+        const v = -x * sinA + y * cosA;
+        const angle = Math.atan2(v, u);
+        cervicalRingPoints.push({ x, y, z, angle });
+      }
+    }
+
+    if (cervicalRingPoints.length >= 12) {
+      cervicalRingPoints.sort((a, b) => a.angle - b.angle);
+      const numSectors = 24;
+      const sectorBest: Array<{ x: number; y: number; z: number } | null> = new Array(numSectors).fill(null);
+      for (const pt of cervicalRingPoints) {
+        const normAngle = (pt.angle + Math.PI) / (2 * Math.PI);
+        const sIdx = Math.min(numSectors - 1, Math.floor(normAngle * numSectors));
+        if (!sectorBest[sIdx]) {
+          sectorBest[sIdx] = pt;
+        }
+      }
+
+      const ringPts = sectorBest.filter(Boolean) as Array<{ x: number; y: number; z: number }>;
+      if (ringPts.length >= 8) {
+        const apexZ = zCerv - cz + (isUpper ? 0.85 : -0.85);
+        const apexX = 0;
+        const apexY = 0;
+
+        for (let i = 0; i < ringPts.length; i++) {
+          const nextIdx = (i + 1) % ringPts.length;
+          const p0 = ringPts[i];
+          const p1 = ringPts[nextIdx];
+
+          if (isUpper) {
+            triPositions.push(apexX, apexY, apexZ, p0.x, p0.y, p0.z, p1.x, p1.y, p1.z);
+          } else {
+            triPositions.push(apexX, apexY, apexZ, p1.x, p1.y, p1.z, p0.x, p0.y, p0.z);
+          }
+
+          // Natural warm cervical root dentin / mucosal collar transition (RGB: 0.92, 0.86, 0.76)
+          triColors.push(
+            0.92, 0.86, 0.76,
+            0.94, 0.90, 0.82,
+            0.94, 0.90, 0.82
+          );
+        }
+      }
+    }
+
     const geom = new THREE.BufferGeometry();
     geom.setAttribute('position', new THREE.Float32BufferAttribute(triPositions, 3));
     geom.setAttribute('color', new THREE.Float32BufferAttribute(triColors, 3));
@@ -689,13 +894,22 @@ export function createGingivaBaseGeometry(
         const dy = y - t.center.y;
         const u = (dx * cosA + dy * sinA) / t.radiusXY.rx;
         const v = (-dx * sinA + dy * cosA) / t.radiusXY.ry;
+        const edit = nativeEdits?.[t.fdi];
+        const isDeleted = Boolean(edit?.deleted);
+        const moveDist = edit ? Math.hypot(edit.offsetMm.x, edit.offsetMm.y, edit.offsetMm.z) : 0;
+        const moveScale =
+          isDeleted || forceAllRecessed
+            ? 1.0
+            : moveDist < 0.05
+            ? 0.0
+            : Math.min(1.0, moveDist / 1.5);
         const dist2 = u * u + v * v;
-        if (dist2 <= 1.44) {
+        if (dist2 <= 1.56) {
           const dist = Math.sqrt(dist2);
-          const weight = 1.0 - smoothstep(0.40, 1.25, dist);
+          const weight = (1.0 - smoothstep(0.35, 1.25, dist)) * moveScale;
           if (weight > maxRecessWeight) {
             maxRecessWeight = weight;
-            targetZ = t.zCervical + (isUpper ? 0.4 : -0.4);
+            targetZ = t.zCervical + (isUpper ? 0.35 : -0.35);
           }
         }
       }

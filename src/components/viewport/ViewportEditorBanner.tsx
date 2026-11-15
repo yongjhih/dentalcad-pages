@@ -13,6 +13,8 @@ import {
   undoModelEdit,
   redoModelEdit,
   pushModelEditSnapshot,
+  deleteSelectedTooth,
+  autoAddMatchingTooth,
 } from '../../utils/modelEditor';
 import { tr } from '../../utils/i18n';
 import {
@@ -25,6 +27,7 @@ import {
   ClipboardPaste,
   Undo2,
   Redo2,
+  Sparkles,
   X,
 } from 'lucide-react';
 
@@ -42,7 +45,6 @@ export const ViewportEditorBanner: React.FC<ViewportEditorBannerProps> = ({
   locale = 'en',
 }) => {
   const modelEdit = settings.modelEdit || DEFAULT_MODEL_EDIT_SETTINGS;
-  if (!modelEdit.enabled) return null;
 
   const selectedTarget = modelEdit.selectedTarget;
   const selectedNative =
@@ -80,51 +82,21 @@ export const ViewportEditorBanner: React.FC<ViewportEditorBannerProps> = ({
     });
   };
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (
-        e.target instanceof HTMLInputElement ||
-        e.target instanceof HTMLTextAreaElement ||
-        (e.target as HTMLElement)?.isContentEditable
-      ) {
-        return;
-      }
-      const isCmdOrCtrl = e.metaKey || e.ctrlKey;
-      if (!isCmdOrCtrl) return;
-
-      const key = e.key.toLowerCase();
-      if (key === 'z') {
-        e.preventDefault();
-        if (e.shiftKey) {
-          handleRedo();
-        } else {
-          handleUndo();
-        }
-      } else if (key === 'y') {
-        e.preventDefault();
-        handleRedo();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  const handleDeleteSelected = () => {
+    onSettingsChange((prev) => {
+      const cur = prev.modelEdit || DEFAULT_MODEL_EDIT_SETTINGS;
+      if (!cur.selectedTarget) return prev;
+      return {
+        ...prev,
+        modelEdit: deleteSelectedTooth(cur),
+      };
+    });
+  };
 
   const handleToggleDeleteSelected = () => {
     if (!selectedTarget) return;
     if (selectedTarget.kind === 'placed' && selectedTarget.placedId) {
-      const targetId = selectedTarget.placedId;
-      onSettingsChange((prev) => {
-        const cur = pushModelEditSnapshot(prev.modelEdit || DEFAULT_MODEL_EDIT_SETTINGS);
-        return {
-          ...prev,
-          modelEdit: {
-            ...cur,
-            placedTeeth: cur.placedTeeth.filter((p) => p.id !== targetId),
-            selectedTarget: null,
-          },
-        };
-      });
+      handleDeleteSelected();
       return;
     }
 
@@ -254,6 +226,17 @@ export const ViewportEditorBanner: React.FC<ViewportEditorBannerProps> = ({
     });
   };
 
+  const handleAutoAddMatchingTooth = () => {
+    onSettingsChange((prev) => {
+      const cur = prev.modelEdit || DEFAULT_MODEL_EDIT_SETTINGS;
+      const isUpper = selectedPlaced ? selectedPlaced.isUpper : selectedNative ? selectedNative.isUpper : true;
+      return {
+        ...prev,
+        modelEdit: autoAddMatchingTooth(cur, segmentedTeeth, isUpper),
+      };
+    });
+  };
+
   const handleResetAllEdits = () => {
     onSettingsChange((prev) => {
       const cur = pushModelEditSnapshot(prev.modelEdit || DEFAULT_MODEL_EDIT_SETTINGS);
@@ -268,6 +251,65 @@ export const ViewportEditorBanner: React.FC<ViewportEditorBannerProps> = ({
       };
     });
   };
+
+  useEffect(() => {
+    if (!modelEdit.enabled) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement ||
+        (e.target as HTMLElement)?.isContentEditable
+      ) {
+        return;
+      }
+
+      // Delete / Backspace key to delete selected tooth
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (modelEdit.selectedTarget) {
+          e.preventDefault();
+          handleDeleteSelected();
+        }
+        return;
+      }
+
+      const isCmdOrCtrl = e.metaKey || e.ctrlKey;
+      if (!isCmdOrCtrl) return;
+
+      const key = e.key.toLowerCase();
+      if (key === 'z') {
+        e.preventDefault();
+        if (e.shiftKey) {
+          handleRedo();
+        } else {
+          handleUndo();
+        }
+      } else if (key === 'y') {
+        e.preventDefault();
+        handleRedo();
+      } else if (key === 'c') {
+        if (modelEdit.selectedTarget) {
+          e.preventDefault();
+          handleCopySelected();
+        }
+      } else if (key === 'v') {
+        if (modelEdit.clipboard) {
+          e.preventDefault();
+          handlePasteClipboard();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [
+    modelEdit.enabled,
+    modelEdit.selectedTarget,
+    modelEdit.clipboard,
+    onSettingsChange,
+  ]);
+
+  if (!modelEdit.enabled) return null;
 
   return (
     <div
@@ -346,6 +388,7 @@ export const ViewportEditorBanner: React.FC<ViewportEditorBannerProps> = ({
             type="button"
             data-testid="viewport-editor-delete-btn"
             onClick={handleToggleDeleteSelected}
+            title={tr(locale, '刪除選取牙齒 (鍵盤快捷鍵：Delete / Backspace)', 'Delete selected tooth (Key: Delete / Backspace)')}
             className={`px-2 py-0.5 rounded text-[11px] font-medium flex items-center gap-1 transition-colors ${
               isNativeDeleted
                 ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
@@ -356,7 +399,7 @@ export const ViewportEditorBanner: React.FC<ViewportEditorBannerProps> = ({
             <span>
               {isNativeDeleted
                 ? tr(locale, '復原牙齒', 'Restore')
-                : tr(locale, '刪除牙齒', 'Delete')}
+                : tr(locale, '刪除 (Del)', 'Delete')}
             </span>
           </button>
 
@@ -364,10 +407,22 @@ export const ViewportEditorBanner: React.FC<ViewportEditorBannerProps> = ({
             type="button"
             data-testid="viewport-editor-copy-btn"
             onClick={handleCopySelected}
+            title={tr(locale, '複製選取牙齒 (⌘C / Ctrl+C)', 'Copy tooth (⌘C / Ctrl+C)')}
             className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-[11px] font-medium flex items-center gap-1 border border-slate-300 dark:border-slate-700"
           >
             <Copy className="w-3 h-3" />
             <span>{tr(locale, '複製', 'Copy')}</span>
+          </button>
+
+          <button
+            type="button"
+            data-testid="viewport-editor-auto-add-btn"
+            onClick={handleAutoAddMatchingTooth}
+            title={tr(locale, '依選取的牙齒區域自動新增對應齒形', 'Auto add matching anatomical tooth for selected area')}
+            className="px-2 py-0.5 rounded bg-violet-600 hover:bg-violet-500 text-white text-[11px] font-medium flex items-center gap-1 shadow-sm transition-colors"
+          >
+            <Sparkles className="w-3 h-3" />
+            <span>{tr(locale, '依位新增齒形', 'Auto Add Tooth')}</span>
           </button>
         </div>
       )}

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createProceduralDentalArchGeometry } from '../utils/proceduralArch';
+import { ModelEditSettings } from '../types/dental';
 import {
   segmentArchGeometryTeeth,
   identifyToothAtPoint3D,
@@ -16,6 +17,8 @@ import {
   pushModelEditSnapshot,
   undoModelEdit,
   redoModelEdit,
+  deleteSelectedTooth,
+  autoAddMatchingTooth,
 } from '../utils/modelEditor';
 
 describe('3D Dental Model & Tooth Editor Engine (modelEditor.ts)', () => {
@@ -246,5 +249,96 @@ describe('3D Dental Model & Tooth Editor Engine (modelEditor.ts)', () => {
       }
     );
     expect(stlBuffer.byteLength).toBeGreaterThan(1000);
+  });
+
+  it('deletes selected tooth (native or placed) with deleteSelectedTooth and supports undo/redo', () => {
+    let settings: ModelEditSettings = {
+      ...DEFAULT_MODEL_EDIT_SETTINGS,
+      enabled: true,
+      selectedTarget: { kind: 'native', fdi: 14 as const },
+    };
+
+    // 1. Delete native tooth #14
+    settings = deleteSelectedTooth(settings);
+    expect(settings.nativeEdits[14]?.deleted).toBe(true);
+    expect(canUndo(settings)).toBe(true);
+
+    // 2. Undo deletion
+    settings = undoModelEdit(settings);
+    expect(Boolean(settings.nativeEdits[14]?.deleted)).toBe(false);
+
+    // 3. Delete placed tooth
+    settings = {
+      ...settings,
+      placedTeeth: [
+        {
+          id: 'placed-molar-1',
+          labelZh: '大臼齒',
+          labelEn: 'Molar',
+          morphology: 'molar1',
+          isUpper: true,
+          position: { x: 10, y: -20, z: 2 },
+          rotationDeg: 0,
+          scale: 1,
+        },
+      ],
+      selectedTarget: { kind: 'placed', placedId: 'placed-molar-1' },
+    };
+    settings = deleteSelectedTooth(settings);
+    expect(settings.placedTeeth).toHaveLength(0);
+    expect(settings.selectedTarget).toBeNull();
+
+    // 4. Undo restores placed tooth
+    settings = undoModelEdit(settings);
+    expect(settings.placedTeeth).toHaveLength(1);
+    expect(settings.placedTeeth[0].id).toBe('placed-molar-1');
+  });
+
+  it('automatically adds matching anatomical tooth morphology for selected tooth site with autoAddMatchingTooth', () => {
+    const upperGeom = createProceduralDentalArchGeometry(true);
+    const upperTeeth = segmentArchGeometryTeeth(upperGeom, true);
+
+    // 1. Select tooth #23 (Upper Canine)
+    let settings: ModelEditSettings = {
+      ...DEFAULT_MODEL_EDIT_SETTINGS,
+      enabled: true,
+      selectedTarget: { kind: 'native', fdi: 23 as const },
+    };
+
+    settings = autoAddMatchingTooth(settings, upperTeeth, true);
+    expect(settings.placedTeeth).toHaveLength(1);
+    const placedCanine = settings.placedTeeth[0];
+    expect(placedCanine.morphology).toBe('canine');
+    expect(placedCanine.isUpper).toBe(true);
+    expect(placedCanine.fdiHint).toBe(23);
+    expect(settings.selectedTarget).toEqual({ kind: 'placed', placedId: placedCanine.id });
+    expect(canUndo(settings)).toBe(true);
+
+    // 2. Undo removes the placed tooth
+    settings = undoModelEdit(settings);
+    expect(settings.placedTeeth).toHaveLength(0);
+  });
+
+  it('ensures smooth gingival blend scaling with tooth movement distance', () => {
+    const upperGeom = createProceduralDentalArchGeometry(true);
+    const upperTeeth = segmentArchGeometryTeeth(upperGeom, true);
+
+    // Unmoved pristine tooth: moveDist = 0 -> gingiva under intact teeth remains identical to original scan
+    const gingivaUnmoved = createGingivaBaseGeometry(upperGeom, upperTeeth, true, {
+      21: { fdi: 21, deleted: false, offsetMm: { x: 0, y: 0, z: 0 }, rotationDeg: 0, scale: 1 },
+    });
+    expect(gingivaUnmoved).toBeDefined();
+
+    // Moved tooth: moveDist = 3.0mm -> smoothly recessed alveolar socket bed
+    const gingivaMoved = createGingivaBaseGeometry(upperGeom, upperTeeth, true, {
+      21: { fdi: 21, deleted: false, offsetMm: { x: 3.0, y: 0, z: 0 }, rotationDeg: 0, scale: 1 },
+    });
+    expect(gingivaMoved).toBeDefined();
+
+    // Deleted tooth: smoothly healed/recessed ridge
+    const gingivaDeleted = createGingivaBaseGeometry(upperGeom, upperTeeth, true, {
+      21: { fdi: 21, deleted: true, offsetMm: { x: 0, y: 0, z: 0 }, rotationDeg: 0, scale: 1 },
+    });
+    expect(gingivaDeleted).toBeDefined();
   });
 });

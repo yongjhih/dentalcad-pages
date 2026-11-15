@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ViewportSettings,
   SegmentedToothInfo,
@@ -19,6 +19,8 @@ import {
   undoModelEdit,
   redoModelEdit,
   pushModelEditSnapshot,
+  deleteSelectedTooth,
+  autoAddMatchingTooth,
 } from '../utils/modelEditor';
 import { tr } from '../utils/i18n';
 import {
@@ -252,6 +254,40 @@ export const ModelEditorPanel: React.FC<ModelEditorPanelProps> = ({
       });
     }
   };
+
+  const handleAutoAddMatchingTooth = () => {
+    onSettingsChange((prev) => {
+      const cur = prev.modelEdit || DEFAULT_MODEL_EDIT_SETTINGS;
+      return {
+        ...prev,
+        modelEdit: autoAddMatchingTooth(cur, segmentedTeeth, libraryIsUpper),
+      };
+    });
+  };
+
+  useEffect(() => {
+    if (!modelEdit.enabled) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement ||
+        (e.target as HTMLElement)?.isContentEditable
+      ) {
+        return;
+      }
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (modelEdit.selectedTarget) {
+          e.preventDefault();
+          onSettingsChange((prev) => ({
+            ...prev,
+            modelEdit: deleteSelectedTooth(prev.modelEdit || DEFAULT_MODEL_EDIT_SETTINGS),
+          }));
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [modelEdit.enabled, modelEdit.selectedTarget, onSettingsChange]);
 
   const handleCopySelected = () => {
     if (selectedPlaced) {
@@ -781,7 +817,7 @@ export const ModelEditorPanel: React.FC<ModelEditorPanelProps> = ({
             </div>
           </div>
 
-          {/* Delete / Copy / Paste Quick Buttons */}
+          {/* Delete / Copy / Paste / Auto-Add Quick Buttons */}
           <div className="flex flex-wrap items-center gap-1.5">
             {(selectedNative || selectedPlaced) && (
               <>
@@ -789,7 +825,12 @@ export const ModelEditorPanel: React.FC<ModelEditorPanelProps> = ({
                   type="button"
                   data-testid="editor-delete-tooth-btn"
                   onClick={handleDeleteOrRestoreSelected}
-                  className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors ${
+                  title={tr(
+                    locale,
+                    '刪除選取牙齒 (鍵盤快捷鍵：Delete 或 Backspace)',
+                    'Delete selected tooth (Key: Delete or Backspace)'
+                  )}
+                  className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors ${
                     activeNativeEdit?.deleted
                       ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
                       : 'bg-rose-600 hover:bg-rose-500 text-white'
@@ -798,8 +839,11 @@ export const ModelEditorPanel: React.FC<ModelEditorPanelProps> = ({
                   <Trash2 className="w-3.5 h-3.5" />
                   <span>
                     {activeNativeEdit?.deleted
-                      ? tr(locale, '復原此牙齒', 'Restore Tooth')
+                      ? tr(locale, '復原牙齒', 'Restore Tooth')
                       : tr(locale, '刪除牙齒', 'Delete Tooth')}
+                  </span>
+                  <span className="text-[10px] px-1 py-0.5 rounded bg-black/20 font-mono font-normal">
+                    Del
                   </span>
                 </button>
 
@@ -807,10 +851,26 @@ export const ModelEditorPanel: React.FC<ModelEditorPanelProps> = ({
                   type="button"
                   data-testid="editor-copy-tooth-btn"
                   onClick={handleCopySelected}
+                  title={tr(locale, '複製選取牙齒', 'Copy tooth')}
                   className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 border border-slate-300 dark:border-slate-700 flex items-center gap-1 transition-colors"
                 >
                   <Copy className="w-3.5 h-3.5 text-sky-500" />
                   <span>{tr(locale, '複製牙齒', 'Copy Tooth')}</span>
+                </button>
+
+                <button
+                  type="button"
+                  data-testid="editor-auto-add-matching-btn"
+                  onClick={handleAutoAddMatchingTooth}
+                  title={tr(
+                    locale,
+                    '依選取的牙位區域自動新增對應齒形',
+                    'Auto add matching anatomical tooth for selected area'
+                  )}
+                  className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-violet-600 hover:bg-violet-500 text-white shadow-sm flex items-center gap-1 transition-colors"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>{tr(locale, '依此牙位新增齒形', 'Auto Add Tooth')}</span>
                 </button>
               </>
             )}
@@ -1075,32 +1135,49 @@ export const ModelEditorPanel: React.FC<ModelEditorPanelProps> = ({
             </p>
           </div>
 
-          {/* Target Arch Selector for Library */}
-          <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-950 p-0.5 rounded-lg border border-slate-200 dark:border-slate-800 text-xs">
+          {/* Target Arch Selector & Auto-Add for Library */}
+          <div className="flex items-center gap-1.5 flex-wrap">
             <button
               type="button"
-              data-testid="library-target-upper"
-              onClick={() => setLibraryIsUpper(true)}
-              className={`px-2 py-1 rounded font-medium transition-colors ${
-                libraryIsUpper
-                  ? 'bg-amber-500 text-slate-950 font-semibold'
-                  : 'text-slate-600 dark:text-slate-400'
-              }`}
+              data-testid="library-auto-add-matching-btn"
+              onClick={handleAutoAddMatchingTooth}
+              title={tr(
+                locale,
+                '依目前選取的牙齒或缺牙區域自動新增對應齒形',
+                'Auto add matching anatomical tooth for selected area'
+              )}
+              className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-violet-600 hover:bg-violet-500 text-white flex items-center gap-1 shadow-sm transition-colors"
             >
-              {tr(locale, '上顎牙冠', 'Upper')}
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>{tr(locale, '依選取牙位自動新增', 'Auto Add Matching')}</span>
             </button>
-            <button
-              type="button"
-              data-testid="library-target-lower"
-              onClick={() => setLibraryIsUpper(false)}
-              className={`px-2 py-1 rounded font-medium transition-colors ${
-                !libraryIsUpper
-                  ? 'bg-sky-500 text-white font-semibold'
-                  : 'text-slate-600 dark:text-slate-400'
-              }`}
-            >
-              {tr(locale, '下顎牙冠', 'Lower')}
-            </button>
+
+            <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-950 p-0.5 rounded-lg border border-slate-200 dark:border-slate-800 text-xs">
+              <button
+                type="button"
+                data-testid="library-target-upper"
+                onClick={() => setLibraryIsUpper(true)}
+                className={`px-2 py-1 rounded font-medium transition-colors ${
+                  libraryIsUpper
+                    ? 'bg-amber-500 text-slate-950 font-semibold'
+                    : 'text-slate-600 dark:text-slate-400'
+                }`}
+              >
+                {tr(locale, '上顎牙冠', 'Upper')}
+              </button>
+              <button
+                type="button"
+                data-testid="library-target-lower"
+                onClick={() => setLibraryIsUpper(false)}
+                className={`px-2 py-1 rounded font-medium transition-colors ${
+                  !libraryIsUpper
+                    ? 'bg-sky-500 text-white font-semibold'
+                    : 'text-slate-600 dark:text-slate-400'
+                }`}
+              >
+                {tr(locale, '下顎牙冠', 'Lower')}
+              </button>
+            </div>
           </div>
         </div>
 
