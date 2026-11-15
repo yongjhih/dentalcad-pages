@@ -9,6 +9,7 @@ import {
   DEFAULT_MODEL_EDIT_SETTINGS,
   segmentArchGeometryTeeth,
   restoreNativeGeometryBeforeEdits,
+  extractToothCrownGeometry,
   createGingivaBaseGeometry,
   createLibraryToothGeometry,
 } from '../utils/modelEditor';
@@ -157,12 +158,14 @@ export function useModelEditorEffect({
     const syncArchTeeth = (isUpper: boolean, group: THREE.Group) => {
       const archTeeth = segmentedTeeth.filter((t) => t.isUpper === isUpper);
       const cache = isUpper ? upperCrownCacheRef.current : lowerCrownCacheRef.current;
+      const origMesh = isUpper ? upperMeshRef.current : lowerMeshRef.current;
+      const origGeom = origMesh?.geometry;
 
       for (const t of archTeeth) {
         let crownGeom = cache.get(t.fdi);
-        if (!crownGeom) {
-          // Use anatomical high-precision tooth geometry for watertight discrete tooth objects
-          crownGeom = createLibraryToothGeometry(t.morphology, t.isUpper);
+        if (!crownGeom && origGeom) {
+          // Extract the exact anatomical tooth crown from the original scan model
+          crownGeom = extractToothCrownGeometry(origGeom, t);
           cache.set(t.fdi, crownGeom);
         }
         if (!crownGeom) continue;
@@ -197,6 +200,9 @@ export function useModelEditorEffect({
             ior: 1.54,
             side: THREE.DoubleSide,
             wireframe: settings.wireframeOverlay || settings.shadingMode === 'wireframe',
+            polygonOffset: true,
+            polygonOffsetFactor: -1,
+            polygonOffsetUnits: -2,
           });
           mat.clippingPlanes = clippingPlanes;
 
@@ -211,12 +217,18 @@ export function useModelEditorEffect({
           };
           group.add(toothMesh);
         } else {
+          if (toothMesh.geometry !== crownGeom) {
+            toothMesh.geometry = crownGeom;
+          }
           const mat = toothMesh.material as THREE.MeshPhysicalMaterial;
           mat.color.setHex(isSelected ? 0xf0e8ff : 0xfcfaf2);
           mat.emissive.setHex(isSelected ? 0x8b5cf6 : 0x000000);
           mat.emissiveIntensity = isSelected ? 0.38 : 0;
           mat.wireframe = settings.wireframeOverlay || settings.shadingMode === 'wireframe';
           mat.clippingPlanes = clippingPlanes;
+          mat.polygonOffset = true;
+          mat.polygonOffsetFactor = -1;
+          mat.polygonOffsetUnits = -2;
         }
 
         const ox = edit && !isDeleted ? edit.offsetMm.x : 0;

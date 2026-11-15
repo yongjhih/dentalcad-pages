@@ -489,6 +489,7 @@ export function identifyToothAtPoint3D(
  * from a source dental arch BufferGeometry for a specific segmented tooth.
  * Vertices are centered at (0, 0, 0) relative to the tooth centroid so that
  * rigid translation, rotation, and scaling can be applied directly to the Tooth Object mesh.
+ * Preserves the exact scanned patient tooth anatomy, cusps, and vertex colors.
  */
 export function extractToothCrownGeometry(
   sourceGeom: THREE.BufferGeometry | null | undefined,
@@ -503,26 +504,35 @@ export function extractToothCrownGeometry(
     return createLibraryToothGeometry(tooth.morphology, tooth.isUpper);
   }
 
+  // Use unmutated original scan positions if available
+  const origPos =
+    (sourceGeom.userData?.origEditPos as Float32Array | undefined) ||
+    (posAttr.array as Float32Array);
+  const origColAttr = sourceGeom.getAttribute('color') as THREE.BufferAttribute | undefined;
+
   const rad = (tooth.angleDeg * Math.PI) / 180;
   const cosA = Math.cos(rad);
   const sinA = Math.sin(rad);
   const cx = tooth.center.x;
   const cy = tooth.center.y;
   const cz = tooth.center.z;
-  const rx = Math.max(3.0, tooth.radiusXY.rx * 1.08);
-  const ry = Math.max(3.0, tooth.radiusXY.ry * 1.08);
+  const rx = Math.max(3.2, tooth.radiusXY.rx * 1.15);
+  const ry = Math.max(3.2, tooth.radiusXY.ry * 1.15);
   const isUpper = tooth.isUpper;
-  const zCerv = tooth.zCervical + (isUpper ? 0.6 : -0.6);
+  const zCerv = tooth.zCervical + (isUpper ? 0.8 : -0.8);
 
   const index = sourceGeom.getIndex();
   const triPositions: number[] = [];
   const triColors: number[] = [];
 
-  const getVertex = (vIdx: number) => ({
-    x: posAttr.getX(vIdx),
-    y: posAttr.getY(vIdx),
-    z: posAttr.getZ(vIdx),
-  });
+  const getVertex = (vIdx: number) => {
+    const base = vIdx * 3;
+    return {
+      x: origPos[base],
+      y: origPos[base + 1],
+      z: origPos[base + 2],
+    };
+  };
 
   const checkTriangle = (i0: number, i1: number, i2: number) => {
     const v0 = getVertex(i0);
@@ -537,7 +547,7 @@ export function extractToothCrownGeometry(
     const dy = my - cy;
     const u = (dx * cosA + dy * sinA) / rx;
     const v = (-dx * sinA + dy * cosA) / ry;
-    if (u * u + v * v > 1.08) return;
+    if (u * u + v * v > 1.15) return;
 
     if (isUpper ? mz > zCerv : mz < zCerv) return;
 
@@ -548,15 +558,23 @@ export function extractToothCrownGeometry(
       v2.x - cx, v2.y - cy, v2.z - cz
     );
 
-    // Natural pearl enamel gradient coloring
-    const tZ = isUpper
-      ? Math.max(0, Math.min(1, (mz - tooth.zOcclusal) / Math.max(1, tooth.zCervical - tooth.zOcclusal)))
-      : Math.max(0, Math.min(1, (tooth.zOcclusal - mz) / Math.max(1, tooth.zOcclusal - tooth.zCervical)));
+    if (origColAttr) {
+      triColors.push(
+        origColAttr.getX(i0), origColAttr.getY(i0), origColAttr.getZ(i0),
+        origColAttr.getX(i1), origColAttr.getY(i1), origColAttr.getZ(i1),
+        origColAttr.getX(i2), origColAttr.getY(i2), origColAttr.getZ(i2)
+      );
+    } else {
+      // Natural pearl enamel gradient coloring with warm cervical roll
+      const tZ = isUpper
+        ? Math.max(0, Math.min(1, (mz - tooth.zOcclusal) / Math.max(1, tooth.zCervical - tooth.zOcclusal)))
+        : Math.max(0, Math.min(1, (tooth.zOcclusal - mz) / Math.max(1, tooth.zOcclusal - tooth.zCervical)));
 
-    const r = 0.96 - tZ * 0.05;
-    const g = 0.95 - tZ * 0.08;
-    const b = 0.91 - tZ * 0.12;
-    triColors.push(r, g, b, r, g, b, r, g, b);
+      const r = 0.96 - tZ * 0.06;
+      const g = 0.95 - tZ * 0.10;
+      const b = 0.91 - tZ * 0.15;
+      triColors.push(r, g, b, r, g, b, r, g, b);
+    }
   };
 
   if (index) {
@@ -564,7 +582,8 @@ export function extractToothCrownGeometry(
       checkTriangle(index.getX(i), index.getX(i + 1), index.getX(i + 2));
     }
   } else {
-    for (let i = 0; i < posAttr.count; i += 3) {
+    const vertCount = Math.floor(origPos.length / 3);
+    for (let i = 0; i < vertCount; i += 3) {
       checkTriangle(i, i + 1, i + 2);
     }
   }
@@ -1175,7 +1194,7 @@ export function exportEditedArchToBinaryStl(
         Math.abs(op.scale - 1) > 0.01;
       if (!isMoved) continue;
 
-      const tGeom = createLibraryToothGeometry(t.morphology, t.isUpper);
+      const tGeom = extractToothCrownGeometry(archGeom, t);
       const ox = op.offsetMm.x || 0;
       const oy = op.offsetMm.y || 0;
       const oz = op.offsetMm.z || 0;
