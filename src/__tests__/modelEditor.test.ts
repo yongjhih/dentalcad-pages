@@ -412,7 +412,8 @@ describe('3D Dental Model & Tooth Editor Engine (modelEditor.ts)', () => {
     expect(placed37.isUpper).toBe(false);
     expect(placed37.fdiHint).toBe(37);
 
-    // Height must be calibrated to align crown occlusal surface with occlusal plane
+    const tooth36 = lowerTeeth.find((t) => t.fdi === 36)!;
+    expect(tooth36).toBeDefined();
     const expectedZ = tooth37.zOcclusal - 2.4;
     expect(placed37.position.z).toBeCloseTo(expectedZ, 1);
 

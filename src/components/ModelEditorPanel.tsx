@@ -139,13 +139,15 @@ export const ModelEditorPanel: React.FC<ModelEditorPanelProps> = ({
     if (seed) setLibraryIsUpper(seed.isUpper);
     onSettingsChange((prev) => {
       const cur = prev.modelEdit || DEFAULT_MODEL_EDIT_SETTINGS;
+      const isAlreadySelected =
+        cur.selectedTarget?.kind === 'native' && cur.selectedTarget.fdi === fdi;
       return {
         ...prev,
         caliperToolActive: false,
         modelEdit: {
           ...cur,
           enabled: true,
-          selectedTarget: { kind: 'native', fdi },
+          selectedTarget: isAlreadySelected ? null : { kind: 'native', fdi },
         },
       };
     });
@@ -155,13 +157,15 @@ export const ModelEditorPanel: React.FC<ModelEditorPanelProps> = ({
     setLibraryIsUpper(isUpper);
     onSettingsChange((prev) => {
       const cur = prev.modelEdit || DEFAULT_MODEL_EDIT_SETTINGS;
+      const isAlreadySelected =
+        cur.selectedTarget?.kind === 'placed' && cur.selectedTarget.placedId === placedId;
       return {
         ...prev,
         caliperToolActive: false,
         modelEdit: {
           ...cur,
           enabled: true,
-          selectedTarget: { kind: 'placed', placedId },
+          selectedTarget: isAlreadySelected ? null : { kind: 'placed', placedId },
         },
       };
     });

@@ -634,10 +634,16 @@ export function segmentArchGeometryTeeth(
 
       if (Number.isFinite(peakZ) && Number.isFinite(baseZ)) {
         zOcclusal = Number(peakZ.toFixed(2));
+        const clinicalCrownH =
+          seed.morphology === 'molar1' || seed.morphology === 'molar2'
+            ? 4.2
+            : seed.morphology === 'premolar'
+            ? 4.4
+            : 4.6;
         zCervical = Number(
           (isUpper
-            ? Math.min(baseZ - 1.5, peakZ + 6.5)
-            : Math.max(baseZ + 1.5, peakZ - 6.5)
+            ? peakZ + clinicalCrownH
+            : peakZ - clinicalCrownH
           ).toFixed(2)
         );
         // If occlusal peak is very close to the gingival base, the site is edentulous in baseline scan
@@ -1020,7 +1026,7 @@ export function createGingivaBaseGeometry(
       const y = origPos[idx + 1];
       let z = origPos[idx + 2];
 
-      // A. Intact native teeth protection: DO NOT ALTER intact native teeth crowns (prevents cliffs on adjacent teeth)!
+      // A. Intact native teeth protection: Protect intact tooth crown enamel while allowing embrasure soft-tissue blending
       let isInsideIntactTooth = false;
       for (const it of intactTeeth) {
         const rad = (it.angleDeg * Math.PI) / 180;
@@ -1030,7 +1036,7 @@ export function createGingivaBaseGeometry(
         const sinA = Math.sin(rad);
         const u = (dx * cosA + dy * sinA) / it.radiusXY.rx;
         const v = (-dx * sinA + dy * cosA) / it.radiusXY.ry;
-        if (u * u + v * v <= 1.15) {
+        if (u * u + v * v <= 0.98) {
           isInsideIntactTooth = true;
           break;
         }
@@ -1062,29 +1068,40 @@ export function createGingivaBaseGeometry(
             ? 0.0
             : Math.min(1.0, moveDist / 1.5);
         const dist2 = u * u + v * v;
-        if (dist2 <= 1.15) {
+        if (dist2 <= 1.69) {
           const dist = Math.sqrt(dist2);
-          const weight = (1.0 - smoothstep(0.35, 1.05, dist)) * moveScale;
+          // Recess 100% of the tooth crown envelope (dist <= 0.95), then smooth organic fade to dist = 1.30
+          const weight = (1.0 - smoothstep(0.92, 1.28, dist)) * moveScale;
           if (weight > maxRecessWeight) {
             maxRecessWeight = weight;
-            targetRidgeZ = t.zCervical + (isUpper ? 0.35 : -0.35);
+            targetRidgeZ = t.zCervical + (isUpper ? 0.25 : -0.25);
           }
         }
       }
 
       if (maxRecessWeight > 0.01) {
-        const protrusion = isUpper ? targetRidgeZ - z : z - targetRidgeZ;
-        if (protrusion > 0) {
-          z = z + (isUpper ? protrusion : -protrusion) * maxRecessWeight * 0.94;
+        const origZ = origPos[idx + 2];
+        const isCoronalTissue = isUpper
+          ? origZ <= targetRidgeZ + 2.5
+          : origZ >= targetRidgeZ - 2.5;
 
-          // Oral mucosal coral pink color for healed/exposed alveolar ridge
-          col[idx] = col[idx] * (1 - maxRecessWeight) + 0.88 * maxRecessWeight;
-          col[idx + 1] = col[idx + 1] * (1 - maxRecessWeight) + 0.46 * maxRecessWeight;
-          col[idx + 2] = col[idx + 2] * (1 - maxRecessWeight) + 0.54 * maxRecessWeight;
+        if (isCoronalTissue) {
+          const protrusion = isUpper ? targetRidgeZ - z : z - targetRidgeZ;
+          if (protrusion > 0) {
+            z = z + (isUpper ? protrusion : -protrusion) * maxRecessWeight * 0.96;
+
+            // Oral mucosal coral pink color for healed/exposed alveolar ridge
+            const mucosalR = 0.933;
+            const mucosalG = 0.450;
+            const mucosalB = 0.540;
+            col[idx] = col[idx] * (1 - maxRecessWeight) + mucosalR * maxRecessWeight;
+            col[idx + 1] = col[idx + 1] * (1 - maxRecessWeight) + mucosalG * maxRecessWeight;
+            col[idx + 2] = col[idx + 2] * (1 - maxRecessWeight) + mucosalB * maxRecessWeight;
+          }
         }
       }
 
-      // C. Anatomical free gingival margin collar & papillae for placed teeth (NEVER carves craters/holes)
+      // C. Human anatomical gingival integration (Free gingival margin collar, interdental papillae, and alveolar juga)
       for (const p of archPlaced) {
         const meta = getLibraryItemMeta(p.morphology);
         const rx = meta.defaultWidthMm * 0.5 * p.scale;
@@ -1098,26 +1115,114 @@ export function createGingivaBaseGeometry(
         const v = (-dx * sinA + dy * cosA) / ry;
         const dist2 = u * u + v * v;
 
-        if (dist2 <= 1.35) {
-          const dist = Math.sqrt(dist2);
-          const phi = Math.atan2(v, u);
+        // Soft-tissue adaptation zone: dist <= 1.60
+        if (dist2 <= 2.56) {
+          const origZ = origPos[idx + 2];
+          // Cervical reference height
+          const refCervicalZ = p.position.z + (isUpper ? 1 : -1) * 1.8 * p.scale;
 
-          // Subtle natural marginal collar hugging tooth CEJ (0.80 to 1.15)
-          const collarFactor = smoothstep(0.80, 0.96, dist) * (1.0 - smoothstep(1.02, 1.18, dist));
-          const papillaFactor = Math.sin(phi) ** 2 * collarFactor;
+          // STRICT DEPTH GUARD: Only coronal alveolar ridge & gingival tissue adapts.
+          // Deep mandibular/palatal base vertices MUST NOT be altered!
+          const isCoronalTissue = isUpper
+            ? origZ <= refCervicalZ + 2.5
+            : origZ >= refCervicalZ - 2.5;
+
+          if (!isCoronalTissue) {
+            continue;
+          }
+
+          const dist = Math.sqrt(dist2);
+          const phi = Math.atan2(v, u); // Local angle: +v is mesial (towards adjacent tooth #36), +u is buccal
+
+          // 1. Interdental Papilla Elevation (rises in mesial & distal embrasures)
+          // Peaks higher on mesial side (v > 0) to bridge into the adjacent tooth embrasure
+          const mesialWeight = smoothstep(-0.1, 0.7, v);
+          const papillaPeakMm = (isUpper ? -1.35 : 1.35) * Math.sin(phi) ** 2 * (0.7 + 0.3 * mesialWeight) * p.scale;
+
+          // 2. Buccal Gingival Zenith Dip (scalloped U-shape curve on buccal facial surface)
+          const zenithDipMm = (isUpper ? 0.30 : -0.30) * Math.max(0, Math.cos(phi)) ** 2 * p.scale;
+
+          // Target height for the free gingival margin collar
+          const targetMarginZ = refCervicalZ + papillaPeakMm + zenithDipMm;
+
+          // 3. Emergence Profile Adaptation:
+          // - Ovate Pontic: smooth convex depression for tissue conditioning (0.4 - 0.7mm)
+          // - Anatomical / Implant: gentle collar seal with free margin elevation
+          const isOvate = p.emergenceProfile === 'ovate';
+          const subDepth = p.subgingivalDepthMm ?? (isOvate ? 0.5 : 0.2);
+
+          let targetZ = z;
+          let zoneWeight = 0;
+
+          if (dist <= 0.88) {
+            // Intaglio / receptor bed directly beneath crown base
+            if (isOvate) {
+              const domeFactor = Math.cos(dist / 0.88 * Math.PI * 0.5);
+              const ovateDepression = (isUpper ? 1 : -1) * subDepth * domeFactor;
+              targetZ = refCervicalZ + ovateDepression;
+              zoneWeight = 0.85;
+            } else {
+              targetZ = refCervicalZ + (isUpper ? 0.2 : -0.2);
+              zoneWeight = 0.75;
+            }
+          } else if (dist <= 1.22) {
+            // Free gingival margin collar hugging tooth CEJ
+            const collarPeak = smoothstep(0.88, 1.05, dist) * (1.0 - smoothstep(1.08, 1.22, dist));
+            targetZ = targetMarginZ;
+            zoneWeight = 0.55 + 0.40 * collarPeak;
+          } else {
+            // Attached gingiva fade-out to the native alveolar ridge
+            const fade = 1.0 - smoothstep(1.22, 1.60, dist);
+            const isBuccal = u > 0;
+            const rootBulgeMm = isBuccal
+              ? (isUpper ? -0.35 : 0.35) * Math.sin(smoothstep(1.20, 1.58, dist) * Math.PI) * (u / dist)
+              : 0;
+            targetZ = refCervicalZ * fade + z * (1 - fade) + rootBulgeMm;
+            zoneWeight = fade * 0.75;
+          }
 
           const adaptation = p.gingivalAdaptation !== undefined ? p.gingivalAdaptation : 1.0;
-          const liftMm =
-            ((isUpper ? -0.28 : 0.28) * collarFactor + (isUpper ? -0.22 : 0.22) * papillaFactor) * adaptation;
+          const blendStrength = zoneWeight * adaptation * 0.88;
 
-          z += liftMm;
-
-          const tint = Math.min(1.0, collarFactor * 1.3 * adaptation);
-          if (tint > 0.01) {
-            col[idx] = col[idx] * (1 - tint) + 0.90 * tint;
-            col[idx + 1] = col[idx + 1] * (1 - tint) + 0.49 * tint;
-            col[idx + 2] = col[idx + 2] * (1 - tint) + 0.56 * tint;
+          // CLAMP DISPLACEMENT: Biological gingival drape displacement is strictly bounded
+          // Elevation (papilla/collar): max 1.5mm. Depression (socket/zenith): max 0.8mm.
+          const rawDeltaZ = (targetZ - z) * blendStrength;
+          const maxElevation = 1.5;
+          const maxDepression = 0.8;
+          let clampedDeltaZ = rawDeltaZ;
+          if (isUpper) {
+            // Upper: negative delta is coronal elevation, positive is apical depression
+            clampedDeltaZ = Math.max(-maxElevation, Math.min(maxDepression, rawDeltaZ));
+          } else {
+            // Lower: positive delta is coronal elevation, negative is apical depression
+            clampedDeltaZ = Math.min(maxElevation, Math.max(-maxDepression, rawDeltaZ));
           }
+
+          z += clampedDeltaZ;
+
+          // 4. Clinical mucosal coloration matching natural gingival histology:
+          // - Free margin & papillae (dist <= 1.22): Light vibrant coral-pink (RGB: 0.965, 0.537, 0.620)
+          // - Attached gingiva (1.22 < dist <= 1.50): Vibrant coral (RGB: 0.933, 0.412, 0.510)
+          // - Alveolar mucosa (dist > 1.50): Deep rose (RGB: 0.859, 0.298, 0.408)
+          let gR = 0.933, gG = 0.412, gB = 0.510;
+          if (dist <= 1.22) {
+            gR = 0.965; gG = 0.537; gB = 0.620;
+          } else if (dist <= 1.45) {
+            const tZone = (dist - 1.22) / 0.23;
+            gR = 0.965 * (1 - tZone) + 0.933 * tZone;
+            gG = 0.537 * (1 - tZone) + 0.412 * tZone;
+            gB = 0.620 * (1 - tZone) + 0.510 * tZone;
+          } else {
+            const tZone = Math.min(1.0, (dist - 1.45) / 0.15);
+            gR = 0.933 * (1 - tZone) + 0.859 * tZone;
+            gG = 0.412 * (1 - tZone) + 0.298 * tZone;
+            gB = 0.510 * (1 - tZone) + 0.408 * tZone;
+          }
+
+          const colorBlend = Math.min(1.0, blendStrength * 1.35);
+          col[idx] = col[idx] * (1 - colorBlend) + gR * colorBlend;
+          col[idx + 1] = col[idx + 1] * (1 - colorBlend) + gG * colorBlend;
+          col[idx + 2] = col[idx + 2] * (1 - colorBlend) + gB * colorBlend;
         }
       }
 
