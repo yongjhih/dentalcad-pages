@@ -62,6 +62,43 @@ export interface ArticulatorSettings {
   strokes?: ArticulationStrokes; // 獨立行程參數（開合、前突、側方、平行，可各自獨立調整並自由混用）
 }
 
+export type ModelDiffDisplayMode = 'heatmap' | 'overlay' | 'both';
+
+export type ModelDiffSimulatedPreset =
+  | 'ortho_alignment'
+  | 'arch_expansion'
+  | 'occlusal_wear';
+
+export interface ModelDiffSettings {
+  enabled: boolean;
+  displayMode: ModelDiffDisplayMode; // 'heatmap' | 'overlay' | 'both'
+  compareTargetId: string; // Case ID from cases[] OR 'simulated:ortho_alignment' | 'simulated:arch_expansion' | 'simulated:occlusal_wear' | 'custom_stl'
+  maxRangeMm: number; // Color scale max deviation (0.5 to 3.0 mm, default 1.5 mm)
+  toleranceMm: number; // Green in-tolerance zone (±0.05 to ±0.50 mm, default 0.20 mm)
+  overlayOpacity: number; // Ghost overlay opacity (0.15 to 0.85, default 0.42)
+  overlayWireframe: boolean; // Show wireframe on ghost overlay
+  autoAlignCentroids: boolean; // ICP / centroid registration alignment
+  offsetMm: Point3D; // Manual fine registration translation offset (ΔX, ΔY, ΔZ in mm)
+  customUpperStlUrl?: string; // Optional custom comparison Upper STL blob URL
+  customUpperStlFileName?: string;
+  customLowerStlUrl?: string; // Optional custom comparison Lower STL blob URL
+  customLowerStlFileName?: string;
+}
+
+export interface ModelDiffStats {
+  rmsdMm: number; // Root Mean Square Deviation (mm)
+  meanAbsDiffMm: number; // Mean Absolute Deviation (mm)
+  signedMeanDiffMm: number; // Mean Signed Deviation (mm)
+  maxPositiveMm: number; // Max positive outward deviation (+mm)
+  maxNegativeMm: number; // Max negative inward deviation (-mm)
+  inTolerancePercent: number; // % of vertices within ±toleranceMm
+  positivePercent: number; // % of vertices > +toleranceMm
+  negativePercent: number; // % of vertices < -toleranceMm
+  upperRmsdMm: number;
+  lowerRmsdMm: number;
+  comparedVertexCount: number;
+}
+
 export interface ViewportSettings {
   showUpper: boolean;
   showLower: boolean;
@@ -80,6 +117,7 @@ export interface ViewportSettings {
   autoRotate: boolean;
   lightingIntensity: number;
   articulator: ArticulatorSettings;
+  modelDiff?: ModelDiffSettings;
 }
 
 export interface Point3D {

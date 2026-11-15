@@ -5,9 +5,10 @@ import {
   ThemeMode,
   ArticulationMode,
   ArticulationStrokes,
+  ModelDiffDisplayMode,
 } from '../types/dental';
 
-export type ViewerTabType = 'dossier' | 'articulator' | 'gallery' | 'tools' | 'xml';
+export type ViewerTabType = 'dossier' | 'articulator' | 'diff' | 'gallery' | 'tools' | 'xml';
 
 export interface CameraTransform {
   position: [number, number, number];
@@ -24,6 +25,9 @@ export interface ViewerUrlState {
   showLower?: boolean;
   occlusionSeparation?: number;
   occlusogramEnabled?: boolean;
+  modelDiffEnabled?: boolean;
+  modelDiffMode?: ModelDiffDisplayMode;
+  modelDiffTarget?: string;
   activeTab?: ViewerTabType;
   theme?: ThemeMode;
   locale?: LocaleMode;
@@ -54,6 +58,7 @@ const VALID_SHADINGS = new Set<ShadingMode>([
 const VALID_TABS = new Set<string>([
   'dossier',
   'articulator',
+  'diff',
   'gallery',
   'tools',
   'xml',
@@ -207,6 +212,23 @@ export function parseViewerUrlParams(search: string): Partial<ViewerUrlState> {
     state.occlusogramEnabled = occ === '1' || occ === 'true';
   }
 
+  if (params.has('diff')) {
+    const d = params.get('diff');
+    state.modelDiffEnabled = d === '1' || d === 'true';
+  }
+
+  if (params.has('diffMode')) {
+    const dm = params.get('diffMode') as ModelDiffDisplayMode;
+    if (dm === 'heatmap' || dm === 'overlay' || dm === 'both') {
+      state.modelDiffMode = dm;
+    }
+  }
+
+  if (params.has('diffTarget')) {
+    const dt = params.get('diffTarget');
+    if (dt) state.modelDiffTarget = dt;
+  }
+
   if (params.has('tab')) {
     const tab = params.get('tab') as ViewerTabType;
     if (VALID_TABS.has(tab)) {
@@ -283,6 +305,16 @@ export function serializeViewerUrlParams(state: ViewerUrlState): string {
 
   if (state.occlusogramEnabled) {
     params.set('occ', '1');
+  }
+
+  if (state.modelDiffEnabled) {
+    params.set('diff', '1');
+    if (state.modelDiffMode && state.modelDiffMode !== 'both') {
+      params.set('diffMode', state.modelDiffMode);
+    }
+    if (state.modelDiffTarget && state.modelDiffTarget !== 'simulated:ortho_alignment') {
+      params.set('diffTarget', state.modelDiffTarget);
+    }
   }
 
   if (state.activeTab && state.activeTab !== 'articulator') {

@@ -549,4 +549,42 @@ describe('DentalCAD Pages Application Integration Tests', () => {
     expect(screen.getByText(/Right Buccal Occlusion|右側頰面咬合/i)).toBeInTheDocument();
     expect(screen.getByText(/Left Buccal Occlusion|左側頰面咬合/i)).toBeInTheDocument();
   });
+
+  it('supports 3D Model Diff comparison with signed deviation heatmap, ghost overlay, and telemetry stats', async () => {
+    render(<App />);
+
+    // Switch to 3D Model Diff tab
+    const diffTabBtn = screen.getByTestId('tab-diff');
+    expect(diffTabBtn).toBeInTheDocument();
+    fireEvent.click(diffTabBtn);
+
+    expect(screen.getByTestId('model-diff-panel')).toBeInTheDocument();
+    expect(screen.queryByTestId('viewport-diff-banner')).not.toBeInTheDocument();
+
+    // Enable 3D Model Diff via master toggle
+    const masterToggle = screen.getByTestId('diff-master-toggle');
+    fireEvent.click(masterToggle);
+
+    // Viewport floating diff banner should appear
+    expect(screen.getByTestId('viewport-diff-banner')).toBeInTheDocument();
+
+    // Switch simulated preset to Arch Expansion (+1.2mm)
+    fireEvent.click(screen.getByTestId('diff-preset-arch_expansion'));
+    expect(screen.getByTestId('diff-stat-rmsd')).toHaveTextContent(/mm/);
+    expect(screen.getByTestId('diff-stat-in-tolerance')).toHaveTextContent(/%/);
+
+    // Switch display modes (Heatmap only / Overlay only / Both)
+    fireEvent.click(screen.getByTestId('diff-mode-heatmap'));
+    fireEvent.click(screen.getByTestId('diff-mode-overlay'));
+    fireEvent.click(screen.getByTestId('diff-mode-both'));
+
+    // Adjust registration offset X and reset
+    const offsetXSlider = screen.getByTestId('diff-offset-x-slider');
+    fireEvent.change(offsetXSlider, { target: { value: '0.5' } });
+    fireEvent.click(screen.getByTestId('diff-reset-offset-btn'));
+
+    // Toggle off from viewport toolbar button
+    fireEvent.click(screen.getByTestId('viewport-diff-toggle'));
+    expect(screen.queryByTestId('viewport-diff-banner')).not.toBeInTheDocument();
+  });
 });

@@ -59,6 +59,7 @@ export function createProceduralDentalArchGeometry(isUpper: boolean): THREE.Buff
   const colPalateRaphe = new THREE.Color(0xf49ba8); // Pale median palatine raphe
 
   const lingualVertices: Array<{ x: number; y: number; z: number }> = [];
+  const buccalVertices: Array<{ x: number; y: number; z: number }> = [];
 
   for (let i = 0; i <= segU; i++) {
     // s in [-1, 1] from Patient Right Posterior (+Y, -X) -> Anterior (-Y, 0) -> Patient Left Posterior (+Y, +X)
@@ -230,8 +231,10 @@ export function createProceduralDentalArchGeometry(isUpper: boolean): THREE.Buff
 
       colors.push(vertexColor.r, vertexColor.g, vertexColor.b);
 
-      if (isUpper && j === 0) {
+      if (j === 0) {
         lingualVertices.push({ x: px, y: py, z: pz });
+      } else if (j === segV) {
+        buccalVertices.push({ x: px, y: py, z: pz });
       }
     }
   }
@@ -252,24 +255,56 @@ export function createProceduralDentalArchGeometry(isUpper: boolean): THREE.Buff
     }
   }
 
+  // Seal the alveolar base rim between buccal margin (j = segV) and lingual margin (j = 0)
+  // using dedicated cap vertices so buccal/lingual gingival normals remain 100% smooth
+  if (lingualVertices.length === segU + 1 && buccalVertices.length === segU + 1) {
+    const capCols = 4;
+    const capBaseIdx = positions.length / 3;
+    for (let i = 0; i <= segU; i++) {
+      const bV = buccalVertices[i];
+      const lV = lingualVertices[i];
+      for (let c = 0; c <= capCols; c++) {
+        const t = c / capCols;
+        const px = bV.x * (1 - t) + lV.x * t;
+        const py = bV.y * (1 - t) + lV.y * t;
+        const pz = bV.z * (1 - t) + lV.z * t;
+        positions.push(px, py, pz);
+        colors.push(colGingivaAlveolar.r, colGingivaAlveolar.g, colGingivaAlveolar.b);
+      }
+    }
+    const capStride = capCols + 1;
+    for (let i = 0; i < segU; i++) {
+      for (let c = 0; c < capCols; c++) {
+        const a = capBaseIdx + i * capStride + c;
+        const b = capBaseIdx + (i + 1) * capStride + c;
+        const d = capBaseIdx + i * capStride + (c + 1);
+        const e = capBaseIdx + (i + 1) * capStride + (c + 1);
+        if (isUpper) {
+          indices.push(a, b, e, a, e, d);
+        } else {
+          indices.push(a, e, b, a, d, e);
+        }
+      }
+    }
+  }
+
   // Generate anatomical vaulted palate for upper arch with smooth mucosa
   if (isUpper && lingualVertices.length > 0) {
     const palRings = 12;
     const palSteps = segU;
     const palBaseIndex = positions.length / 3;
 
-    for (let r = 1; r <= palRings; r++) {
+    for (let r = 0; r <= palRings; r++) {
       const ringT = r / palRings; // 0 = at lingual margin, 1 = at median raphe (X = 0)
       for (let i = 0; i <= palSteps; i++) {
         const lv = lingualVertices[i];
         const midY = lv.y * (1 - 0.12 * ringT) + 2.0 * ringT;
         const targetX = 0;
         const targetY = Math.max(-36, Math.min(6, midY));
-        const targetZ = 13.0; // Vault ceiling stays strictly below superior maxillary base (14.0)
 
         const px = lv.x * (1 - ringT) + targetX * ringT;
         const py = lv.y * (1 - ringT) + targetY * ringT;
-        const pz = Math.min(13.6, lv.z * (1 - ringT) + targetZ * ringT + Math.sin(ringT * Math.PI) * 0.7);
+        const pz = lv.z;
 
         positions.push(px, py, pz);
 
@@ -282,17 +317,8 @@ export function createProceduralDentalArchGeometry(isUpper: boolean): THREE.Buff
       }
     }
 
-    // Connect lingual boundary ring to palate ring 1
-    for (let i = 0; i < palSteps; i++) {
-      const a = i * stride; // j = 0 on arch
-      const b = (i + 1) * stride;
-      const c = palBaseIndex + (i + 1);
-      const d = palBaseIndex + i;
-      indices.push(a, c, b, a, d, c);
-    }
-
-    // Connect interior palate rings
-    for (let r = 0; r < palRings - 1; r++) {
+    // Connect interior palate rings (r = 0..palRings) with independent normals
+    for (let r = 0; r < palRings; r++) {
       const curRow = palBaseIndex + r * (palSteps + 1);
       const nextRow = palBaseIndex + (r + 1) * (palSteps + 1);
       for (let i = 0; i < palSteps; i++) {

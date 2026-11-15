@@ -22,6 +22,9 @@ import {
   Point3D,
   DEFAULT_ARTICULATOR_SETTINGS,
   DEFAULT_ORTHO_ARCH_METRICS,
+  DEFAULT_MODEL_DIFF_SETTINGS,
+  DEFAULT_MODEL_DIFF_STATS,
+  ModelDiffStats,
   createCaliperMeasurement,
   LOCALE_STORAGE_KEY,
   tr,
@@ -43,6 +46,7 @@ import {
   CaseDossier,
   PentaGallery,
   ArticulatorPanel,
+  ModelDiffPanel,
   CadToolsPanel,
   XmlInspector,
   AskAiDrawer,
@@ -54,6 +58,7 @@ import {
   Sliders,
   Code,
   Activity,
+  GitCompare,
   Upload,
   Link as LinkIcon,
   Copy,
@@ -65,7 +70,7 @@ import {
   ChevronUp,
 } from 'lucide-react';
 
-type TabType = 'dossier' | 'articulator' | 'gallery' | 'tools' | 'xml';
+type TabType = 'dossier' | 'articulator' | 'diff' | 'gallery' | 'tools' | 'xml';
 type MobileLayoutMode = 'split' | '3d' | 'panel';
 
 const FALLBACK_STATS: MeshGeometryStats = {
@@ -256,6 +261,9 @@ export const App: React.FC = () => {
   );
   const [archMetrics, setArchMetrics] = useState<OrthoArchMetrics>(
     DEFAULT_ORTHO_ARCH_METRICS
+  );
+  const [modelDiffStats, setModelDiffStats] = useState<ModelDiffStats>(
+    DEFAULT_MODEL_DIFF_STATS
   );
   const [caliperMeasurements, setCaliperMeasurements] = useState<CaliperMeasurement[]>([
     createCaliperMeasurement(
@@ -484,6 +492,17 @@ export const App: React.FC = () => {
         initialViewerParams.articulationStrokes ||
         DEFAULT_ARTICULATOR_SETTINGS.strokes,
     },
+    modelDiff: {
+      ...DEFAULT_MODEL_DIFF_SETTINGS,
+      enabled:
+        typeof initialViewerParams.modelDiffEnabled === 'boolean'
+          ? initialViewerParams.modelDiffEnabled
+          : DEFAULT_MODEL_DIFF_SETTINGS.enabled,
+      displayMode:
+        initialViewerParams.modelDiffMode || DEFAULT_MODEL_DIFF_SETTINGS.displayMode,
+      compareTargetId:
+        initialViewerParams.modelDiffTarget || DEFAULT_MODEL_DIFF_SETTINGS.compareTargetId,
+    },
   }));
 
   // Synchronize viewer state changes to URL query string and localStorage (for parameterless reloads)
@@ -499,6 +518,9 @@ export const App: React.FC = () => {
         showLower: viewportSettings.showLower,
         occlusionSeparation: viewportSettings.occlusionSeparation,
         occlusogramEnabled: viewportSettings.occlusogramEnabled,
+        modelDiffEnabled: viewportSettings.modelDiff?.enabled,
+        modelDiffMode: viewportSettings.modelDiff?.displayMode,
+        modelDiffTarget: viewportSettings.modelDiff?.compareTargetId,
         activeTab,
         theme,
         locale,
@@ -520,6 +542,9 @@ export const App: React.FC = () => {
     viewportSettings.showLower,
     viewportSettings.occlusionSeparation,
     viewportSettings.occlusogramEnabled,
+    viewportSettings.modelDiff?.enabled,
+    viewportSettings.modelDiff?.displayMode,
+    viewportSettings.modelDiff?.compareTargetId,
     viewportSettings.articulator.mode,
     viewportSettings.articulator.strokes,
     activeTab,
@@ -779,6 +804,10 @@ export const App: React.FC = () => {
             onClearCaliperMeasurements={handleClearCaliperMeasurements}
             onCustomFilesDrop={handleImportCaseFiles}
             locale={locale}
+            cases={cases}
+            activeCaseId={activeCase.id}
+            diffStats={modelDiffStats}
+            onModelDiffStatsComputed={setModelDiffStats}
           />
 
           {/* Floating Expand Sidebar Button when Sidebar is Collapsed */}
@@ -1005,6 +1034,19 @@ export const App: React.FC = () => {
               </button>
 
               <button
+                data-testid="tab-diff"
+                onClick={() => setActiveTab('diff')}
+                className={`flex items-center gap-1.5 px-2.5 py-2 text-xs font-medium border-b-2 transition-colors whitespace-nowrap ${
+                  activeTab === 'diff'
+                    ? 'border-cyan-500 dark:border-cyan-400 text-cyan-600 dark:text-cyan-300 bg-cyan-500/5 dark:bg-slate-900/60 rounded-t'
+                    : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                }`}
+              >
+                <GitCompare className="w-3.5 h-3.5" />
+                <span>{tr(locale, '3D 差異比對', '3D Model Diff')}</span>
+              </button>
+
+              <button
                 data-testid="tab-gallery"
                 onClick={() => setActiveTab('gallery')}
                 className={`flex items-center gap-1.5 px-2.5 py-2 text-xs font-medium border-b-2 transition-colors whitespace-nowrap ${
@@ -1090,6 +1132,16 @@ export const App: React.FC = () => {
                 caliperMeasurements={caliperMeasurements}
                 onClearCaliperMeasurements={handleClearCaliperMeasurements}
                 onAddPresetCaliperMeasurement={handleAddPresetCaliperMeasurement}
+                locale={locale}
+              />
+            )}
+            {activeTab === 'diff' && (
+              <ModelDiffPanel
+                settings={viewportSettings}
+                onSettingsChange={setViewportSettings}
+                diffStats={modelDiffStats}
+                cases={cases}
+                activeCaseId={activeCase.id}
                 locale={locale}
               />
             )}
