@@ -8,6 +8,12 @@ import {
   restoreNativeGeometryBeforeEdits,
   exportEditedArchToBinaryStl,
   TOOTH_LIBRARY_ITEMS,
+  DEFAULT_MODEL_EDIT_SETTINGS,
+  canUndo,
+  canRedo,
+  pushModelEditSnapshot,
+  undoModelEdit,
+  redoModelEdit,
 } from '../utils/modelEditor';
 
 describe('3D Dental Model & Tooth Editor Engine (modelEditor.ts)', () => {
@@ -133,5 +139,74 @@ describe('3D Dental Model & Tooth Editor Engine (modelEditor.ts)', () => {
     const triCount = view.getUint32(80, true);
     expect(triCount).toBeGreaterThan(1000);
     expect(stlBuffer.byteLength).toBe(84 + triCount * 50);
+  });
+
+  it('correctly tracks undo/redo snapshots through successive edits and restores states', () => {
+    let settings = { ...DEFAULT_MODEL_EDIT_SETTINGS };
+    expect(canUndo(settings)).toBe(false);
+    expect(canRedo(settings)).toBe(false);
+
+    // 1. Delete tooth #25
+    settings = pushModelEditSnapshot(settings);
+    settings.nativeEdits = {
+      25: {
+        fdi: 25,
+        deleted: true,
+        offsetMm: { x: 0, y: 0, z: 0 },
+        rotationDeg: 0,
+        scale: 1,
+      },
+    };
+    settings.selectedTarget = { kind: 'native', fdi: 25 };
+
+    expect(canUndo(settings)).toBe(true);
+    expect(canRedo(settings)).toBe(false);
+    expect(settings.nativeEdits[25]?.deleted).toBe(true);
+
+    // 2. Add placed tooth
+    settings = pushModelEditSnapshot(settings);
+    settings.placedTeeth = [
+      {
+        id: 'placed-lib-1',
+        labelZh: '上顎 小臼齒',
+        labelEn: 'Upper Premolar',
+        morphology: 'premolar',
+        isUpper: true,
+        position: { x: 22.8, y: -15.5, z: 1.4 },
+        rotationDeg: 0,
+        scale: 1,
+      },
+    ];
+    settings.selectedTarget = { kind: 'placed', placedId: 'placed-lib-1' };
+
+    expect(settings.placedTeeth).toHaveLength(1);
+    expect(settings.history?.past).toHaveLength(2);
+
+    // 3. Undo: placed tooth should disappear, restoring previous target and state
+    settings = undoModelEdit(settings);
+    expect(settings.placedTeeth).toHaveLength(0);
+    expect(settings.nativeEdits[25]?.deleted).toBe(true);
+    expect(settings.selectedTarget).toEqual({ kind: 'native', fdi: 25 });
+    expect(canUndo(settings)).toBe(true);
+    expect(canRedo(settings)).toBe(true);
+
+    // 4. Undo again: tooth #25 deletion is undone
+    settings = undoModelEdit(settings);
+    expect(settings.nativeEdits[25]).toBeUndefined();
+    expect(canUndo(settings)).toBe(false);
+    expect(canRedo(settings)).toBe(true);
+
+    // 5. Redo: tooth #25 becomes deleted again
+    settings = redoModelEdit(settings);
+    expect(settings.nativeEdits[25]?.deleted).toBe(true);
+    expect(canUndo(settings)).toBe(true);
+    expect(canRedo(settings)).toBe(true);
+
+    // 6. Redo again: placed tooth is restored
+    settings = redoModelEdit(settings);
+    expect(settings.placedTeeth).toHaveLength(1);
+    expect(settings.placedTeeth[0].id).toBe('placed-lib-1');
+    expect(canUndo(settings)).toBe(true);
+    expect(canRedo(settings)).toBe(false);
   });
 });

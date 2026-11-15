@@ -166,6 +166,17 @@ export type SelectedToothTarget =
   | { kind: 'native'; fdi: FdiToothNumber }
   | { kind: 'placed'; placedId: string };
 
+export interface ModelEditSnapshot {
+  nativeEdits: Record<number, NativeToothEditOperation>;
+  placedTeeth: PlacedLibraryTooth[];
+  selectedTarget: SelectedToothTarget | null;
+}
+
+export interface ModelEditHistory {
+  past: ModelEditSnapshot[];
+  future: ModelEditSnapshot[];
+}
+
 export interface ModelEditSettings {
   enabled: boolean;
   toolMode: ModelEditorToolMode;
@@ -174,6 +185,7 @@ export interface ModelEditSettings {
   placedTeeth: PlacedLibraryTooth[];
   clipboard: CopiedToothClipboard | null;
   showFdiLabels: boolean;
+  history?: ModelEditHistory;
 }
 
 export interface ViewportSettings {

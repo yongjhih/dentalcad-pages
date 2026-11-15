@@ -14,6 +14,11 @@ import {
   UPPER_FDI_ORDER,
   LOWER_FDI_ORDER,
   FDI_ARCH_SEEDS,
+  canUndo,
+  canRedo,
+  undoModelEdit,
+  redoModelEdit,
+  pushModelEditSnapshot,
 } from '../utils/modelEditor';
 import { tr } from '../utils/i18n';
 import {
@@ -25,6 +30,8 @@ import {
   ClipboardPaste,
   Plus,
   RotateCcw,
+  Undo2,
+  Redo2,
   Download,
   Sparkles,
   CheckCircle2,
@@ -68,6 +75,38 @@ export const ModelEditorPanel: React.FC<ModelEditorPanelProps> = ({
         scale: 1,
       }
     : null;
+
+  const handleUndo = () => {
+    onSettingsChange((prev) => {
+      const cur = prev.modelEdit || DEFAULT_MODEL_EDIT_SETTINGS;
+      if (!canUndo(cur)) return prev;
+      return {
+        ...prev,
+        modelEdit: undoModelEdit(cur),
+      };
+    });
+  };
+
+  const handleRedo = () => {
+    onSettingsChange((prev) => {
+      const cur = prev.modelEdit || DEFAULT_MODEL_EDIT_SETTINGS;
+      if (!canRedo(cur)) return prev;
+      return {
+        ...prev,
+        modelEdit: redoModelEdit(cur),
+      };
+    });
+  };
+
+  const handleSliderPointerDown = () => {
+    onSettingsChange((prev) => {
+      const cur = prev.modelEdit || DEFAULT_MODEL_EDIT_SETTINGS;
+      return {
+        ...prev,
+        modelEdit: pushModelEditSnapshot(cur),
+      };
+    });
+  };
 
   const handleToggleEnabled = () => {
     onSettingsChange((prev) => {
@@ -172,7 +211,7 @@ export const ModelEditorPanel: React.FC<ModelEditorPanelProps> = ({
     if (selectedPlaced) {
       const targetId = selectedPlaced.id;
       onSettingsChange((prev) => {
-        const cur = prev.modelEdit || DEFAULT_MODEL_EDIT_SETTINGS;
+        const cur = pushModelEditSnapshot(prev.modelEdit || DEFAULT_MODEL_EDIT_SETTINGS);
         return {
           ...prev,
           modelEdit: {
@@ -186,10 +225,31 @@ export const ModelEditorPanel: React.FC<ModelEditorPanelProps> = ({
     }
 
     if (selectedNative) {
-      updateSelectedNativeEdit((op) => ({
-        ...op,
-        deleted: !op.deleted,
-      }));
+      const fdi = selectedNative.fdi;
+      onSettingsChange((prev) => {
+        const cur = pushModelEditSnapshot(prev.modelEdit || DEFAULT_MODEL_EDIT_SETTINGS);
+        const currentOp: NativeToothEditOperation = cur.nativeEdits[fdi] || {
+          fdi,
+          deleted: false,
+          offsetMm: { x: 0, y: 0, z: 0 },
+          rotationDeg: 0,
+          scale: 1,
+        };
+        return {
+          ...prev,
+          modelEdit: {
+            ...cur,
+            enabled: true,
+            nativeEdits: {
+              ...cur.nativeEdits,
+              [fdi]: {
+                ...currentOp,
+                deleted: !currentOp.deleted,
+              },
+            },
+          },
+        };
+      });
     }
   };
 
@@ -277,7 +337,7 @@ export const ModelEditorPanel: React.FC<ModelEditorPanelProps> = ({
     };
 
     onSettingsChange((prev) => {
-      const cur = prev.modelEdit || DEFAULT_MODEL_EDIT_SETTINGS;
+      const cur = pushModelEditSnapshot(prev.modelEdit || DEFAULT_MODEL_EDIT_SETTINGS);
       return {
         ...prev,
         modelEdit: {
@@ -334,7 +394,7 @@ export const ModelEditorPanel: React.FC<ModelEditorPanelProps> = ({
     };
 
     onSettingsChange((prev) => {
-      const cur = prev.modelEdit || DEFAULT_MODEL_EDIT_SETTINGS;
+      const cur = pushModelEditSnapshot(prev.modelEdit || DEFAULT_MODEL_EDIT_SETTINGS);
       return {
         ...prev,
         caliperToolActive: false,
@@ -351,7 +411,7 @@ export const ModelEditorPanel: React.FC<ModelEditorPanelProps> = ({
 
   const handleResetAll = () => {
     onSettingsChange((prev) => {
-      const cur = prev.modelEdit || DEFAULT_MODEL_EDIT_SETTINGS;
+      const cur = pushModelEditSnapshot(prev.modelEdit || DEFAULT_MODEL_EDIT_SETTINGS);
       return {
         ...prev,
         modelEdit: {
@@ -569,6 +629,29 @@ export const ModelEditorPanel: React.FC<ModelEditorPanelProps> = ({
 
             <button
               type="button"
+              data-testid="editor-undo-btn"
+              onClick={handleUndo}
+              disabled={!canUndo(modelEdit)}
+              title={tr(locale, '復原 (⌘Z / Ctrl+Z)', 'Undo (⌘Z / Ctrl+Z)')}
+              className="px-2.5 py-1 rounded text-[11px] font-medium bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 flex items-center gap-1 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              <Undo2 className="w-3 h-3" />
+              <span>{tr(locale, '復原', 'Undo')}</span>
+            </button>
+            <button
+              type="button"
+              data-testid="editor-redo-btn"
+              onClick={handleRedo}
+              disabled={!canRedo(modelEdit)}
+              title={tr(locale, '重做 (⌘⇧Z / Ctrl+Shift+Z / Ctrl+Y)', 'Redo (⌘⇧Z / Ctrl+Shift+Z / Ctrl+Y)')}
+              className="px-2.5 py-1 rounded text-[11px] font-medium bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 flex items-center gap-1 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              <Redo2 className="w-3 h-3" />
+              <span>{tr(locale, '重做', 'Redo')}</span>
+            </button>
+
+            <button
+              type="button"
               data-testid="editor-reset-all-btn"
               onClick={handleResetAll}
               className="px-2.5 py-1 rounded text-[11px] font-medium bg-slate-100 dark:bg-slate-800 hover:bg-rose-500/15 text-slate-600 dark:text-slate-300 hover:text-rose-600 dark:hover:text-rose-300 border border-slate-200 dark:border-slate-700 flex items-center gap-1 transition-colors"
@@ -754,6 +837,7 @@ export const ModelEditorPanel: React.FC<ModelEditorPanelProps> = ({
                 max={selectedPlaced ? 32 : 15}
                 step={0.2}
                 value={currentDx}
+                onPointerDown={handleSliderPointerDown}
                 onChange={(e) => {
                   const val = parseFloat(e.target.value);
                   if (selectedPlaced) {
@@ -791,6 +875,7 @@ export const ModelEditorPanel: React.FC<ModelEditorPanelProps> = ({
                 max={selectedPlaced ? 14 : 15}
                 step={0.2}
                 value={currentDy}
+                onPointerDown={handleSliderPointerDown}
                 onChange={(e) => {
                   const val = parseFloat(e.target.value);
                   if (selectedPlaced) {
@@ -828,6 +913,7 @@ export const ModelEditorPanel: React.FC<ModelEditorPanelProps> = ({
                 max={selectedPlaced ? 12 : 8}
                 step={0.2}
                 value={currentDz}
+                onPointerDown={handleSliderPointerDown}
                 onChange={(e) => {
                   const val = parseFloat(e.target.value);
                   if (selectedPlaced) {
@@ -864,6 +950,7 @@ export const ModelEditorPanel: React.FC<ModelEditorPanelProps> = ({
                   max={180}
                   step={2}
                   value={currentRot}
+                  onPointerDown={handleSliderPointerDown}
                   onChange={(e) => {
                     const val = parseFloat(e.target.value);
                     if (selectedPlaced) {
@@ -892,6 +979,7 @@ export const ModelEditorPanel: React.FC<ModelEditorPanelProps> = ({
                   max={1.45}
                   step={0.05}
                   value={currentScale}
+                  onPointerDown={handleSliderPointerDown}
                   onChange={(e) => {
                     const val = parseFloat(e.target.value);
                     if (selectedPlaced) {
@@ -1047,7 +1135,7 @@ export const ModelEditorPanel: React.FC<ModelEditorPanelProps> = ({
                       data-testid={`delete-placed-tooth-${pt.id}`}
                       onClick={() =>
                         onSettingsChange((prev) => {
-                          const cur = prev.modelEdit || DEFAULT_MODEL_EDIT_SETTINGS;
+                          const cur = pushModelEditSnapshot(prev.modelEdit || DEFAULT_MODEL_EDIT_SETTINGS);
                           return {
                             ...prev,
                             modelEdit: {

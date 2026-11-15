@@ -630,8 +630,36 @@ describe('DentalCAD Pages Application Integration Tests', () => {
     expect(screen.getByTestId('viewport-editor-banner')).toBeInTheDocument();
 
     // Add a premolar from the 3D Tooth Library and drag/move it
+    const undoBtn = screen.getByTestId('editor-undo-btn');
+    const redoBtn = screen.getByTestId('editor-redo-btn');
+    expect(undoBtn).toBeDisabled();
+    expect(redoBtn).toBeDisabled();
+
     const addPremolarBtn = screen.getByTestId('library-add-premolar');
     fireEvent.click(addPremolarBtn);
+
+    // After adding, undo is enabled
+    expect(undoBtn).not.toBeDisabled();
+    expect(redoBtn).toBeDisabled();
+
+    // Test Undo via button
+    fireEvent.click(undoBtn);
+    expect(undoBtn).toBeDisabled();
+    expect(redoBtn).not.toBeDisabled();
+
+    // Test Redo via button
+    fireEvent.click(redoBtn);
+    expect(undoBtn).not.toBeDisabled();
+    expect(redoBtn).toBeDisabled();
+
+    // Test Undo & Redo via keyboard shortcut (⌘Z / ⌘⇧Z)
+    fireEvent.keyDown(window, { key: 'z', metaKey: true });
+    expect(undoBtn).toBeDisabled();
+    expect(redoBtn).not.toBeDisabled();
+
+    fireEvent.keyDown(window, { key: 'z', metaKey: true, shiftKey: true });
+    expect(undoBtn).not.toBeDisabled();
+    expect(redoBtn).toBeDisabled();
 
     // Copy & Paste the selected tooth
     const copyBtn = screen.getByTestId('editor-copy-tooth-btn');
@@ -641,6 +669,7 @@ describe('DentalCAD Pages Application Integration Tests', () => {
 
     // Move/drag the tooth via the ΔX slider
     const dxSlider = screen.getByTestId('editor-slider-dx');
+    fireEvent.pointerDown(dxSlider);
     fireEvent.change(dxSlider, { target: { value: '3.4' } });
 
     // Delete the placed tooth

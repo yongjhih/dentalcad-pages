@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   ViewportSettings,
   SegmentedToothInfo,
@@ -8,6 +8,11 @@ import {
 import {
   DEFAULT_MODEL_EDIT_SETTINGS,
   getLibraryItemMeta,
+  canUndo,
+  canRedo,
+  undoModelEdit,
+  redoModelEdit,
+  pushModelEditSnapshot,
 } from '../../utils/modelEditor';
 import { tr } from '../../utils/i18n';
 import {
@@ -18,6 +23,8 @@ import {
   RotateCcw,
   Copy,
   ClipboardPaste,
+  Undo2,
+  Redo2,
   X,
 } from 'lucide-react';
 
@@ -51,12 +58,64 @@ export const ViewportEditorBanner: React.FC<ViewportEditorBannerProps> = ({
     selectedNative && modelEdit.nativeEdits[selectedNative.fdi]?.deleted
   );
 
+  const handleUndo = () => {
+    onSettingsChange((prev) => {
+      const cur = prev.modelEdit || DEFAULT_MODEL_EDIT_SETTINGS;
+      if (!canUndo(cur)) return prev;
+      return {
+        ...prev,
+        modelEdit: undoModelEdit(cur),
+      };
+    });
+  };
+
+  const handleRedo = () => {
+    onSettingsChange((prev) => {
+      const cur = prev.modelEdit || DEFAULT_MODEL_EDIT_SETTINGS;
+      if (!canRedo(cur)) return prev;
+      return {
+        ...prev,
+        modelEdit: redoModelEdit(cur),
+      };
+    });
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement ||
+        (e.target as HTMLElement)?.isContentEditable
+      ) {
+        return;
+      }
+      const isCmdOrCtrl = e.metaKey || e.ctrlKey;
+      if (!isCmdOrCtrl) return;
+
+      const key = e.key.toLowerCase();
+      if (key === 'z') {
+        e.preventDefault();
+        if (e.shiftKey) {
+          handleRedo();
+        } else {
+          handleUndo();
+        }
+      } else if (key === 'y') {
+        e.preventDefault();
+        handleRedo();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   const handleToggleDeleteSelected = () => {
     if (!selectedTarget) return;
     if (selectedTarget.kind === 'placed' && selectedTarget.placedId) {
       const targetId = selectedTarget.placedId;
       onSettingsChange((prev) => {
-        const cur = prev.modelEdit || DEFAULT_MODEL_EDIT_SETTINGS;
+        const cur = pushModelEditSnapshot(prev.modelEdit || DEFAULT_MODEL_EDIT_SETTINGS);
         return {
           ...prev,
           modelEdit: {
@@ -72,7 +131,7 @@ export const ViewportEditorBanner: React.FC<ViewportEditorBannerProps> = ({
     if (selectedTarget.kind === 'native' && selectedTarget.fdi) {
       const fdi = selectedTarget.fdi;
       onSettingsChange((prev) => {
-        const cur = prev.modelEdit || DEFAULT_MODEL_EDIT_SETTINGS;
+        const cur = pushModelEditSnapshot(prev.modelEdit || DEFAULT_MODEL_EDIT_SETTINGS);
         const prevOp = cur.nativeEdits[fdi] || {
           fdi,
           deleted: false,
@@ -183,7 +242,7 @@ export const ViewportEditorBanner: React.FC<ViewportEditorBannerProps> = ({
     };
 
     onSettingsChange((prev) => {
-      const cur = prev.modelEdit || DEFAULT_MODEL_EDIT_SETTINGS;
+      const cur = pushModelEditSnapshot(prev.modelEdit || DEFAULT_MODEL_EDIT_SETTINGS);
       return {
         ...prev,
         modelEdit: {
@@ -197,7 +256,7 @@ export const ViewportEditorBanner: React.FC<ViewportEditorBannerProps> = ({
 
   const handleResetAllEdits = () => {
     onSettingsChange((prev) => {
-      const cur = prev.modelEdit || DEFAULT_MODEL_EDIT_SETTINGS;
+      const cur = pushModelEditSnapshot(prev.modelEdit || DEFAULT_MODEL_EDIT_SETTINGS);
       return {
         ...prev,
         modelEdit: {
@@ -326,8 +385,28 @@ export const ViewportEditorBanner: React.FC<ViewportEditorBannerProps> = ({
         </button>
       )}
 
-      {/* Reset All & Close */}
+      {/* Undo / Redo / Reset All & Close */}
       <div className="flex items-center gap-1 ml-auto">
+        <button
+          type="button"
+          data-testid="viewport-editor-undo-btn"
+          onClick={handleUndo}
+          disabled={!canUndo(modelEdit)}
+          title={tr(locale, '復原 (⌘Z / Ctrl+Z)', 'Undo (⌘Z / Ctrl+Z)')}
+          className="p-1 rounded text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition-opacity"
+        >
+          <Undo2 className="w-3.5 h-3.5" />
+        </button>
+        <button
+          type="button"
+          data-testid="viewport-editor-redo-btn"
+          onClick={handleRedo}
+          disabled={!canRedo(modelEdit)}
+          title={tr(locale, '重做 (⌘⇧Z / Ctrl+Shift+Z / Ctrl+Y)', 'Redo (⌘⇧Z / Ctrl+Shift+Z / Ctrl+Y)')}
+          className="p-1 rounded text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition-opacity"
+        >
+          <Redo2 className="w-3.5 h-3.5" />
+        </button>
         <button
           type="button"
           data-testid="viewport-editor-reset-btn"

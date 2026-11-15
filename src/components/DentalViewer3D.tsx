@@ -19,6 +19,7 @@ import {
   SelectedToothTarget,
   PlacedLibraryTooth,
   ToothMorphologyType,
+  ModelEditSnapshot,
 } from '../types/dental';
 import { DEFAULT_MODEL_DIFF_SETTINGS } from '../utils/modelDiff';
 import {
@@ -26,6 +27,8 @@ import {
   identifyToothAtPoint3D,
   exportEditedArchToBinaryStl,
   getLibraryItemMeta,
+  createModelEditSnapshot,
+  pushModelEditSnapshot,
 } from '../utils/modelEditor';
 import { tr } from '../utils/i18n';
 import {
@@ -181,6 +184,8 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
     startWorldPt: THREE.Vector3;
     initialPosOrOffset: Point3D;
   } | null>(null);
+  const dragStartSnapshotRef = useRef<ModelEditSnapshot | null>(null);
+  const hasDraggedRef = useRef<boolean>(false);
 
   // Animation & Lerp
   const animFrameIdRef = useRef<number | null>(null);
@@ -1472,6 +1477,8 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
             (modelEdit.selectedTarget?.kind === 'placed' &&
               modelEdit.selectedTarget.placedId === placedId)
           ) {
+            dragStartSnapshotRef.current = createModelEditSnapshot(modelEdit);
+            hasDraggedRef.current = false;
             activeToothDragRef.current = {
               target: newTarget,
               isUpper,
@@ -1529,6 +1536,8 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
                 modelEdit.selectedTarget.fdi === picked.fdi))
           ) {
             const curEdit = modelEdit.nativeEdits[picked.fdi];
+            dragStartSnapshotRef.current = createModelEditSnapshot(modelEdit);
+            hasDraggedRef.current = false;
             activeToothDragRef.current = {
               target: picked,
               isUpper,
@@ -1608,6 +1617,9 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
 
     const dx = Number(delta.x.toFixed(2));
     const dy = Number(delta.y.toFixed(2));
+    if (Math.abs(dx) > 0.05 || Math.abs(dy) > 0.05) {
+      hasDraggedRef.current = true;
+    }
 
     if (dragState.target.kind === 'placed' && dragState.target.placedId) {
       const placedId = dragState.target.placedId;
@@ -1669,7 +1681,26 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
 
   const handleViewportPointerUp = () => {
     if (activeToothDragRef.current) {
+      if (hasDraggedRef.current && dragStartSnapshotRef.current) {
+        const snap = dragStartSnapshotRef.current;
+        onSettingsChange((prev) => {
+          const cur = prev.modelEdit || DEFAULT_MODEL_EDIT_SETTINGS;
+          const prevPast = cur.history?.past || [];
+          return {
+            ...prev,
+            modelEdit: {
+              ...cur,
+              history: {
+                past: [...prevPast.slice(-31), snap],
+                future: [],
+              },
+            },
+          };
+        });
+      }
       activeToothDragRef.current = null;
+      dragStartSnapshotRef.current = null;
+      hasDraggedRef.current = false;
       if (controlsRef.current) controlsRef.current.enabled = true;
     }
   };
@@ -1759,7 +1790,7 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
         };
 
         onSettingsChange((prev) => {
-          const cur = prev.modelEdit || DEFAULT_MODEL_EDIT_SETTINGS;
+          const cur = pushModelEditSnapshot(prev.modelEdit || DEFAULT_MODEL_EDIT_SETTINGS);
           return {
             ...prev,
             caliperToolActive: false,

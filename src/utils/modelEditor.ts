@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import {
   FdiToothNumber,
   ModelEditSettings,
+  ModelEditSnapshot,
   NativeToothEditOperation,
   PlacedLibraryTooth,
   Point3D,
@@ -18,7 +19,94 @@ export const DEFAULT_MODEL_EDIT_SETTINGS: ModelEditSettings = {
   placedTeeth: [],
   clipboard: null,
   showFdiLabels: true,
+  history: {
+    past: [],
+    future: [],
+  },
 };
+
+/**
+ * Creates an immutable snapshot of the current 3D tooth editor state
+ */
+export function createModelEditSnapshot(settings: ModelEditSettings): ModelEditSnapshot {
+  return {
+    nativeEdits: JSON.parse(JSON.stringify(settings.nativeEdits || {})),
+    placedTeeth: JSON.parse(JSON.stringify(settings.placedTeeth || [])),
+    selectedTarget: settings.selectedTarget ? { ...settings.selectedTarget } : null,
+  };
+}
+
+/**
+ * Checks whether an undo operation can be performed
+ */
+export function canUndo(settings?: ModelEditSettings): boolean {
+  return Boolean(settings?.history && settings.history.past.length > 0);
+}
+
+/**
+ * Checks whether a redo operation can be performed
+ */
+export function canRedo(settings?: ModelEditSettings): boolean {
+  return Boolean(settings?.history && settings.history.future.length > 0);
+}
+
+/**
+ * Pushes the current state snapshot onto the undo history stack before applying an edit mutation
+ */
+export function pushModelEditSnapshot(
+  settings: ModelEditSettings,
+  maxHistory = 32
+): ModelEditSettings {
+  const currentSnapshot = createModelEditSnapshot(settings);
+  const prevPast = settings.history?.past || [];
+  return {
+    ...settings,
+    history: {
+      past: [...prevPast.slice(-maxHistory + 1), currentSnapshot],
+      future: [],
+    },
+  };
+}
+
+/**
+ * Reverts the 3D model editor to the previous snapshot in the history stack
+ */
+export function undoModelEdit(settings: ModelEditSettings): ModelEditSettings {
+  if (!settings.history || settings.history.past.length === 0) return settings;
+  const currentSnapshot = createModelEditSnapshot(settings);
+  const newPast = [...settings.history.past];
+  const previousSnapshot = newPast.pop()!;
+  return {
+    ...settings,
+    nativeEdits: previousSnapshot.nativeEdits,
+    placedTeeth: previousSnapshot.placedTeeth,
+    selectedTarget: previousSnapshot.selectedTarget,
+    history: {
+      past: newPast,
+      future: [currentSnapshot, ...(settings.history.future || [])],
+    },
+  };
+}
+
+/**
+ * Re-applies the next undone snapshot from the redo history stack
+ */
+export function redoModelEdit(settings: ModelEditSettings): ModelEditSettings {
+  if (!settings.history || settings.history.future.length === 0) return settings;
+  const currentSnapshot = createModelEditSnapshot(settings);
+  const newFuture = [...settings.history.future];
+  const nextSnapshot = newFuture.shift()!;
+  return {
+    ...settings,
+    nativeEdits: nextSnapshot.nativeEdits,
+    placedTeeth: nextSnapshot.placedTeeth,
+    selectedTarget: nextSnapshot.selectedTarget,
+    history: {
+      past: [...(settings.history.past || []), currentSnapshot],
+      future: newFuture,
+    },
+  };
+}
 
 export interface ToothLibraryPresetItem {
   morphology: ToothMorphologyType;
