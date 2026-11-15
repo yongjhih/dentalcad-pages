@@ -24,7 +24,9 @@ import {
   DEFAULT_ORTHO_ARCH_METRICS,
   DEFAULT_MODEL_DIFF_SETTINGS,
   DEFAULT_MODEL_DIFF_STATS,
+  DEFAULT_MODEL_EDIT_SETTINGS,
   ModelDiffStats,
+  SegmentedToothInfo,
   createCaliperMeasurement,
   LOCALE_STORAGE_KEY,
   tr,
@@ -32,6 +34,7 @@ import {
   parseUrlDataParameter,
   ParsedUrlDataParam,
   ViewerUrlState,
+  ViewerTabType,
   CameraTransform,
   parseViewerUrlParams,
   loadPersistedViewerState,
@@ -47,6 +50,7 @@ import {
   PentaGallery,
   ArticulatorPanel,
   ModelDiffPanel,
+  ModelEditorPanel,
   CadToolsPanel,
   XmlInspector,
   AskAiDrawer,
@@ -61,6 +65,7 @@ import {
   Code,
   Activity,
   GitCompare,
+  Wand2,
   Upload,
   Link as LinkIcon,
   Copy,
@@ -72,7 +77,7 @@ import {
   ChevronUp,
 } from 'lucide-react';
 
-type TabType = 'dossier' | 'articulator' | 'diff' | 'gallery' | 'tools' | 'xml';
+type TabType = ViewerTabType;
 type MobileLayoutMode = 'split' | '3d' | 'panel';
 
 const FALLBACK_STATS: MeshGeometryStats = {
@@ -267,6 +272,14 @@ export const App: React.FC = () => {
   const [modelDiffStats, setModelDiffStats] = useState<ModelDiffStats>(
     DEFAULT_MODEL_DIFF_STATS
   );
+  const [segmentedTeeth, setSegmentedTeeth] = useState<SegmentedToothInfo[]>([]);
+  const stlExporterRef = useRef<((isUpper: boolean) => void) | null>(null);
+  const handleRegisterStlExporter = useCallback((fn: (isUpper: boolean) => void) => {
+    stlExporterRef.current = fn;
+  }, []);
+  const handleExportEditedStl = useCallback((isUpper: boolean) => {
+    stlExporterRef.current?.(isUpper);
+  }, []);
   const [caliperMeasurements, setCaliperMeasurements] = useState<CaliperMeasurement[]>([
     createCaliperMeasurement(
       'init-u3',
@@ -511,6 +524,9 @@ export const App: React.FC = () => {
         initialViewerParams.modelDiffMode || DEFAULT_MODEL_DIFF_SETTINGS.displayMode,
       compareTargetId:
         initialViewerParams.modelDiffTarget || DEFAULT_MODEL_DIFF_SETTINGS.compareTargetId,
+    },
+    modelEdit: {
+      ...DEFAULT_MODEL_EDIT_SETTINGS,
     },
   }));
 
@@ -860,6 +876,8 @@ export const App: React.FC = () => {
             activeCaseId={activeCase.id}
             diffStats={modelDiffStats}
             onModelDiffStatsComputed={setModelDiffStats}
+            onSegmentedTeethComputed={setSegmentedTeeth}
+            onRegisterStlExporter={handleRegisterStlExporter}
           />
 
           {/* Floating Expand Sidebar Button when Sidebar is Collapsed */}
@@ -1099,6 +1117,19 @@ export const App: React.FC = () => {
               </button>
 
               <button
+                data-testid="tab-editor"
+                onClick={() => setActiveTab('editor')}
+                className={`flex items-center gap-1.5 px-2.5 py-2 text-xs font-medium border-b-2 transition-colors whitespace-nowrap ${
+                  activeTab === 'editor'
+                    ? 'border-violet-500 dark:border-violet-400 text-violet-600 dark:text-violet-300 bg-violet-500/5 dark:bg-slate-900/60 rounded-t'
+                    : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                }`}
+              >
+                <Wand2 className="w-3.5 h-3.5" />
+                <span>{tr(locale, '3D 齒列編輯', '3D Tooth Editor')}</span>
+              </button>
+
+              <button
                 data-testid="tab-gallery"
                 onClick={() => setActiveTab('gallery')}
                 className={`flex items-center gap-1.5 px-2.5 py-2 text-xs font-medium border-b-2 transition-colors whitespace-nowrap ${
@@ -1195,6 +1226,15 @@ export const App: React.FC = () => {
                 cases={cases}
                 activeCaseId={activeCase.id}
                 anonymizePatient={anonymizePatient}
+                locale={locale}
+              />
+            )}
+            {activeTab === 'editor' && (
+              <ModelEditorPanel
+                settings={viewportSettings}
+                onSettingsChange={setViewportSettings}
+                segmentedTeeth={segmentedTeeth}
+                onExportEditedStl={handleExportEditedStl}
                 locale={locale}
               />
             )}

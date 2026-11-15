@@ -15,8 +15,18 @@ import {
   LocaleMode,
   DentalCaseBundle,
   ModelDiffStats,
+  SegmentedToothInfo,
+  SelectedToothTarget,
+  PlacedLibraryTooth,
+  ToothMorphologyType,
 } from '../types/dental';
 import { DEFAULT_MODEL_DIFF_SETTINGS } from '../utils/modelDiff';
+import {
+  DEFAULT_MODEL_EDIT_SETTINGS,
+  identifyToothAtPoint3D,
+  exportEditedArchToBinaryStl,
+  getLibraryItemMeta,
+} from '../utils/modelEditor';
 import { tr } from '../utils/i18n';
 import {
   LoadedPentaTextures,
@@ -39,8 +49,10 @@ import { computeOrthoArchMetrics } from '../utils/archMeasurements';
 import { createProceduralDentalArchGeometry } from '../utils/proceduralArch';
 import { CameraTransform } from '../utils/urlState';
 import { useModelDiffEffect } from '../hooks/useModelDiffEffect';
+import { useModelEditorEffect } from '../hooks/useModelEditorEffect';
 import { ViewportCaliperBanner } from './viewport/ViewportCaliperBanner';
 import { ViewportDiffBanner } from './viewport/ViewportDiffBanner';
+import { ViewportEditorBanner } from './viewport/ViewportEditorBanner';
 import { MandibularJoystickBar } from './viewport/MandibularJoystickBar';
 import { ViewportBottomHud } from './viewport/ViewportBottomHud';
 import {
@@ -57,6 +69,7 @@ import {
   Activity,
   Trash2,
   GitCompare,
+  Wand2,
 } from 'lucide-react';
 
 interface DentalViewer3DProps {
@@ -82,6 +95,8 @@ interface DentalViewer3DProps {
   activeCaseId?: string;
   diffStats?: ModelDiffStats;
   onModelDiffStatsComputed?: (stats: ModelDiffStats) => void;
+  onSegmentedTeethComputed?: (teeth: SegmentedToothInfo[]) => void;
+  onRegisterStlExporter?: (exporter: (isUpper: boolean) => void) => void;
 }
 
 export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
@@ -107,6 +122,8 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
   activeCaseId,
   diffStats,
   onModelDiffStatsComputed,
+  onSegmentedTeethComputed,
+  onRegisterStlExporter,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
@@ -152,6 +169,17 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
   const diffUpperOverlayMeshRef = useRef<THREE.Mesh | null>(null);
   const diffLowerOverlayMeshRef = useRef<THREE.Mesh | null>(null);
 
+  // 3D Model Editor Placed Teeth & Selection Gizmo Groups
+  const placedUpperGroupRef = useRef<THREE.Group | null>(null);
+  const placedLowerGroupRef = useRef<THREE.Group | null>(null);
+  const editorGizmoGroupRef = useRef<THREE.Group | null>(null);
+  const activeToothDragRef = useRef<{
+    target: SelectedToothTarget;
+    isUpper: boolean;
+    startWorldPt: THREE.Vector3;
+    initialPosOrOffset: Point3D;
+  } | null>(null);
+
   // Animation & Lerp
   const animFrameIdRef = useRef<number | null>(null);
   const targetCamPosRef = useRef<THREE.Vector3 | null>(null);
@@ -179,6 +207,22 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
 
   // Dynamic dental occlusion center computed from loaded STL bounding boxes
   const centerTarget = useRef(new THREE.Vector3(1.29, -18.36, 1.24));
+  const lastOcclusogramStatsKeyRef = useRef<string>('');
+
+  const clearAndDisposeGroup = useCallback((group: THREE.Group) => {
+    while (group.children.length > 0) {
+      const child = group.children[0] as THREE.Mesh | THREE.Line;
+      group.remove(child);
+      if (child.geometry) child.geometry.dispose();
+      if (child.material) {
+        if (Array.isArray(child.material)) {
+          child.material.forEach((m) => m.dispose());
+        } else {
+          child.material.dispose();
+        }
+      }
+    }
+  }, []);
 
   // Compute current 6-DOF mandibular kinematics
   const currentKinematics = useMemo(
@@ -606,33 +650,55 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
     }
   }, [theme]);
 
-  // Update clipping plane equation & materials
+  // Update clipping plane equation in-place without recreating materials or recompiling shaders on slider drag
   useEffect(() => {
     if (!settings.clippingEnabled) {
       clippingPlaneRef.current = null;
     } else {
+      if (!clippingPlaneRef.current) {
+        clippingPlaneRef.current = new THREE.Plane(new THREE.Vector3(0, 0, -1), 0);
+      }
       const offset = settings.clippingOffset;
       if (settings.clippingAxis === 'z') {
-        clippingPlaneRef.current = new THREE.Plane(new THREE.Vector3(0, 0, -1), offset);
+        clippingPlaneRef.current.normal.set(0, 0, -1);
       } else if (settings.clippingAxis === 'y') {
-        clippingPlaneRef.current = new THREE.Plane(new THREE.Vector3(0, -1, 0), offset);
+        clippingPlaneRef.current.normal.set(0, -1, 0);
       } else {
-        clippingPlaneRef.current = new THREE.Plane(new THREE.Vector3(-1, 0, 0), offset);
+        clippingPlaneRef.current.normal.set(-1, 0, 0);
       }
+      clippingPlaneRef.current.constant = offset;
     }
 
+    const activePlanes =
+      settings.clippingEnabled && clippingPlaneRef.current ? [clippingPlaneRef.current] : [];
+
+    if (upperMeshRef.current?.material) {
+      (upperMeshRef.current.material as THREE.Material).clippingPlanes = activePlanes;
+    }
+    if (lowerMeshRef.current?.material) {
+      (lowerMeshRef.current.material as THREE.Material).clippingPlanes = activePlanes;
+    }
+    if (diffUpperOverlayMeshRef.current?.material) {
+      (diffUpperOverlayMeshRef.current.material as THREE.Material).clippingPlanes = activePlanes;
+    }
+    if (diffLowerOverlayMeshRef.current?.material) {
+      (diffLowerOverlayMeshRef.current.material as THREE.Material).clippingPlanes = activePlanes;
+    }
+  }, [settings.clippingEnabled, settings.clippingAxis, settings.clippingOffset]);
+
+  // Rebuild dental materials only when shading mode, textures, or Occlusogram state changes
+  useEffect(() => {
     if (upperMeshRef.current) {
+      const prevMat = upperMeshRef.current.material as THREE.Material | undefined;
       upperMeshRef.current.material = createDentalMaterial(true);
+      if (prevMat && prevMat !== upperMeshRef.current.material) prevMat.dispose();
     }
     if (lowerMeshRef.current) {
+      const prevMat = lowerMeshRef.current.material as THREE.Material | undefined;
       lowerMeshRef.current.material = createDentalMaterial(false);
+      if (prevMat && prevMat !== lowerMeshRef.current.material) prevMat.dispose();
     }
-  }, [
-    settings.clippingEnabled,
-    settings.clippingAxis,
-    settings.clippingOffset,
-    createDentalMaterial,
-  ]);
+  }, [createDentalMaterial]);
 
   // Apply 6-DOF Mandibular Kinematics to Upper & Lower Meshes + Update Occlusogram Stats
   useEffect(() => {
@@ -727,7 +793,7 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
       );
     }
 
-    // Compute & report real-time Occlusogram contact statistics
+    // Compute & report real-time Occlusogram contact statistics (deduplicated to avoid redundant React state updates)
     if (
       onOcclusogramStatsComputed &&
       upperElevationMapRef.current &&
@@ -739,7 +805,11 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
         currentKinematics,
         settings.occlusogramMaxRangeMm
       );
-      onOcclusogramStatsComputed(stats);
+      const statsKey = `${stats.minClearanceMm}|${stats.meanContactClearanceMm}|${stats.contactAreaMm2}|${stats.heavyCollisionAreaMm2}|${stats.leftContactPercent}|${stats.anteriorContactPercent}|${stats.totalContactPoints}`;
+      if (lastOcclusogramStatsKeyRef.current !== statsKey) {
+        lastOcclusogramStatsKeyRef.current = statsKey;
+        onOcclusogramStatsComputed(stats);
+      }
     }
   }, [
     settings.showUpper,
@@ -770,16 +840,48 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
     onModelDiffStatsComputed,
   });
 
+  // 3D Model Editor: Segment 28 FDI Teeth, Apply Non-Destructive Native Edits & Render Placed Teeth + Gizmos
+  const segmentedTeeth = useModelEditorEffect({
+    settings,
+    sceneRef,
+    upperMeshRef,
+    lowerMeshRef,
+    placedUpperGroupRef,
+    placedLowerGroupRef,
+    editorGizmoGroupRef,
+    clippingPlaneRef,
+    mapsReady,
+    currentKinematics,
+    createDentalMaterial,
+    onSegmentedTeethComputed,
+  });
+
+  // Register binary STL exporter for edited Upper / Lower arches
+  useEffect(() => {
+    if (!onRegisterStlExporter) return;
+    const handleExportStl = (isUpper: boolean) => {
+      const mesh = isUpper ? upperMeshRef.current : lowerMeshRef.current;
+      if (!mesh) return;
+      const placed = settings.modelEdit?.placedTeeth || [];
+      const buffer = exportEditedArchToBinaryStl(mesh.geometry, placed, isUpper);
+      const blob = new Blob([buffer], { type: 'application/sla' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.download = `${isUpper ? 'Upper' : 'Lower'}_Edited_${Date.now()}.stl`;
+      link.href = url;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    };
+    onRegisterStlExporter(handleExportStl);
+  }, [onRegisterStlExporter, settings.modelEdit?.placedTeeth]);
+
   // Render 3D Articulation Trajectory Curve & TMJ Hinge Axis Gizmo inside the 3D scene
   useEffect(() => {
     const group = trajectoryGroupRef.current;
     if (!group) return;
 
-    // Clear previous gizmo objects
-    while (group.children.length > 0) {
-      const child = group.children[0];
-      group.remove(child);
-    }
+    // Clear and dispose previous gizmo objects
+    clearAndDisposeGroup(group);
 
     if (!settings.articulator.showTrajectoryGizmo) {
       group.visible = false;
@@ -855,9 +957,7 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
     const group = caliperGroupRef.current;
     if (!group) return;
 
-    while (group.children.length > 0) {
-      group.remove(group.children[0]);
-    }
+    clearAndDisposeGroup(group);
 
     // Pending point A marker
     if (pendingCaliperPoint) {
@@ -924,6 +1024,18 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
     const calGroup = new THREE.Group();
     scene.add(calGroup);
     caliperGroupRef.current = calGroup;
+
+    const placedUpperGroup = new THREE.Group();
+    scene.add(placedUpperGroup);
+    placedUpperGroupRef.current = placedUpperGroup;
+
+    const placedLowerGroup = new THREE.Group();
+    scene.add(placedLowerGroup);
+    placedLowerGroupRef.current = placedLowerGroup;
+
+    const editorGizmoGroup = new THREE.Group();
+    scene.add(editorGizmoGroup);
+    editorGizmoGroupRef.current = editorGizmoGroup;
 
     let renderer: THREE.WebGLRenderer | null = null;
     try {
@@ -1064,7 +1176,8 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
 
       frameCount++;
       if (currentTime - fpsTimer >= 1000) {
-        setFps(Math.round((frameCount * 1000) / (currentTime - fpsTimer)));
+        const nextFps = Math.round((frameCount * 1000) / (currentTime - fpsTimer));
+        setFps((prev) => (prev === nextFps ? prev : nextFps));
         frameCount = 0;
         fpsTimer = currentTime;
       }
@@ -1215,6 +1328,8 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
         );
         upperElevationMapRef.current = uMap;
         lowerElevationMapRef.current = lMap;
+        upperElevationTexRef.current?.dispose();
+        lowerElevationTexRef.current?.dispose();
         upperElevationTexRef.current = createElevationDataTexture(uMap);
         lowerElevationTexRef.current = createElevationDataTexture(lMap);
         setMapsReady(true);
@@ -1234,14 +1349,16 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
           gridHelperRef.current.position.set(center.x, center.y, combinedBox.min.z - 15);
         }
 
-        // Remove previous meshes if any
+        // Remove previous meshes and dispose their geometries & materials
         if (upperMeshRef.current) {
           scene.remove(upperMeshRef.current);
           upperMeshRef.current.geometry.dispose();
+          (upperMeshRef.current.material as THREE.Material | undefined)?.dispose?.();
         }
         if (lowerMeshRef.current) {
           scene.remove(lowerMeshRef.current);
           lowerMeshRef.current.geometry.dispose();
+          (lowerMeshRef.current.material as THREE.Material | undefined)?.dispose?.();
         }
 
         const upperMesh = new THREE.Mesh(upperGeom, createDentalMaterial(true, upperGeom));
@@ -1304,28 +1421,135 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
     };
   }, [upperStlUrl, lowerStlUrl]);
 
-  // Handle 3D Point-to-Point Digital Caliper Click on Viewport
+  // Handle 3D Point-to-Point Digital Caliper Click OR 3D Tooth Editor Selection & Drag on Viewport
   const handleViewportPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!settings.caliperToolActive || !onAddCaliperMeasurement) return;
-    if ((e.target as HTMLElement).closest('button, input')) return;
+    if ((e.target as HTMLElement).closest('button, input, label')) return;
 
     const container = containerRef.current;
     const camera = cameraRef.current;
     if (!container || !camera) return;
-
-    const targets: THREE.Object3D[] = [];
-    if (upperMeshRef.current && settings.showUpper) targets.push(upperMeshRef.current);
-    if (lowerMeshRef.current && settings.showLower) targets.push(lowerMeshRef.current);
-    if (targets.length === 0) return;
 
     const rect = container.getBoundingClientRect();
     const ndc = new THREE.Vector2(
       ((e.clientX - rect.left) / rect.width) * 2 - 1,
       -((e.clientY - rect.top) / rect.height) * 2 + 1
     );
-
     const raycaster = new THREE.Raycaster();
     raycaster.setFromCamera(ndc, camera);
+
+    // 1. 3D Tooth Editor Selection & Interactive 3D Dragging
+    if (settings.modelEdit?.enabled && !settings.caliperToolActive) {
+      const modelEdit = settings.modelEdit;
+      const placedTargets: THREE.Object3D[] = [];
+      if (placedUpperGroupRef.current && settings.showUpper) {
+        placedTargets.push(...placedUpperGroupRef.current.children);
+      }
+      if (placedLowerGroupRef.current && settings.showLower) {
+        placedTargets.push(...placedLowerGroupRef.current.children);
+      }
+
+      const placedHits =
+        placedTargets.length > 0 ? raycaster.intersectObjects(placedTargets, false) : [];
+      if (placedHits.length > 0) {
+        const hitObj = placedHits[0].object;
+        const placedId = hitObj.userData?.placedToothId as string | undefined;
+        const isUpper = Boolean(hitObj.userData?.isUpper);
+        const placedItem = modelEdit.placedTeeth.find((p) => p.id === placedId);
+        if (placedId && placedItem) {
+          const newTarget: SelectedToothTarget = { kind: 'placed', placedId };
+          onSettingsChange((prev) => ({
+            ...prev,
+            modelEdit: {
+              ...(prev.modelEdit || DEFAULT_MODEL_EDIT_SETTINGS),
+              selectedTarget: newTarget,
+            },
+          }));
+
+          if (
+            modelEdit.toolMode === 'drag' ||
+            (modelEdit.selectedTarget?.kind === 'placed' &&
+              modelEdit.selectedTarget.placedId === placedId)
+          ) {
+            activeToothDragRef.current = {
+              target: newTarget,
+              isUpper,
+              startWorldPt: placedHits[0].point.clone(),
+              initialPosOrOffset: { ...placedItem.position },
+            };
+            if (controlsRef.current) controlsRef.current.enabled = false;
+          }
+          return;
+        }
+      }
+
+      // Raycast against Upper & Lower native arch meshes
+      const archTargets: THREE.Object3D[] = [];
+      if (upperMeshRef.current && settings.showUpper) archTargets.push(upperMeshRef.current);
+      if (lowerMeshRef.current && settings.showLower) archTargets.push(lowerMeshRef.current);
+      const archHits =
+        archTargets.length > 0 ? raycaster.intersectObjects(archTargets, false) : [];
+
+      if (archHits.length > 0) {
+        const hit = archHits[0];
+        const isUpper = hit.object === upperMeshRef.current;
+        const localVec = hit.point.clone();
+        if (isUpper) {
+          localVec.z -= currentKinematics.upperPosition.z;
+        } else {
+          const lowerInv = new THREE.Matrix4().fromArray(
+            currentKinematics.lowerInverseMatrixElements
+          );
+          localVec.applyMatrix4(lowerInv);
+        }
+
+        const picked = identifyToothAtPoint3D(
+          { x: localVec.x, y: localVec.y, z: localVec.z },
+          isUpper,
+          segmentedTeeth,
+          modelEdit.placedTeeth,
+          modelEdit.nativeEdits
+        );
+
+        if (picked) {
+          onSettingsChange((prev) => ({
+            ...prev,
+            modelEdit: {
+              ...(prev.modelEdit || DEFAULT_MODEL_EDIT_SETTINGS),
+              selectedTarget: picked,
+            },
+          }));
+
+          if (
+            picked.kind === 'native' &&
+            picked.fdi &&
+            (modelEdit.toolMode === 'drag' ||
+              (modelEdit.selectedTarget?.kind === 'native' &&
+                modelEdit.selectedTarget.fdi === picked.fdi))
+          ) {
+            const curEdit = modelEdit.nativeEdits[picked.fdi];
+            activeToothDragRef.current = {
+              target: picked,
+              isUpper,
+              startWorldPt: hit.point.clone(),
+              initialPosOrOffset: curEdit
+                ? { ...curEdit.offsetMm }
+                : { x: 0, y: 0, z: 0 },
+            };
+            if (controlsRef.current) controlsRef.current.enabled = false;
+          }
+        }
+        return;
+      }
+    }
+
+    // 2. 3D Point-to-Point Digital Caliper Click
+    if (!settings.caliperToolActive || !onAddCaliperMeasurement) return;
+
+    const targets: THREE.Object3D[] = [];
+    if (upperMeshRef.current && settings.showUpper) targets.push(upperMeshRef.current);
+    if (lowerMeshRef.current && settings.showLower) targets.push(lowerMeshRef.current);
+    if (targets.length === 0) return;
+
     const hits = raycaster.intersectObjects(targets, false);
 
     if (hits.length > 0) {
@@ -1346,10 +1570,114 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
     }
   };
 
-  // Handle Drag & Drop on Viewport
+  const handleViewportPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const dragState = activeToothDragRef.current;
+    if (!dragState) return;
+    const container = containerRef.current;
+    const camera = cameraRef.current;
+    if (!container || !camera) return;
+
+    const rect = container.getBoundingClientRect();
+    const ndc = new THREE.Vector2(
+      ((e.clientX - rect.left) / rect.width) * 2 - 1,
+      -((e.clientY - rect.top) / rect.height) * 2 + 1
+    );
+    const raycaster = new THREE.Raycaster();
+    raycaster.setFromCamera(ndc, camera);
+
+    const dragPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), -dragState.startWorldPt.z);
+    const intersectPt = new THREE.Vector3();
+    if (!raycaster.ray.intersectPlane(dragPlane, intersectPt)) return;
+
+    let delta = new THREE.Vector3().subVectors(intersectPt, dragState.startWorldPt);
+    if (!dragState.isUpper) {
+      // If lower arch is articulated, transform world-space mouse delta by the lower jaw's rotation
+      const lowerRotMat = new THREE.Matrix4()
+        .makeRotationFromEuler(
+          new THREE.Euler(
+            currentKinematics.lowerRotation.x,
+            currentKinematics.lowerRotation.y,
+            currentKinematics.lowerRotation.z
+          )
+        )
+        .invert();
+      delta.applyMatrix4(lowerRotMat);
+    }
+
+    const dx = Number(delta.x.toFixed(2));
+    const dy = Number(delta.y.toFixed(2));
+
+    if (dragState.target.kind === 'placed' && dragState.target.placedId) {
+      const placedId = dragState.target.placedId;
+      const nextX = Number((dragState.initialPosOrOffset.x + dx).toFixed(2));
+      const nextY = Number((dragState.initialPosOrOffset.y + dy).toFixed(2));
+      onSettingsChange((prev) => {
+        const cur = prev.modelEdit || DEFAULT_MODEL_EDIT_SETTINGS;
+        return {
+          ...prev,
+          modelEdit: {
+            ...cur,
+            placedTeeth: cur.placedTeeth.map((p) =>
+              p.id === placedId
+                ? { ...p, position: { ...p.position, x: nextX, y: nextY } }
+                : p
+            ),
+          },
+        };
+      });
+    } else if (dragState.target.kind === 'native' && dragState.target.fdi) {
+      const fdi = dragState.target.fdi;
+      const nextX = Math.max(
+        -18,
+        Math.min(18, Number((dragState.initialPosOrOffset.x + dx).toFixed(2)))
+      );
+      const nextY = Math.max(
+        -18,
+        Math.min(18, Number((dragState.initialPosOrOffset.y + dy).toFixed(2)))
+      );
+      onSettingsChange((prev) => {
+        const cur = prev.modelEdit || DEFAULT_MODEL_EDIT_SETTINGS;
+        const prevOp = cur.nativeEdits[fdi] || {
+          fdi,
+          deleted: false,
+          offsetMm: { x: 0, y: 0, z: 0 },
+          rotationDeg: 0,
+          scale: 1,
+        };
+        return {
+          ...prev,
+          modelEdit: {
+            ...cur,
+            nativeEdits: {
+              ...cur.nativeEdits,
+              [fdi]: {
+                ...prevOp,
+                offsetMm: {
+                  ...prevOp.offsetMm,
+                  x: nextX,
+                  y: nextY,
+                },
+              },
+            },
+          },
+        };
+      });
+    }
+  };
+
+  const handleViewportPointerUp = () => {
+    if (activeToothDragRef.current) {
+      activeToothDragRef.current = null;
+      if (controlsRef.current) controlsRef.current.enabled = true;
+    }
+  };
+
+  // Handle Drag & Drop on Viewport (Supports both 3D Tooth Library drag-and-drop AND Case ZIP/STL files)
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
-    setIsDragOver(true);
+    if (!e.dataTransfer.types.includes('application/x-dentalcad-tooth')) {
+      setIsDragOver(true);
+    }
   };
 
   const handleDragLeave = () => {
@@ -1359,6 +1687,95 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOver(false);
+
+    // 1. Check if a 3D Tooth Library item was dragged and dropped onto the 3D viewport
+    const toothDataRaw = e.dataTransfer.getData('application/x-dentalcad-tooth');
+    if (toothDataRaw) {
+      try {
+        const parsed = JSON.parse(toothDataRaw) as {
+          morphology: ToothMorphologyType;
+          isUpper: boolean;
+        };
+        const meta = getLibraryItemMeta(parsed.morphology);
+        let dropPos: Point3D = { x: 0, y: -14, z: parsed.isUpper ? 1.5 : -1.5 };
+        let dropIsUpper = parsed.isUpper;
+
+        const container = containerRef.current;
+        const camera = cameraRef.current;
+        if (container && camera) {
+          const rect = container.getBoundingClientRect();
+          const ndc = new THREE.Vector2(
+            ((e.clientX - rect.left) / rect.width) * 2 - 1,
+            -((e.clientY - rect.top) / rect.height) * 2 + 1
+          );
+          const raycaster = new THREE.Raycaster();
+          raycaster.setFromCamera(ndc, camera);
+          const archTargets: THREE.Object3D[] = [];
+          if (upperMeshRef.current && settings.showUpper) archTargets.push(upperMeshRef.current);
+          if (lowerMeshRef.current && settings.showLower) archTargets.push(lowerMeshRef.current);
+          const hits =
+            archTargets.length > 0 ? raycaster.intersectObjects(archTargets, false) : [];
+          if (hits.length > 0) {
+            dropIsUpper = hits[0].object === upperMeshRef.current;
+            const localPt = hits[0].point.clone();
+            if (dropIsUpper) {
+              localPt.z -= currentKinematics.upperPosition.z;
+            } else {
+              const lowerInv = new THREE.Matrix4().fromArray(
+                currentKinematics.lowerInverseMatrixElements
+              );
+              localPt.applyMatrix4(lowerInv);
+            }
+            dropPos = {
+              x: Number(localPt.x.toFixed(2)),
+              y: Number(localPt.y.toFixed(2)),
+              z: Number(localPt.z.toFixed(2)),
+            };
+          } else {
+            const fallbackPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+            const pt = new THREE.Vector3();
+            if (raycaster.ray.intersectPlane(fallbackPlane, pt)) {
+              dropPos = {
+                x: Number(pt.x.toFixed(2)),
+                y: Number(pt.y.toFixed(2)),
+                z: dropIsUpper ? 1.5 : -1.5,
+              };
+            }
+          }
+        }
+
+        const newId = `drop-${meta.morphology}-${Date.now()}`;
+        const newTooth: PlacedLibraryTooth = {
+          id: newId,
+          labelZh: `${dropIsUpper ? '上顎' : '下顎'} ${meta.titleZh}`,
+          labelEn: `${dropIsUpper ? 'Upper' : 'Lower'} ${meta.titleEn}`,
+          morphology: meta.morphology,
+          isUpper: dropIsUpper,
+          position: dropPos,
+          rotationDeg: 0,
+          scale: 1.0,
+        };
+
+        onSettingsChange((prev) => {
+          const cur = prev.modelEdit || DEFAULT_MODEL_EDIT_SETTINGS;
+          return {
+            ...prev,
+            caliperToolActive: false,
+            modelEdit: {
+              ...cur,
+              enabled: true,
+              toolMode: 'drag',
+              placedTeeth: [...cur.placedTeeth, newTooth],
+              selectedTarget: { kind: 'placed', placedId: newId },
+            },
+          };
+        });
+        return;
+      } catch {
+        // Ignore malformed drag payload
+      }
+    }
+
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0 && onCustomFilesDrop) {
       onCustomFilesDrop(e.dataTransfer.files);
     }
@@ -1395,11 +1812,18 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
     <div
       ref={containerRef}
       onPointerDown={handleViewportPointerDown}
+      onPointerMove={handleViewportPointerMove}
+      onPointerUp={handleViewportPointerUp}
+      onPointerCancel={handleViewportPointerUp}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
       className={`relative w-full h-full min-h-[240px] lg:min-h-[480px] cad-grid-bg overflow-hidden select-none ${
-        settings.caliperToolActive ? 'cursor-crosshair' : ''
+        settings.caliperToolActive
+          ? 'cursor-crosshair'
+          : settings.modelEdit?.enabled && settings.modelEdit.toolMode === 'drag'
+          ? 'cursor-move'
+          : ''
       }`}
     >
       {/* Loading Overlay */}
@@ -1460,6 +1884,14 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
         settings={settings}
         onSettingsChange={onSettingsChange}
         diffStats={activeDiffStats}
+        locale={locale}
+      />
+
+      {/* 3D Tooth & Arch Editor Floating HUD Banner */}
+      <ViewportEditorBanner
+        settings={settings}
+        onSettingsChange={onSettingsChange}
+        segmentedTeeth={segmentedTeeth}
         locale={locale}
       />
 
@@ -1612,6 +2044,43 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
         >
           <GitCompare className="w-3.5 h-3.5" />
           <span className="hidden sm:inline">{tr(locale, '3D 比對', '3D Diff')}</span>
+        </button>
+
+        {/* 3D Tooth & Arch Editor Quick Trigger */}
+        <button
+          type="button"
+          data-testid="viewport-editor-toggle"
+          onClick={() =>
+            onSettingsChange((prev) => {
+              const cur = prev.modelEdit || DEFAULT_MODEL_EDIT_SETTINGS;
+              const nextEnabled = !cur.enabled;
+              return {
+                ...prev,
+                caliperToolActive: nextEnabled ? false : prev.caliperToolActive,
+                modelEdit: {
+                  ...cur,
+                  enabled: nextEnabled,
+                  selectedTarget:
+                    nextEnabled && !cur.selectedTarget
+                      ? { kind: 'native', fdi: 25 }
+                      : cur.selectedTarget,
+                },
+              };
+            })
+          }
+          title={tr(
+            locale,
+            '切換 3D 齒列互動編輯 (辨識牙位 / 刪除 / 複製貼上 / 牙齒庫 / 拖動牙齒)',
+            'Toggle 3D Tooth Editor (Segment, Select, Delete, Copy/Paste, Library & Drag)'
+          )}
+          className={`px-2 py-1 rounded text-xs font-medium flex items-center gap-1 transition-colors ${
+            settings.modelEdit?.enabled
+              ? 'bg-violet-600 text-white font-semibold shadow-sm'
+              : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+          }`}
+        >
+          <Wand2 className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">{tr(locale, '3D 編輯', '3D Editor')}</span>
         </button>
 
         {/* Hide / Show 3D Caliper Measurements Toggle */}

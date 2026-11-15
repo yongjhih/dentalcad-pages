@@ -22,7 +22,8 @@
     "./meshLoader": "./src/meshLoader.ts",
     "./urlState": "./src/urlState.ts",
     "./zipExtractor": "./src/zipExtractor.ts",
-    "./showcase": "./src/showcase.ts"
+    "./showcase": "./src/showcase.ts",
+    "./modelEditor": "./src/modelEditor.ts"
   },
   "peerDependencies": {
     "three": "^0.170.0"

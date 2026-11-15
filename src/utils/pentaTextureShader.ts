@@ -207,6 +207,21 @@ export function computePentaProjectedUVs(params: {
   return { uvOcclusal, uvFront, uvRight, uvLeft };
 }
 
+let sharedFallbackWhiteTexture: THREE.DataTexture | null = null;
+
+/**
+ * Returns a shared 1x1 white RGBA DataTexture singleton to avoid creating DOM canvases and leaking WebGL textures.
+ */
+export function getFallbackWhiteTexture(): THREE.DataTexture {
+  if (!sharedFallbackWhiteTexture) {
+    const data = new Uint8Array([255, 255, 255, 255]);
+    const tex = new THREE.DataTexture(data, 1, 1, THREE.RGBAFormat);
+    tex.needsUpdate = true;
+    sharedFallbackWhiteTexture = tex;
+  }
+  return sharedFallbackWhiteTexture;
+}
+
 /**
  * Create a Three.js MeshPhysicalMaterial that projects the 5-view clinical photos
  * onto the 3D upper or lower dental arch using multi-view normal-weighted projection.
@@ -235,12 +250,7 @@ export function createPentaTexturedMaterial(params: {
 
   const occlusalTex = isUpper ? textures.upper : textures.lower;
   const occlusalRect = isUpper ? textures.rects.upper : textures.rects.lower;
-
-  // Fallback 2x2 white texture if any view is missing
-  const dummyCanvas = document.createElement('canvas');
-  dummyCanvas.width = 2;
-  dummyCanvas.height = 2;
-  const dummyTex = new THREE.CanvasTexture(dummyCanvas);
+  const dummyTex = getFallbackWhiteTexture();
 
   mat.onBeforeCompile = (shader) => {
     shader.uniforms.uTexFront = { value: textures.front || dummyTex };

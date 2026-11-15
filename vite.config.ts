@@ -17,7 +17,25 @@ export default defineConfig({
     outDir: 'dist',
     assetsDir: 'assets',
     // 15MB STL files are in public/, so no need to inline
-    chunkSizeWarningLimit: 1500,
+    chunkSizeWarningLimit: 3200,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('bakedDemoPhotos')) {
+            return 'demo-photos';
+          }
+          if (id.includes('node_modules/three')) {
+            return 'vendor-three';
+          }
+          if (
+            id.includes('node_modules/react') ||
+            id.includes('node_modules/lucide-react')
+          ) {
+            return 'vendor-ui';
+          }
+        },
+      },
+    },
   },
   server: {
     port: 5173,

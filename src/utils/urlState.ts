@@ -8,7 +8,14 @@ import {
   ModelDiffDisplayMode,
 } from '../types/dental';
 
-export type ViewerTabType = 'dossier' | 'articulator' | 'diff' | 'gallery' | 'tools' | 'xml';
+export type ViewerTabType =
+  | 'dossier'
+  | 'articulator'
+  | 'diff'
+  | 'editor'
+  | 'gallery'
+  | 'tools'
+  | 'xml';
 
 export interface CameraTransform {
   position: [number, number, number];
@@ -59,6 +66,7 @@ const VALID_TABS = new Set<string>([
   'dossier',
   'articulator',
   'diff',
+  'editor',
   'gallery',
   'tools',
   'xml',

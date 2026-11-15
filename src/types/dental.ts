@@ -99,6 +99,83 @@ export interface ModelDiffStats {
   comparedVertexCount: number;
 }
 
+export type ToothMorphologyType =
+  | 'central'
+  | 'lateral'
+  | 'canine'
+  | 'premolar'
+  | 'molar1'
+  | 'molar2';
+
+export type FdiToothNumber =
+  | 11 | 12 | 13 | 14 | 15 | 16 | 17
+  | 21 | 22 | 23 | 24 | 25 | 26 | 27
+  | 31 | 32 | 33 | 34 | 35 | 36 | 37
+  | 41 | 42 | 43 | 44 | 45 | 46 | 47;
+
+export interface SegmentedToothInfo {
+  fdi: FdiToothNumber;
+  isUpper: boolean;
+  morphology: ToothMorphologyType;
+  labelZh: string;
+  labelEn: string;
+  center: Point3D;
+  radiusXY: { rx: number; ry: number };
+  angleDeg: number;
+  zCervical: number;
+  zOcclusal: number;
+  presentInBaseline: boolean;
+}
+
+export interface NativeToothEditOperation {
+  fdi: FdiToothNumber;
+  deleted: boolean;
+  offsetMm: Point3D;
+  rotationDeg: number;
+  scale: number;
+}
+
+export interface PlacedLibraryTooth {
+  id: string;
+  sourceType?: 'library' | 'pasted';
+  sourceFdi?: FdiToothNumber;
+  targetFdi?: FdiToothNumber;
+  fdiHint?: FdiToothNumber;
+  isUpper: boolean;
+  morphology: ToothMorphologyType;
+  labelZh: string;
+  labelEn: string;
+  position: Point3D;
+  rotationDeg: number;
+  scale: number;
+}
+
+export interface CopiedToothClipboard {
+  sourceLabelZh: string;
+  sourceLabelEn: string;
+  morphology: ToothMorphologyType;
+  isUpper: boolean;
+  sourceFdi?: FdiToothNumber;
+  rotationDeg: number;
+  scale: number;
+}
+
+export type ModelEditorToolMode = 'select' | 'drag';
+
+export type SelectedToothTarget =
+  | { kind: 'native'; fdi: FdiToothNumber }
+  | { kind: 'placed'; placedId: string };
+
+export interface ModelEditSettings {
+  enabled: boolean;
+  toolMode: ModelEditorToolMode;
+  selectedTarget: SelectedToothTarget | null;
+  nativeEdits: Record<number, NativeToothEditOperation>;
+  placedTeeth: PlacedLibraryTooth[];
+  clipboard: CopiedToothClipboard | null;
+  showFdiLabels: boolean;
+}
+
 export interface ViewportSettings {
   showUpper: boolean;
   showLower: boolean;
@@ -118,6 +195,7 @@ export interface ViewportSettings {
   lightingIntensity: number;
   articulator: ArticulatorSettings;
   modelDiff?: ModelDiffSettings;
+  modelEdit?: ModelEditSettings;
 }
 
 export interface Point3D {

@@ -611,4 +611,43 @@ describe('DentalCAD Pages Application Integration Tests', () => {
     expect(screen.getByTestId('model-diff-panel')).toBeInTheDocument();
     expect(screen.getByTestId('viewport-diff-banner')).toBeInTheDocument();
   });
+
+  it('supports 3D Tooth & Model Editor: tooth identification/selection, delete/restore, copy/paste, tooth library add, and dragging', async () => {
+    render(<App />);
+
+    // Switch to 3D Tooth Editor tab
+    const editorTabBtn = screen.getByTestId('tab-editor');
+    expect(editorTabBtn).toBeInTheDocument();
+    fireEvent.click(editorTabBtn);
+
+    expect(screen.getByTestId('model-editor-panel')).toBeInTheDocument();
+
+    // Select tooth #25 from the FDI Odontogram
+    const tooth25Btn = screen.getByTestId('odontogram-tooth-25');
+    fireEvent.click(tooth25Btn);
+
+    // Floating 3D editor banner should appear in the viewport
+    expect(screen.getByTestId('viewport-editor-banner')).toBeInTheDocument();
+
+    // Add a premolar from the 3D Tooth Library and drag/move it
+    const addPremolarBtn = screen.getByTestId('library-add-premolar');
+    fireEvent.click(addPremolarBtn);
+
+    // Copy & Paste the selected tooth
+    const copyBtn = screen.getByTestId('editor-copy-tooth-btn');
+    fireEvent.click(copyBtn);
+    const pasteBtn = screen.getByTestId('editor-paste-tooth-btn');
+    fireEvent.click(pasteBtn);
+
+    // Move/drag the tooth via the ΔX slider
+    const dxSlider = screen.getByTestId('editor-slider-dx');
+    fireEvent.change(dxSlider, { target: { value: '3.4' } });
+
+    // Delete the placed tooth
+    const deleteBtn = screen.getByTestId('editor-delete-tooth-btn');
+    fireEvent.click(deleteBtn);
+
+    // Reset all edits
+    fireEvent.click(screen.getByTestId('editor-reset-all-btn'));
+  });
 });

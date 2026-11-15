@@ -1,9 +1,7 @@
 import * as THREE from 'three';
-import { OcclusogramStats, Point3D } from '../types/dental';
-import {
-  MandibularKinematicsResult,
-  transformPoint3DByMatrix4,
-} from './articulatorKinematics';
+import { OcclusogramStats } from '../types/dental';
+import { MandibularKinematicsResult } from './articulatorKinematics';
+import { getFallbackWhiteTexture } from './pentaTextureShader';
 
 export interface OcclusalMapBounds {
   minX: number;
@@ -196,6 +194,20 @@ export function computeOcclusogramStats(
   const spanX = bounds.maxX - bounds.minX;
   const spanY = bounds.maxY - bounds.minY;
 
+  const uRes = upperMap.resolution;
+  const uBounds = upperMap.bounds;
+  const uHeights = upperMap.heights;
+  const uInvSpanX = 1.0 / Math.max(0.001, uBounds.maxX - uBounds.minX);
+  const uInvSpanY = 1.0 / Math.max(0.001, uBounds.maxY - uBounds.minY);
+  const upperPosZ = kinematics.upperPosition.z;
+
+  // Unpack 4x4 column-major matrix elements once to avoid 9,216 Point3D object allocations per frame
+  const m = kinematics.lowerMatrixElements;
+  const m0 = m[0], m1 = m[1], m2 = m[2];
+  const m4 = m[4], m5 = m[5], m6 = m[6];
+  const m8 = m[8], m9 = m[9], m10 = m[10];
+  const m12 = m[12], m13 = m[13], m14 = m[14];
+
   let minClearance = Infinity;
   let clearanceSum = 0;
   let contactCount = 0;
@@ -207,21 +219,30 @@ export function computeOcclusogramStats(
 
   for (let gy = 0; gy < resolution; gy++) {
     const localY = bounds.minY + ((gy + 0.5) / resolution) * spanY;
+    const rowOffset = gy * resolution;
+    const yx = m4 * localY + m12;
+    const yy = m5 * localY + m13;
+    const yz = m6 * localY + m14;
+
     for (let gx = 0; gx < resolution; gx++) {
-      const localZ = lowerHeights[gy * resolution + gx];
+      const localZ = lowerHeights[rowOffset + gx];
       if (Number.isNaN(localZ)) continue;
 
       const localX = bounds.minX + ((gx + 0.5) / resolution) * spanX;
-      const worldLower: Point3D = transformPoint3DByMatrix4(
-        { x: localX, y: localY, z: localZ },
-        kinematics.lowerMatrixElements
-      );
+      const wx = m0 * localX + yx + m8 * localZ;
+      const wy = m1 * localX + yy + m9 * localZ;
+      const wz = m2 * localX + yz + m10 * localZ;
 
-      const upperLocalZ = sampleElevationMapAtXY(upperMap, worldLower.x, worldLower.y);
+      const u = (wx - uBounds.minX) * uInvSpanX;
+      const v = (wy - uBounds.minY) * uInvSpanY;
+      if (u < 0 || u >= 1 || v < 0 || v >= 1) continue;
+
+      const ugx = Math.min(uRes - 1, Math.max(0, (u * uRes) | 0));
+      const ugy = Math.min(uRes - 1, Math.max(0, (v * uRes) | 0));
+      const upperLocalZ = uHeights[ugy * uRes + ugx];
       if (Number.isNaN(upperLocalZ)) continue;
 
-      const worldUpperZ = upperLocalZ + kinematics.upperPosition.z;
-      const clearance = worldUpperZ - worldLower.z;
+      const clearance = upperLocalZ + upperPosZ - wz;
 
       if (clearance < minClearance) {
         minClearance = clearance;
@@ -229,17 +250,17 @@ export function computeOcclusogramStats(
 
       if (clearance <= maxRangeMm) {
         contactCount++;
-        clearanceSum += Math.max(0, clearance);
+        clearanceSum += clearance > 0 ? clearance : 0;
 
         if (clearance <= 0.2) {
           heavyCollisionCount++;
         }
-        if (worldLower.x >= 0) {
+        if (wx >= 0) {
           leftContacts++;
         } else {
           rightContacts++;
         }
-        if (worldLower.y >= -15) {
+        if (wy >= -15) {
           anteriorContacts++;
         } else {
           posteriorContacts++;
@@ -400,11 +421,7 @@ export function createOcclusogramMaterial(params: {
     if (hasPenta && pentaTextures && archBox && combinedBox) {
       const occlusalTex = isUpper ? pentaTextures.upper : pentaTextures.lower;
       const occlusalRect = isUpper ? pentaTextures.rects.upper : pentaTextures.rects.lower;
-
-      const dummyCanvas = document.createElement('canvas');
-      dummyCanvas.width = 2;
-      dummyCanvas.height = 2;
-      const dummyTex = new THREE.CanvasTexture(dummyCanvas);
+      const dummyTex = getFallbackWhiteTexture();
 
       shader.uniforms.uTexFront = { value: pentaTextures.front || dummyTex };
       shader.uniforms.uTexOcclusal = { value: occlusalTex || dummyTex };

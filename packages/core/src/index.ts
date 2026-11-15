@@ -13,3 +13,4 @@ export * from '../../../src/utils/modelDiff';
 export * from '../../../src/utils/meshLoader';
 export * from '../../../src/utils/urlState';
 export * from '../../../src/utils/showcasePresets';
+export * from '../../../src/utils/modelEditor';

@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import {
   DentalCaseBundle,
   ModelDiffSimulatedPreset,
   ModelDiffStats,
+  Point3D,
   ViewportSettings,
 } from '../types/dental';
 import {
@@ -18,6 +19,31 @@ import {
 } from '../utils/modelDiff';
 import { loadMeshGeometryFromUrl } from '../utils/meshLoader';
 import { createProceduralDentalArchGeometry } from '../utils/proceduralArch';
+
+interface CachedTargetGeometries {
+  key: string;
+  uBaseGeom: THREE.BufferGeometry;
+  lBaseGeom: THREE.BufferGeometry;
+  uTargetGeom: THREE.BufferGeometry;
+  lTargetGeom: THREE.BufferGeometry;
+}
+
+interface CachedDeviations {
+  key: string;
+  uDevs: Float32Array;
+  lDevs: Float32Array;
+  uEff: Point3D;
+  lEff: Point3D;
+}
+
+function disposeMaterial(mat: THREE.Material | THREE.Material[] | undefined | null) {
+  if (!mat) return;
+  if (Array.isArray(mat)) {
+    mat.forEach((m) => m.dispose());
+  } else {
+    mat.dispose();
+  }
+}
 
 export interface UseModelDiffEffectParams {
   settings: ViewportSettings;
@@ -62,22 +88,26 @@ export function useModelDiffEffect({
   const [internalDiffStats, setInternalDiffStats] = useState<ModelDiffStats>(
     DEFAULT_MODEL_DIFF_STATS
   );
+  const targetCacheRef = useRef<CachedTargetGeometries | null>(null);
+  const devCacheRef = useRef<CachedDeviations | null>(null);
+  const overlayGeomKeyRef = useRef<string>('');
 
   useEffect(() => {
     const diff = settings.modelDiff || DEFAULT_MODEL_DIFF_SETTINGS;
     const scene = sceneRef.current;
 
     const cleanupOverlayMeshes = () => {
+      overlayGeomKeyRef.current = '';
       if (diffUpperOverlayMeshRef.current) {
         scene?.remove(diffUpperOverlayMeshRef.current);
         diffUpperOverlayMeshRef.current.geometry.dispose();
-        (diffUpperOverlayMeshRef.current.material as THREE.Material).dispose();
+        disposeMaterial(diffUpperOverlayMeshRef.current.material);
         diffUpperOverlayMeshRef.current = null;
       }
       if (diffLowerOverlayMeshRef.current) {
         scene?.remove(diffLowerOverlayMeshRef.current);
         diffLowerOverlayMeshRef.current.geometry.dispose();
-        (diffLowerOverlayMeshRef.current.material as THREE.Material).dispose();
+        disposeMaterial(diffLowerOverlayMeshRef.current.material);
         diffLowerOverlayMeshRef.current = null;
       }
     };
@@ -86,17 +116,21 @@ export function useModelDiffEffect({
       cleanupOverlayMeshes();
       if (upperMeshRef.current) {
         restoreOriginalColorsOnGeometry(upperMeshRef.current.geometry);
+        const prevMat = upperMeshRef.current.material;
         upperMeshRef.current.material = createDentalMaterial(
           true,
           upperMeshRef.current.geometry
         );
+        if (prevMat !== upperMeshRef.current.material) disposeMaterial(prevMat);
       }
       if (lowerMeshRef.current) {
         restoreOriginalColorsOnGeometry(lowerMeshRef.current.geometry);
+        const prevMat = lowerMeshRef.current.material;
         lowerMeshRef.current.material = createDentalMaterial(
           false,
           lowerMeshRef.current.geometry
         );
+        if (prevMat !== lowerMeshRef.current.material) disposeMaterial(prevMat);
       }
       return;
     }
@@ -155,6 +189,20 @@ export function useModelDiffEffect({
 
     let cancelled = false;
 
+    const uBase = upperMeshRef.current.geometry;
+    const lBase = lowerMeshRef.current.geometry;
+    const targetCase = cases.find((c) => c.id === diff.compareTargetId);
+    const targetCacheKey = [
+      activeCaseId || '',
+      uBase.uuid,
+      lBase.uuid,
+      diff.compareTargetId,
+      diff.customUpperStlUrl || '',
+      diff.customLowerStlUrl || '',
+      targetCase?.assets.upperStlUrl || '',
+      targetCase?.assets.lowerStlUrl || '',
+    ].join('|');
+
     const loadTargetGeometry = async (
       url: string | undefined,
       isUpper: boolean,
@@ -195,8 +243,20 @@ export function useModelDiffEffect({
     const resolveComparisonGeometries = async (): Promise<
       [THREE.BufferGeometry, THREE.BufferGeometry]
     > => {
-      const uBase = upperMeshRef.current!.geometry;
-      const lBase = lowerMeshRef.current!.geometry;
+      // Return cached target geometries if neither baseline mesh nor target selection changed
+      if (
+        targetCacheRef.current &&
+        targetCacheRef.current.key === targetCacheKey &&
+        targetCacheRef.current.uBaseGeom === uBase &&
+        targetCacheRef.current.lBaseGeom === lBase
+      ) {
+        return [
+          targetCacheRef.current.uTargetGeom,
+          targetCacheRef.current.lTargetGeom,
+        ];
+      }
+
+      let resolved: [THREE.BufferGeometry, THREE.BufferGeometry];
 
       if (diff.compareTargetId.startsWith('simulated:')) {
         const rawPreset = diff.compareTargetId.replace('simulated:', '');
@@ -204,14 +264,12 @@ export function useModelDiffEffect({
           rawPreset === 'arch_expansion' || rawPreset === 'occlusal_wear'
             ? rawPreset
             : 'ortho_alignment';
-        return [
+        resolved = [
           generateSimulatedComparisonGeometry(uBase, true, preset),
           generateSimulatedComparisonGeometry(lBase, false, preset),
         ];
-      }
-
-      if (diff.compareTargetId === 'custom_stl') {
-        const [uG, lG] = await Promise.all([
+      } else if (diff.compareTargetId === 'custom_stl') {
+        resolved = await Promise.all([
           diff.customUpperStlUrl
             ? loadTargetGeometry(
                 diff.customUpperStlUrl,
@@ -239,21 +297,32 @@ export function useModelDiffEffect({
                 )
               ),
         ]);
-        return [uG, lG];
-      }
-
-      const targetCase = cases.find((c) => c.id === diff.compareTargetId);
-      if (targetCase) {
-        return Promise.all([
+      } else if (targetCase) {
+        resolved = await Promise.all([
           loadTargetGeometry(targetCase.assets.upperStlUrl, true),
           loadTargetGeometry(targetCase.assets.lowerStlUrl, false),
         ]);
+      } else {
+        resolved = [
+          generateSimulatedComparisonGeometry(uBase, true, 'ortho_alignment'),
+          generateSimulatedComparisonGeometry(lBase, false, 'ortho_alignment'),
+        ];
       }
 
-      return [
-        generateSimulatedComparisonGeometry(uBase, true, 'ortho_alignment'),
-        generateSimulatedComparisonGeometry(lBase, false, 'ortho_alignment'),
-      ];
+      if (!cancelled) {
+        if (targetCacheRef.current) {
+          targetCacheRef.current.uTargetGeom.dispose();
+          targetCacheRef.current.lTargetGeom.dispose();
+        }
+        targetCacheRef.current = {
+          key: targetCacheKey,
+          uBaseGeom: uBase,
+          lBaseGeom: lBase,
+          uTargetGeom: resolved[0],
+          lTargetGeom: resolved[1],
+        };
+      }
+      return resolved;
     };
 
     resolveComparisonGeometries().then(([uTargetGeom, lTargetGeom]) => {
@@ -267,19 +336,58 @@ export function useModelDiffEffect({
         offsetMm: diff.offsetMm,
       };
 
-      const uDevs = computeMeshSignedDeviations(
-        uBaseGeom.attributes.position.array,
-        uBaseGeom.attributes.normal?.array,
-        uTargetGeom.attributes.position.array,
-        alignOptions
-      );
+      const devKey = [
+        targetCacheKey,
+        diff.autoAlignCentroids ? '1' : '0',
+        diff.offsetMm.x.toFixed(3),
+        diff.offsetMm.y.toFixed(3),
+        diff.offsetMm.z.toFixed(3),
+      ].join('|');
 
-      const lDevs = computeMeshSignedDeviations(
-        lBaseGeom.attributes.position.array,
-        lBaseGeom.attributes.normal?.array,
-        lTargetGeom.attributes.position.array,
-        alignOptions
-      );
+      let uDevs: Float32Array;
+      let lDevs: Float32Array;
+      let uEff: Point3D;
+      let lEff: Point3D;
+
+      if (devCacheRef.current && devCacheRef.current.key === devKey) {
+        uDevs = devCacheRef.current.uDevs;
+        lDevs = devCacheRef.current.lDevs;
+        uEff = devCacheRef.current.uEff;
+        lEff = devCacheRef.current.lEff;
+      } else {
+        uDevs = computeMeshSignedDeviations(
+          uBaseGeom.attributes.position.array,
+          uBaseGeom.attributes.normal?.array,
+          uTargetGeom.attributes.position.array,
+          alignOptions
+        );
+
+        lDevs = computeMeshSignedDeviations(
+          lBaseGeom.attributes.position.array,
+          lBaseGeom.attributes.normal?.array,
+          lTargetGeom.attributes.position.array,
+          alignOptions
+        );
+
+        uEff = computeEffectiveAlignmentOffset(
+          uBaseGeom.attributes.position.array,
+          uTargetGeom.attributes.position.array,
+          alignOptions
+        );
+        lEff = computeEffectiveAlignmentOffset(
+          lBaseGeom.attributes.position.array,
+          lTargetGeom.attributes.position.array,
+          alignOptions
+        );
+
+        devCacheRef.current = {
+          key: devKey,
+          uDevs,
+          lDevs,
+          uEff,
+          lEff,
+        };
+      }
 
       const computedStats = computeModelDiffStatsFromDeviations(
         uDevs,
@@ -308,11 +416,19 @@ export function useModelDiffEffect({
         restoreOriginalColorsOnGeometry(lBaseGeom);
       }
 
+      const prevUpperMat = upperMeshRef.current.material;
       upperMeshRef.current.material = createDentalMaterial(true, uBaseGeom);
-      lowerMeshRef.current.material = createDentalMaterial(false, lBaseGeom);
+      if (prevUpperMat !== upperMeshRef.current.material) {
+        disposeMaterial(prevUpperMat);
+      }
 
-      // 2. Render or Remove Ghost Superimposition Overlay Meshes
-      cleanupOverlayMeshes();
+      const prevLowerMat = lowerMeshRef.current.material;
+      lowerMeshRef.current.material = createDentalMaterial(false, lBaseGeom);
+      if (prevLowerMat !== lowerMeshRef.current.material) {
+        disposeMaterial(prevLowerMat);
+      }
+
+      // 2. Render, Update in-place, or Remove Ghost Superimposition Overlay Meshes
       if (
         scene &&
         (diff.displayMode === 'overlay' || diff.displayMode === 'both')
@@ -321,66 +437,85 @@ export function useModelDiffEffect({
           settings.clippingEnabled && clippingPlaneRef.current
             ? [clippingPlaneRef.current]
             : [];
+        const isBoth = diff.displayMode === 'both';
+        const targetOpacity = isBoth
+          ? Math.min(diff.overlayOpacity, 0.26)
+          : diff.overlayOpacity;
+        const targetEmissiveIntensity = isBoth ? 0.15 : 0.25;
 
-        const uEff = computeEffectiveAlignmentOffset(
-          uBaseGeom.attributes.position.array,
-          uTargetGeom.attributes.position.array,
-          alignOptions
-        );
-        const lEff = computeEffectiveAlignmentOffset(
-          lBaseGeom.attributes.position.array,
-          lTargetGeom.attributes.position.array,
-          alignOptions
-        );
+        // If overlay meshes already exist for the exact same target geometry & alignment offset,
+        // update their material/visibility in-place in <0.1ms without cloning 600k-triangle geometries!
+        if (
+          diffUpperOverlayMeshRef.current &&
+          diffLowerOverlayMeshRef.current &&
+          overlayGeomKeyRef.current === devKey
+        ) {
+          const uMat = diffUpperOverlayMeshRef.current
+            .material as THREE.MeshPhysicalMaterial;
+          const lMat = diffLowerOverlayMeshRef.current
+            .material as THREE.MeshPhysicalMaterial;
+          uMat.opacity = targetOpacity;
+          lMat.opacity = targetOpacity;
+          uMat.emissiveIntensity = targetEmissiveIntensity;
+          lMat.emissiveIntensity = targetEmissiveIntensity;
+          uMat.wireframe = diff.overlayWireframe;
+          lMat.wireframe = diff.overlayWireframe;
+          uMat.clippingPlanes = clippingPlanes;
+          lMat.clippingPlanes = clippingPlanes;
 
-        uTargetGeom.translate(uEff.x, uEff.y, uEff.z);
-        lTargetGeom.translate(lEff.x, lEff.y, lEff.z);
+          diffUpperOverlayMeshRef.current.visible = settings.showUpper;
+          diffLowerOverlayMeshRef.current.visible = settings.showLower;
+        } else {
+          cleanupOverlayMeshes();
 
-        const createOverlayMat = (isUpper: boolean) => {
-          const isBoth = diff.displayMode === 'both';
-          const mat = new THREE.MeshPhysicalMaterial({
-            color: isUpper ? 0x06b6d4 : 0x38bdf8,
-            emissive: isUpper ? 0x083344 : 0x0c4a6e,
-            emissiveIntensity: isBoth ? 0.15 : 0.25,
-            roughness: 0.2,
-            metalness: 0.1,
-            transparent: true,
-            opacity: isBoth
-              ? Math.min(diff.overlayOpacity, 0.26)
-              : diff.overlayOpacity,
-            wireframe: diff.overlayWireframe,
-            depthWrite: false,
-            side: THREE.DoubleSide,
-          });
-          mat.clippingPlanes = clippingPlanes;
-          return mat;
-        };
+          const uOverlayGeom = uTargetGeom.clone();
+          const lOverlayGeom = lTargetGeom.clone();
+          uOverlayGeom.translate(uEff.x, uEff.y, uEff.z);
+          lOverlayGeom.translate(lEff.x, lEff.y, lEff.z);
 
-        const uOverlayMesh = new THREE.Mesh(
-          uTargetGeom,
-          createOverlayMat(true)
-        );
-        uOverlayMesh.visible = settings.showUpper;
-        uOverlayMesh.position.copy(upperMeshRef.current.position);
-        uOverlayMesh.rotation.copy(upperMeshRef.current.rotation);
-        uOverlayMesh.renderOrder = 2;
+          const createOverlayMat = (isUpper: boolean) => {
+            const mat = new THREE.MeshPhysicalMaterial({
+              color: isUpper ? 0x06b6d4 : 0x38bdf8,
+              emissive: isUpper ? 0x083344 : 0x0c4a6e,
+              emissiveIntensity: targetEmissiveIntensity,
+              roughness: 0.2,
+              metalness: 0.1,
+              transparent: true,
+              opacity: targetOpacity,
+              wireframe: diff.overlayWireframe,
+              depthWrite: false,
+              side: THREE.DoubleSide,
+            });
+            mat.clippingPlanes = clippingPlanes;
+            return mat;
+          };
 
-        const lOverlayMesh = new THREE.Mesh(
-          lTargetGeom,
-          createOverlayMat(false)
-        );
-        lOverlayMesh.visible = settings.showLower;
-        lOverlayMesh.position.copy(lowerMeshRef.current.position);
-        lOverlayMesh.rotation.copy(lowerMeshRef.current.rotation);
-        lOverlayMesh.renderOrder = 2;
+          const uOverlayMesh = new THREE.Mesh(
+            uOverlayGeom,
+            createOverlayMat(true)
+          );
+          uOverlayMesh.visible = settings.showUpper;
+          uOverlayMesh.position.copy(upperMeshRef.current.position);
+          uOverlayMesh.rotation.copy(upperMeshRef.current.rotation);
+          uOverlayMesh.renderOrder = 2;
 
-        scene.add(uOverlayMesh);
-        scene.add(lOverlayMesh);
-        diffUpperOverlayMeshRef.current = uOverlayMesh;
-        diffLowerOverlayMeshRef.current = lOverlayMesh;
+          const lOverlayMesh = new THREE.Mesh(
+            lOverlayGeom,
+            createOverlayMat(false)
+          );
+          lOverlayMesh.visible = settings.showLower;
+          lOverlayMesh.position.copy(lowerMeshRef.current.position);
+          lOverlayMesh.rotation.copy(lowerMeshRef.current.rotation);
+          lOverlayMesh.renderOrder = 2;
+
+          scene.add(uOverlayMesh);
+          scene.add(lOverlayMesh);
+          diffUpperOverlayMeshRef.current = uOverlayMesh;
+          diffLowerOverlayMeshRef.current = lOverlayMesh;
+          overlayGeomKeyRef.current = devKey;
+        }
       } else {
-        uTargetGeom.dispose();
-        lTargetGeom.dispose();
+        cleanupOverlayMeshes();
       }
     });
 
@@ -390,8 +525,6 @@ export function useModelDiffEffect({
   }, [
     settings.modelDiff,
     settings.clippingEnabled,
-    settings.clippingAxis,
-    settings.clippingOffset,
     settings.showUpper,
     settings.showLower,
     mapsReady,

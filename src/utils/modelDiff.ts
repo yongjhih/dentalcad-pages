@@ -276,8 +276,13 @@ export function computeMeshSignedDeviations(
   const cellSize = Math.max(1.0, options?.cellSizeMm || 3.5);
   const invCell = 1.0 / cellSize;
 
-  // Spatial hash map: key -> array of sample indices
-  const grid = new Map<string, number[]>();
+  // Pack 3D grid cell coordinates into a collision-free 30-bit integer key (zero string allocations)
+  const packCellKey = (gx: number, gy: number, gz: number): number =>
+    (((gx + 512) & 1023) << 20) | (((gy + 512) & 1023) << 10) | ((gz + 512) & 1023);
+
+  // Zero-allocation flat linked-list spatial hash: cellKey -> head sample index -> sampleNext[sIdx]
+  const cellHead = new Map<number, number>();
+  const sampleNext = new Int32Array(sampleCount).fill(-1);
 
   let sIdx = 0;
   for (let i = 0; i < targetCount && sIdx < sampleCount; i += stride) {
@@ -293,19 +298,31 @@ export function computeMeshSignedDeviations(
     const gx = Math.floor(tx * invCell);
     const gy = Math.floor(ty * invCell);
     const gz = Math.floor(tz * invCell);
-    const key = `${gx},${gy},${gz}`;
+    const key = packCellKey(gx, gy, gz);
 
-    let bucket = grid.get(key);
-    if (!bucket) {
-      bucket = [];
-      grid.set(key, bucket);
+    const prevHead = cellHead.get(key);
+    if (prevHead !== undefined) {
+      sampleNext[sIdx] = prevHead;
     }
-    bucket.push(sIdx);
+    cellHead.set(key, sIdx);
     sIdx++;
   }
 
   const actualSamples = sIdx;
   const coarseStep = Math.max(1, Math.floor(actualSamples / 400));
+
+  // Direct-mapped spatial query cache for unindexed STL triangle soups where ~6 vertices share each (px, py, pz)
+  const CACHE_BITS = 12;
+  const CACHE_SIZE = 1 << CACHE_BITS;
+  const CACHE_MASK = CACHE_SIZE - 1;
+  const cacheValid = new Uint8Array(CACHE_SIZE);
+  const cachePx = new Float32Array(CACHE_SIZE);
+  const cachePy = new Float32Array(CACHE_SIZE);
+  const cachePz = new Float32Array(CACHE_SIZE);
+  const cacheDistSq = new Float32Array(CACHE_SIZE);
+  const cacheDx = new Float32Array(CACHE_SIZE);
+  const cacheDy = new Float32Array(CACHE_SIZE);
+  const cacheDz = new Float32Array(CACHE_SIZE);
 
   for (let i = 0; i < refCount; i++) {
     const idx = i * 3;
@@ -313,62 +330,97 @@ export function computeMeshSignedDeviations(
     const py = refPositions[idx + 1];
     const pz = refPositions[idx + 2];
 
-    const gx = Math.floor(px * invCell);
-    const gy = Math.floor(py * invCell);
-    const gz = Math.floor(pz * invCell);
+    const slot =
+      ((Math.imul((px * 1000) | 0, 73856093) ^
+        Math.imul((py * 1000) | 0, 19349663) ^
+        Math.imul((pz * 1000) | 0, 83492791)) >>>
+        0) &
+      CACHE_MASK;
 
-    let bestDistSq = Infinity;
-    let bestDx = 0;
-    let bestDy = 0;
-    let bestDz = 0;
+    let bestDistSq: number;
+    let bestDx: number;
+    let bestDy: number;
+    let bestDz: number;
 
-    // 1. Check homologous vertex index first if vertex counts match (O(1) exact upper bound)
-    if (refCount === targetCount) {
-      const hx = targetPositions[idx] + alignX - px;
-      const hy = targetPositions[idx + 1] + alignY - py;
-      const hz = targetPositions[idx + 2] + alignZ - pz;
-      bestDistSq = hx * hx + hy * hy + hz * hz;
-      bestDx = hx;
-      bestDy = hy;
-      bestDz = hz;
-    }
+    if (
+      cacheValid[slot] === 1 &&
+      cachePx[slot] === px &&
+      cachePy[slot] === py &&
+      cachePz[slot] === pz
+    ) {
+      bestDistSq = cacheDistSq[slot];
+      bestDx = cacheDx[slot];
+      bestDy = cacheDy[slot];
+      bestDz = cacheDz[slot];
+    } else {
+      bestDistSq = Infinity;
+      bestDx = 0;
+      bestDy = 0;
+      bestDz = 0;
 
-    // 2. Search 3x3x3 neighborhood cells in spatial hash grid
-    for (let dz = -1; dz <= 1; dz++) {
-      for (let dy = -1; dy <= 1; dy++) {
-        for (let dx = -1; dx <= 1; dx++) {
-          const bucket = grid.get(`${gx + dx},${gy + dy},${gz + dz}`);
-          if (!bucket) continue;
-          for (let k = 0; k < bucket.length; k++) {
-            const j = bucket[k];
-            const vx = tgtX[j] - px;
-            const vy = tgtY[j] - py;
-            const vz = tgtZ[j] - pz;
-            const dSq = vx * vx + vy * vy + vz * vz;
-            if (dSq < bestDistSq) {
-              bestDistSq = dSq;
-              bestDx = vx;
-              bestDy = vy;
-              bestDz = vz;
+      const gx = Math.floor(px * invCell);
+      const gy = Math.floor(py * invCell);
+      const gz = Math.floor(pz * invCell);
+
+      // Search 3x3x3 neighborhood cells in flat linked-list spatial hash grid
+      for (let dz = -1; dz <= 1; dz++) {
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            let j = cellHead.get(packCellKey(gx + dx, gy + dy, gz + dz));
+            while (j !== undefined && j !== -1) {
+              const vx = tgtX[j] - px;
+              const vy = tgtY[j] - py;
+              const vz = tgtZ[j] - pz;
+              const dSq = vx * vx + vy * vy + vz * vz;
+              if (dSq < bestDistSq) {
+                bestDistSq = dSq;
+                bestDx = vx;
+                bestDy = vy;
+                bestDz = vz;
+              }
+              j = sampleNext[j];
             }
           }
         }
       }
+
+      // Fallback coarse search if no neighbor was found in local 3x3x3 neighborhood
+      if (!Number.isFinite(bestDistSq)) {
+        for (let j = 0; j < actualSamples; j += coarseStep) {
+          const vx = tgtX[j] - px;
+          const vy = tgtY[j] - py;
+          const vz = tgtZ[j] - pz;
+          const dSq = vx * vx + vy * vy + vz * vz;
+          if (dSq < bestDistSq) {
+            bestDistSq = dSq;
+            bestDx = vx;
+            bestDy = vy;
+            bestDz = vz;
+          }
+        }
+      }
+
+      cacheValid[slot] = 1;
+      cachePx[slot] = px;
+      cachePy[slot] = py;
+      cachePz[slot] = pz;
+      cacheDistSq[slot] = bestDistSq;
+      cacheDx[slot] = bestDx;
+      cacheDy[slot] = bestDy;
+      cacheDz[slot] = bestDz;
     }
 
-    // 3. Fallback coarse search if no neighbor was found in local 3x3x3 neighborhood
-    if (!Number.isFinite(bestDistSq)) {
-      for (let j = 0; j < actualSamples; j += coarseStep) {
-        const vx = tgtX[j] - px;
-        const vy = tgtY[j] - py;
-        const vz = tgtZ[j] - pz;
-        const dSq = vx * vx + vy * vy + vz * vz;
-        if (dSq < bestDistSq) {
-          bestDistSq = dSq;
-          bestDx = vx;
-          bestDy = vy;
-          bestDz = vz;
-        }
+    // Check homologous vertex index if vertex counts match (O(1) exact upper bound)
+    if (refCount === targetCount) {
+      const hx = targetPositions[idx] + alignX - px;
+      const hy = targetPositions[idx + 1] + alignY - py;
+      const hz = targetPositions[idx + 2] + alignZ - pz;
+      const hDistSq = hx * hx + hy * hy + hz * hz;
+      if (hDistSq < bestDistSq) {
+        bestDistSq = hDistSq;
+        bestDx = hx;
+        bestDy = hy;
+        bestDz = hz;
       }
     }
 
@@ -509,18 +561,78 @@ export function applyDiffHeatmapColorsToGeometry(
   }
 
   const count = posAttr.count;
-  const colors = new Float32Array(count * 3);
+  const maxR = Math.max(0.2, maxRangeMm);
+  const tol = Math.max(0.01, Math.min(maxR * 0.8, toleranceMm));
+  const invSpan = 1.0 / Math.max(0.001, maxR - tol);
+
+  // Reuse existing heatmap color buffer in-place when possible to avoid large Float32Array allocations on slider drag
+  let colorAttr = geom.getAttribute('color') as THREE.BufferAttribute | undefined;
+  let colors: Float32Array;
+  if (
+    colorAttr &&
+    geom.userData.isDiffHeatmapColorBuffer &&
+    colorAttr.array instanceof Float32Array &&
+    colorAttr.array.length === count * 3
+  ) {
+    colors = colorAttr.array;
+  } else {
+    colors = new Float32Array(count * 3);
+    colorAttr = new THREE.Float32BufferAttribute(colors, 3);
+    geom.setAttribute('color', colorAttr);
+    geom.userData.isDiffHeatmapColorBuffer = true;
+  }
 
   for (let i = 0; i < count; i++) {
     const d = i < signedDeviations.length ? signedDeviations[i] : 0;
-    const [r, g, b] = deviationToDiffRGB(d, maxRangeMm, toleranceMm);
     const idx = i * 3;
-    colors[idx] = r;
-    colors[idx + 1] = g;
-    colors[idx + 2] = b;
+    const absD = Math.abs(d);
+
+    if (!Number.isFinite(d) || absD <= tol) {
+      colors[idx] = 0.13;
+      colors[idx + 1] = 0.77;
+      colors[idx + 2] = 0.37;
+      continue;
+    }
+
+    const t = Math.min(1, Math.max(0, (absD - tol) * invSpan));
+    if (d > 0) {
+      if (t < 0.4) {
+        const u = t / 0.4;
+        colors[idx] = 0.13 + (0.95 - 0.13) * u;
+        colors[idx + 1] = 0.77 + (0.78 - 0.77) * u;
+        colors[idx + 2] = 0.37 + (0.08 - 0.37) * u;
+      } else if (t < 0.75) {
+        const u = (t - 0.4) / 0.35;
+        colors[idx] = 0.95 + (0.98 - 0.95) * u;
+        colors[idx + 1] = 0.78 + (0.45 - 0.78) * u;
+        colors[idx + 2] = 0.08 + (0.09 - 0.08) * u;
+      } else {
+        const u = (t - 0.75) / 0.25;
+        colors[idx] = 0.98 + (0.94 - 0.98) * u;
+        colors[idx + 1] = 0.45 + (0.18 - 0.45) * u;
+        colors[idx + 2] = 0.09 + (0.22 - 0.09) * u;
+      }
+    } else {
+      if (t < 0.4) {
+        const u = t / 0.4;
+        colors[idx] = 0.13 + (0.04 - 0.13) * u;
+        colors[idx + 1] = 0.77 + (0.78 - 0.77) * u;
+        colors[idx + 2] = 0.37 + (0.88 - 0.37) * u;
+      } else if (t < 0.75) {
+        const u = (t - 0.4) / 0.35;
+        colors[idx] = 0.04 + (0.18 - 0.04) * u;
+        colors[idx + 1] = 0.78 + (0.48 - 0.78) * u;
+        colors[idx + 2] = 0.88 + (0.96 - 0.88) * u;
+      } else {
+        const u = (t - 0.75) / 0.25;
+        colors[idx] = 0.18 + (0.11 - 0.18) * u;
+        colors[idx + 1] = 0.48 + (0.24 - 0.48) * u;
+        colors[idx + 2] = 0.96 + (0.85 - 0.96) * u;
+      }
+    }
   }
 
-  geom.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+  colorAttr.needsUpdate = true;
 }
 
 /**
@@ -528,6 +640,7 @@ export function applyDiffHeatmapColorsToGeometry(
  */
 export function restoreOriginalColorsOnGeometry(geom: THREE.BufferGeometry): void {
   if (geom.userData.hadOrigColor === undefined) return;
+  geom.userData.isDiffHeatmapColorBuffer = false;
 
   const orig = geom.getAttribute('origColor');
   if (geom.userData.hadOrigColor && orig) {

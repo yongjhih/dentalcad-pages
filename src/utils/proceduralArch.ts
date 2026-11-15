@@ -1,5 +1,8 @@
 import * as THREE from 'three';
 
+let cachedUpperArchTemplate: THREE.BufferGeometry | null = null;
+let cachedLowerArchTemplate: THREE.BufferGeometry | null = null;
+
 /**
  * Generate a realistic anatomical 3D dental arch BufferGeometry (14 teeth + alveolar gingiva + upper palate)
  * in the standard coordinate system (Anterior = -Y, Posterior = +Y, Left = +X, Right = -X).
@@ -12,6 +15,23 @@ import * as THREE from 'three';
  * 5. Facial Gingival Margin (唇側齒頸緣): Smooth concave parabolic scallops at the facial center of each tooth crown.
  */
 export function createProceduralDentalArchGeometry(isUpper: boolean): THREE.BufferGeometry {
+  if (isUpper && cachedUpperArchTemplate) {
+    return cachedUpperArchTemplate.clone();
+  }
+  if (!isUpper && cachedLowerArchTemplate) {
+    return cachedLowerArchTemplate.clone();
+  }
+
+  const built = buildProceduralDentalArchGeometryTemplate(isUpper);
+  if (isUpper) {
+    cachedUpperArchTemplate = built;
+  } else {
+    cachedLowerArchTemplate = built;
+  }
+  return built.clone();
+}
+
+function buildProceduralDentalArchGeometryTemplate(isUpper: boolean): THREE.BufferGeometry {
   // High-density subdivision for smooth anatomical gingival scallops and anti-aliased tooth-gum transitions
   const segU = 320; // High resolution along the parabolic arch (eliminates dental scallop faceting/jaggies)
   const segV = 88; // Dense cross-sectional profile (smooth clinical crown to gingival roll)
@@ -57,6 +77,11 @@ export function createProceduralDentalArchGeometry(isUpper: boolean): THREE.Buff
   const colGingivaAlveolar = new THREE.Color(0xdb4c68); // Rich alveolar mucosa
   const colPalateMucosa = new THREE.Color(0xe87a90); // Palatal mucosa
   const colPalateRaphe = new THREE.Color(0xf49ba8); // Pale median palatine raphe
+
+  // Reusable scratch Color instances to avoid ~85,000 object allocations inside the vertex loop
+  const vertexColor = new THREE.Color();
+  const toothCol = new THREE.Color();
+  const palCol = new THREE.Color();
 
   const lingualVertices: Array<{ x: number; y: number; z: number }> = [];
   const buccalVertices: Array<{ x: number; y: number; z: number }> = [];
@@ -192,10 +217,7 @@ export function createProceduralDentalArchGeometry(isUpper: boolean): THREE.Buff
       // Clean anti-aliased transition across the scalloped CEJ line (NO pink bleeding onto crowns)
       const enamelWeight = 1.0 - smoothstep(cervicalMargin - 0.02, cervicalMargin + 0.02, crownDist);
 
-      const vertexColor = new THREE.Color();
-
       if (enamelWeight > 0.01) {
-        const toothCol = new THREE.Color();
         if (crownDist < 0.16) {
           // Incisal edge translucency
           const tInc = 1 - crownDist / 0.16;
@@ -208,8 +230,7 @@ export function createProceduralDentalArchGeometry(isUpper: boolean): THREE.Buff
           toothCol.copy(colToothBody);
         }
 
-        const marginCol = new THREE.Color().copy(colGingivaMargin);
-        vertexColor.copy(marginCol).lerp(toothCol, enamelWeight);
+        vertexColor.copy(colGingivaMargin).lerp(toothCol, enamelWeight);
       } else {
         // Continuous gingival gradient:
         // Free margin (pale pink) -> Attached gingiva (coral) -> Alveolar mucosa (deep rose)
@@ -308,12 +329,12 @@ export function createProceduralDentalArchGeometry(isUpper: boolean): THREE.Buff
 
         positions.push(px, py, pz);
 
-        const col = new THREE.Color().copy(colGingivaAlveolar).lerp(colPalateMucosa, ringT);
+        palCol.copy(colGingivaAlveolar).lerp(colPalateMucosa, ringT);
         if (ringT > 0.75) {
           const tRaphe = (ringT - 0.75) / 0.25;
-          col.lerp(colPalateRaphe, tRaphe * 0.75);
+          palCol.lerp(colPalateRaphe, tRaphe * 0.75);
         }
-        colors.push(col.r, col.g, col.b);
+        colors.push(palCol.r, palCol.g, palCol.b);
       }
     }
 
