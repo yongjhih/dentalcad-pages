@@ -185,6 +185,8 @@ export interface ModelEditSettings {
   placedTeeth: PlacedLibraryTooth[];
   clipboard: CopiedToothClipboard | null;
   showFdiLabels: boolean;
+  showToothObjects?: boolean;
+  showGingivaBase?: boolean;
   history?: ModelEditHistory;
 }
 

@@ -19,6 +19,8 @@ export const DEFAULT_MODEL_EDIT_SETTINGS: ModelEditSettings = {
   placedTeeth: [],
   clipboard: null,
   showFdiLabels: true,
+  showToothObjects: true,
+  showGingivaBase: true,
   history: {
     past: [],
     future: [],
@@ -423,14 +425,14 @@ export function identifyToothAtPoint3D(
 ): SelectedToothTarget | null {
   // 1. Check placed library/pasted teeth on this arch first
   let bestPlacedId: string | null = null;
-  let bestPlacedDist = 6.8;
+  let bestPlacedDist = 8.5;
 
   for (const p of placedTeeth) {
     if (p.isUpper !== isUpper) continue;
     const d = Math.hypot(
       point.x - p.position.x,
       point.y - p.position.y,
-      (point.z - p.position.z) * 0.5
+      (point.z - p.position.z) * 0.75
     );
     if (d < bestPlacedDist) {
       bestPlacedDist = d;
@@ -442,21 +444,35 @@ export function identifyToothAtPoint3D(
     return { kind: 'placed', placedId: bestPlacedId };
   }
 
-  // 2. Check native FDI teeth on this arch (accounting for any active drag offsetMm)
+  // 2. Check native FDI teeth on this arch (using oriented dental arch ellipse & 3D Z occlusal-cervical bounds)
   let bestFdi: FdiToothNumber | null = null;
-  let bestNormDist = 2.6;
+  let bestScore = 2.4;
 
   for (const t of segmentedTeeth) {
     if (t.isUpper !== isUpper) continue;
     const edit = nativeEdits[t.fdi];
     const ox = edit && !edit.deleted ? edit.offsetMm.x : 0;
     const oy = edit && !edit.deleted ? edit.offsetMm.y : 0;
+    const oz = edit && !edit.deleted ? edit.offsetMm.z : 0;
 
-    const dx = (point.x - (t.center.x + ox)) / Math.max(2.5, t.radiusXY.rx);
-    const dy = (point.y - (t.center.y + oy)) / Math.max(2.5, t.radiusXY.ry);
-    const normDist = Math.hypot(dx, dy);
-    if (normDist < bestNormDist) {
-      bestNormDist = normDist;
+    const rad = (t.angleDeg * Math.PI) / 180;
+    const cosA = Math.cos(rad);
+    const sinA = Math.sin(rad);
+
+    const tx = point.x - (t.center.x + ox);
+    const ty = point.y - (t.center.y + oy);
+    const u = (tx * cosA + ty * sinA) / Math.max(2.5, t.radiusXY.rx);
+    const v = (-tx * sinA + ty * cosA) / Math.max(2.5, t.radiusXY.ry);
+    const distXY = Math.hypot(u, v);
+
+    // Occlusal-to-cervical vertical distance factor
+    const crownZ = (t.zOcclusal + t.zCervical) * 0.5 + oz;
+    const halfH = Math.max(3.0, Math.abs(t.zCervical - t.zOcclusal) * 0.5);
+    const distZ = Math.abs(point.z - crownZ) / halfH;
+
+    const totalScore = Math.hypot(distXY, distZ * 0.55);
+    if (totalScore < bestScore) {
+      bestScore = totalScore;
       bestFdi = t.fdi;
     }
   }
@@ -466,6 +482,168 @@ export function identifyToothAtPoint3D(
   }
 
   return null;
+}
+
+/**
+ * Extracts a discrete, independent 3D Tooth Object crown BufferGeometry
+ * from a source dental arch BufferGeometry for a specific segmented tooth.
+ * Vertices are centered at (0, 0, 0) relative to the tooth centroid so that
+ * rigid translation, rotation, and scaling can be applied directly to the Tooth Object mesh.
+ */
+export function extractToothCrownGeometry(
+  sourceGeom: THREE.BufferGeometry | null | undefined,
+  tooth: SegmentedToothInfo
+): THREE.BufferGeometry {
+  if (!sourceGeom) {
+    return createLibraryToothGeometry(tooth.morphology, tooth.isUpper);
+  }
+
+  const posAttr = sourceGeom.getAttribute('position');
+  if (!posAttr) {
+    return createLibraryToothGeometry(tooth.morphology, tooth.isUpper);
+  }
+
+  const rad = (tooth.angleDeg * Math.PI) / 180;
+  const cosA = Math.cos(rad);
+  const sinA = Math.sin(rad);
+  const cx = tooth.center.x;
+  const cy = tooth.center.y;
+  const cz = tooth.center.z;
+  const rx = Math.max(3.0, tooth.radiusXY.rx * 1.08);
+  const ry = Math.max(3.0, tooth.radiusXY.ry * 1.08);
+  const isUpper = tooth.isUpper;
+  const zCerv = tooth.zCervical + (isUpper ? 0.6 : -0.6);
+
+  const index = sourceGeom.getIndex();
+  const triPositions: number[] = [];
+  const triColors: number[] = [];
+
+  const getVertex = (vIdx: number) => ({
+    x: posAttr.getX(vIdx),
+    y: posAttr.getY(vIdx),
+    z: posAttr.getZ(vIdx),
+  });
+
+  const checkTriangle = (i0: number, i1: number, i2: number) => {
+    const v0 = getVertex(i0);
+    const v1 = getVertex(i1);
+    const v2 = getVertex(i2);
+
+    const mx = (v0.x + v1.x + v2.x) / 3;
+    const my = (v0.y + v1.y + v2.y) / 3;
+    const mz = (v0.z + v1.z + v2.z) / 3;
+
+    const dx = mx - cx;
+    const dy = my - cy;
+    const u = (dx * cosA + dy * sinA) / rx;
+    const v = (-dx * sinA + dy * cosA) / ry;
+    if (u * u + v * v > 1.08) return;
+
+    if (isUpper ? mz > zCerv : mz < zCerv) return;
+
+    // Triangle belongs to this discrete tooth crown object
+    triPositions.push(
+      v0.x - cx, v0.y - cy, v0.z - cz,
+      v1.x - cx, v1.y - cy, v1.z - cz,
+      v2.x - cx, v2.y - cy, v2.z - cz
+    );
+
+    // Natural pearl enamel gradient coloring
+    const tZ = isUpper
+      ? Math.max(0, Math.min(1, (mz - tooth.zOcclusal) / Math.max(1, tooth.zCervical - tooth.zOcclusal)))
+      : Math.max(0, Math.min(1, (tooth.zOcclusal - mz) / Math.max(1, tooth.zOcclusal - tooth.zCervical)));
+
+    const r = 0.96 - tZ * 0.05;
+    const g = 0.95 - tZ * 0.08;
+    const b = 0.91 - tZ * 0.12;
+    triColors.push(r, g, b, r, g, b, r, g, b);
+  };
+
+  if (index) {
+    for (let i = 0; i < index.count; i += 3) {
+      checkTriangle(index.getX(i), index.getX(i + 1), index.getX(i + 2));
+    }
+  } else {
+    for (let i = 0; i < posAttr.count; i += 3) {
+      checkTriangle(i, i + 1, i + 2);
+    }
+  }
+
+  // If sufficient triangles were extracted from the scan (at least 24 triangles), return the extracted crown!
+  if (triPositions.length >= 72) {
+    const geom = new THREE.BufferGeometry();
+    geom.setAttribute('position', new THREE.Float32BufferAttribute(triPositions, 3));
+    geom.setAttribute('color', new THREE.Float32BufferAttribute(triColors, 3));
+    geom.computeVertexNormals();
+    geom.computeBoundingBox();
+    geom.computeBoundingSphere();
+    return geom;
+  }
+
+  // Fallback to anatomical tooth library preset for edentulous/missing baseline sites
+  return createLibraryToothGeometry(tooth.morphology, tooth.isUpper);
+}
+
+/**
+ * Generates an oral mucosal Gingiva Base BufferGeometry with smoothed alveolar ridges / tooth sockets.
+ * This separates the gingival jaw tissue from the discrete tooth objects.
+ */
+export function createGingivaBaseGeometry(
+  sourceGeom: THREE.BufferGeometry,
+  segmentedTeeth: SegmentedToothInfo[],
+  isUpper: boolean
+): THREE.BufferGeometry {
+  const geom = sourceGeom.clone();
+  const posAttr = geom.getAttribute('position') as THREE.BufferAttribute;
+  if (!posAttr) return geom;
+
+  const count = posAttr.count;
+  const pos = posAttr.array as Float32Array;
+  const col = new Float32Array(count * 3);
+
+  const archTeeth = segmentedTeeth.filter((t) => t.isUpper === isUpper);
+
+  for (let i = 0; i < count; i++) {
+    const idx = i * 3;
+    const x = pos[idx];
+    const y = pos[idx + 1];
+    let z = pos[idx + 2];
+
+    let maxCrownProtrusion = 0;
+
+    for (const t of archTeeth) {
+      const rad = (t.angleDeg * Math.PI) / 180;
+      const cosA = Math.cos(rad);
+      const sinA = Math.sin(rad);
+      const dx = x - t.center.x;
+      const dy = y - t.center.y;
+      const u = (dx * cosA + dy * sinA) / t.radiusXY.rx;
+      const v = (-dx * sinA + dy * cosA) / t.radiusXY.ry;
+      const r2 = u * u + v * v;
+      if (r2 <= 1.25) {
+        const protrusion = isUpper ? t.zCervical - z : z - t.zCervical;
+        if (protrusion > maxCrownProtrusion) {
+          maxCrownProtrusion = protrusion;
+        }
+      }
+    }
+
+    if (maxCrownProtrusion > 0.5) {
+      const recessAmount = maxCrownProtrusion * 0.88;
+      z = isUpper ? z + recessAmount : z - recessAmount;
+      pos[idx + 2] = z;
+    }
+
+    // Oral mucosal coral pink gingiva color (RGB: 0.88, 0.46, 0.54)
+    col[idx] = 0.88;
+    col[idx + 1] = 0.46;
+    col[idx + 2] = 0.54;
+  }
+
+  posAttr.needsUpdate = true;
+  geom.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  geom.computeVertexNormals();
+  return geom;
 }
 
 const libraryGeometryCache = new Map<string, THREE.BufferGeometry>();
@@ -874,7 +1052,9 @@ export function applyNativeToothEditsToGeometry(
 export function exportEditedArchToBinaryStl(
   archGeom: THREE.BufferGeometry,
   placedTeeth: PlacedLibraryTooth[],
-  isUpper: boolean
+  isUpper: boolean,
+  segmentedTeeth?: SegmentedToothInfo[],
+  nativeEdits: Record<number, NativeToothEditOperation> = {}
 ): ArrayBuffer {
   const triangles: number[] = [];
 
@@ -908,7 +1088,47 @@ export function exportEditedArchToBinaryStl(
     }
   };
 
-  appendGeometryTriangles(archGeom);
+  const hasDiscreteNativeEdits =
+    segmentedTeeth &&
+    segmentedTeeth.length > 0 &&
+    Object.values(nativeEdits).some(
+      (op) =>
+        op.deleted ||
+        Math.abs(op.offsetMm.x) > 0.01 ||
+        Math.abs(op.offsetMm.y) > 0.01 ||
+        Math.abs(op.offsetMm.z) > 0.01 ||
+        Math.abs(op.rotationDeg) > 0.1 ||
+        Math.abs(op.scale - 1) > 0.01
+    );
+
+  if (hasDiscreteNativeEdits && segmentedTeeth) {
+    const gingivaGeom = createGingivaBaseGeometry(archGeom, segmentedTeeth, isUpper);
+    appendGeometryTriangles(gingivaGeom);
+
+    for (const t of segmentedTeeth) {
+      if (t.isUpper !== isUpper) continue;
+      const op = nativeEdits[t.fdi];
+      if (op?.deleted) continue;
+
+      const tGeom = extractToothCrownGeometry(archGeom, t);
+      const ox = op?.offsetMm.x || 0;
+      const oy = op?.offsetMm.y || 0;
+      const oz = op?.offsetMm.z || 0;
+      const rot = op?.rotationDeg || 0;
+      const scale = op?.scale || 1.0;
+
+      const mat = new THREE.Matrix4();
+      const pos = new THREE.Vector3(t.center.x + ox, t.center.y + oy, t.center.z + oz);
+      const quat = new THREE.Quaternion().setFromEuler(
+        new THREE.Euler(0, 0, (rot * Math.PI) / 180)
+      );
+      const scl = new THREE.Vector3(scale, scale, scale);
+      mat.compose(pos, quat, scl);
+      appendGeometryTriangles(tGeom, mat);
+    }
+  } else {
+    appendGeometryTriangles(archGeom);
+  }
 
   for (const item of placedTeeth) {
     if (item.isUpper !== isUpper) continue;

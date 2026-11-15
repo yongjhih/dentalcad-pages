@@ -20,6 +20,7 @@ import {
   PlacedLibraryTooth,
   ToothMorphologyType,
   ModelEditSnapshot,
+  FdiToothNumber,
 } from '../types/dental';
 import { DEFAULT_MODEL_DIFF_SETTINGS } from '../utils/modelDiff';
 import {
@@ -174,7 +175,9 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
   const diffUpperOverlayMeshRef = useRef<THREE.Mesh | null>(null);
   const diffLowerOverlayMeshRef = useRef<THREE.Mesh | null>(null);
 
-  // 3D Model Editor Placed Teeth & Selection Gizmo Groups
+  // 3D Model Editor Discrete Tooth Objects, Placed Teeth & Selection Gizmo Groups
+  const nativeUpperGroupRef = useRef<THREE.Group | null>(null);
+  const nativeLowerGroupRef = useRef<THREE.Group | null>(null);
   const placedUpperGroupRef = useRef<THREE.Group | null>(null);
   const placedLowerGroupRef = useRef<THREE.Group | null>(null);
   const editorGizmoGroupRef = useRef<THREE.Group | null>(null);
@@ -847,12 +850,14 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
     onModelDiffStatsComputed,
   });
 
-  // 3D Model Editor: Segment 28 FDI Teeth, Apply Non-Destructive Native Edits & Render Placed Teeth + Gizmos
+  // 3D Model Editor: Segment 28 FDI Teeth, Discrete Native Tooth Objects & Placed Teeth + Gizmos
   const segmentedTeeth = useModelEditorEffect({
     settings,
     sceneRef,
     upperMeshRef,
     lowerMeshRef,
+    nativeUpperGroupRef,
+    nativeLowerGroupRef,
     placedUpperGroupRef,
     placedLowerGroupRef,
     editorGizmoGroupRef,
@@ -870,7 +875,14 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
       const mesh = isUpper ? upperMeshRef.current : lowerMeshRef.current;
       if (!mesh) return;
       const placed = settings.modelEdit?.placedTeeth || [];
-      const buffer = exportEditedArchToBinaryStl(mesh.geometry, placed, isUpper);
+      const nativeEdits = settings.modelEdit?.nativeEdits || {};
+      const buffer = exportEditedArchToBinaryStl(
+        mesh.geometry,
+        placed,
+        isUpper,
+        segmentedTeeth,
+        nativeEdits
+      );
       const blob = new Blob([buffer], { type: 'application/sla' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -880,7 +892,7 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     };
     onRegisterStlExporter(handleExportStl);
-  }, [onRegisterStlExporter, settings.modelEdit?.placedTeeth]);
+  }, [onRegisterStlExporter, settings.modelEdit?.placedTeeth, settings.modelEdit?.nativeEdits, segmentedTeeth]);
 
   // Render 3D Articulation Trajectory Curve & TMJ Hinge Axis Gizmo inside the 3D scene
   useEffect(() => {
@@ -1031,6 +1043,14 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
     const calGroup = new THREE.Group();
     scene.add(calGroup);
     caliperGroupRef.current = calGroup;
+
+    const nativeUpperGroup = new THREE.Group();
+    scene.add(nativeUpperGroup);
+    nativeUpperGroupRef.current = nativeUpperGroup;
+
+    const nativeLowerGroup = new THREE.Group();
+    scene.add(nativeLowerGroup);
+    nativeLowerGroupRef.current = nativeLowerGroup;
 
     const placedUpperGroup = new THREE.Group();
     scene.add(placedUpperGroup);
@@ -1447,23 +1467,66 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
     // 1. 3D Tooth Editor Selection & Interactive 3D Dragging
     if (settings.modelEdit?.enabled && !settings.caliperToolActive) {
       const modelEdit = settings.modelEdit;
-      const placedTargets: THREE.Object3D[] = [];
+
+      // 1A. Raycast directly against discrete Tooth Objects (Native 3D Teeth & Placed Library Teeth)
+      const toothTargets: THREE.Object3D[] = [];
       if (placedUpperGroupRef.current && settings.showUpper) {
-        placedTargets.push(...placedUpperGroupRef.current.children);
+        toothTargets.push(...placedUpperGroupRef.current.children);
       }
       if (placedLowerGroupRef.current && settings.showLower) {
-        placedTargets.push(...placedLowerGroupRef.current.children);
+        toothTargets.push(...placedLowerGroupRef.current.children);
+      }
+      if (nativeUpperGroupRef.current && settings.showUpper) {
+        toothTargets.push(...nativeUpperGroupRef.current.children);
+      }
+      if (nativeLowerGroupRef.current && settings.showLower) {
+        toothTargets.push(...nativeLowerGroupRef.current.children);
       }
 
-      const placedHits =
-        placedTargets.length > 0 ? raycaster.intersectObjects(placedTargets, false) : [];
-      if (placedHits.length > 0) {
-        const hitObj = placedHits[0].object;
-        const placedId = hitObj.userData?.placedToothId as string | undefined;
+      const toothHits =
+        toothTargets.length > 0 ? raycaster.intersectObjects(toothTargets, false) : [];
+
+      if (toothHits.length > 0) {
+        const hitObj = toothHits[0].object;
         const isUpper = Boolean(hitObj.userData?.isUpper);
-        const placedItem = modelEdit.placedTeeth.find((p) => p.id === placedId);
-        if (placedId && placedItem) {
-          const newTarget: SelectedToothTarget = { kind: 'placed', placedId };
+
+        // Hit placed library tooth
+        if (hitObj.userData?.placedToothId) {
+          const placedId = hitObj.userData.placedToothId as string;
+          const placedItem = modelEdit.placedTeeth.find((p) => p.id === placedId);
+          if (placedItem) {
+            const newTarget: SelectedToothTarget = { kind: 'placed', placedId };
+            onSettingsChange((prev) => ({
+              ...prev,
+              modelEdit: {
+                ...(prev.modelEdit || DEFAULT_MODEL_EDIT_SETTINGS),
+                selectedTarget: newTarget,
+              },
+            }));
+
+            if (
+              modelEdit.toolMode === 'drag' ||
+              (modelEdit.selectedTarget?.kind === 'placed' &&
+                modelEdit.selectedTarget.placedId === placedId)
+            ) {
+              dragStartSnapshotRef.current = createModelEditSnapshot(modelEdit);
+              hasDraggedRef.current = false;
+              activeToothDragRef.current = {
+                target: newTarget,
+                isUpper,
+                startWorldPt: toothHits[0].point.clone(),
+                initialPosOrOffset: { ...placedItem.position },
+              };
+              if (controlsRef.current) controlsRef.current.enabled = false;
+            }
+            return;
+          }
+        }
+
+        // Hit native discrete tooth object
+        if (hitObj.userData?.isNativeTooth && hitObj.userData?.fdi) {
+          const fdi = hitObj.userData.fdi as FdiToothNumber;
+          const newTarget: SelectedToothTarget = { kind: 'native', fdi };
           onSettingsChange((prev) => ({
             ...prev,
             modelEdit: {
@@ -1474,16 +1537,19 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
 
           if (
             modelEdit.toolMode === 'drag' ||
-            (modelEdit.selectedTarget?.kind === 'placed' &&
-              modelEdit.selectedTarget.placedId === placedId)
+            (modelEdit.selectedTarget?.kind === 'native' &&
+              modelEdit.selectedTarget.fdi === fdi)
           ) {
+            const curEdit = modelEdit.nativeEdits[fdi];
             dragStartSnapshotRef.current = createModelEditSnapshot(modelEdit);
             hasDraggedRef.current = false;
             activeToothDragRef.current = {
               target: newTarget,
               isUpper,
-              startWorldPt: placedHits[0].point.clone(),
-              initialPosOrOffset: { ...placedItem.position },
+              startWorldPt: toothHits[0].point.clone(),
+              initialPosOrOffset: curEdit
+                ? { ...curEdit.offsetMm }
+                : { x: 0, y: 0, z: 0 },
             };
             if (controlsRef.current) controlsRef.current.enabled = false;
           }
@@ -1491,7 +1557,7 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
         }
       }
 
-      // Raycast against Upper & Lower native arch meshes
+      // 1B. Raycast against Gingiva Base mesh (fallback to nearest tooth site if clicking near socket)
       const archTargets: THREE.Object3D[] = [];
       if (upperMeshRef.current && settings.showUpper) archTargets.push(upperMeshRef.current);
       if (lowerMeshRef.current && settings.showLower) archTargets.push(lowerMeshRef.current);
@@ -1502,14 +1568,7 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
         const hit = archHits[0];
         const isUpper = hit.object === upperMeshRef.current;
         const localVec = hit.point.clone();
-        if (isUpper) {
-          localVec.z -= currentKinematics.upperPosition.z;
-        } else {
-          const lowerInv = new THREE.Matrix4().fromArray(
-            currentKinematics.lowerInverseMatrixElements
-          );
-          localVec.applyMatrix4(lowerInv);
-        }
+        hit.object.worldToLocal(localVec);
 
         const picked = identifyToothAtPoint3D(
           { x: localVec.x, y: localVec.y, z: localVec.z },

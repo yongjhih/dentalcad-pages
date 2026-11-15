@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import * as THREE from 'three';
 import {
   ViewportSettings,
@@ -8,8 +8,9 @@ import { MandibularKinematicsResult } from '../utils/articulatorKinematics';
 import {
   DEFAULT_MODEL_EDIT_SETTINGS,
   segmentArchGeometryTeeth,
-  applyNativeToothEditsToGeometry,
   restoreNativeGeometryBeforeEdits,
+  extractToothCrownGeometry,
+  createGingivaBaseGeometry,
   createLibraryToothGeometry,
 } from '../utils/modelEditor';
 
@@ -18,6 +19,8 @@ export interface UseModelEditorEffectParams {
   sceneRef: React.MutableRefObject<THREE.Scene | null>;
   upperMeshRef: React.MutableRefObject<THREE.Mesh | null>;
   lowerMeshRef: React.MutableRefObject<THREE.Mesh | null>;
+  nativeUpperGroupRef: React.MutableRefObject<THREE.Group | null>;
+  nativeLowerGroupRef: React.MutableRefObject<THREE.Group | null>;
   placedUpperGroupRef: React.MutableRefObject<THREE.Group | null>;
   placedLowerGroupRef: React.MutableRefObject<THREE.Group | null>;
   editorGizmoGroupRef: React.MutableRefObject<THREE.Group | null>;
@@ -32,6 +35,8 @@ export function useModelEditorEffect({
   settings,
   upperMeshRef,
   lowerMeshRef,
+  nativeUpperGroupRef,
+  nativeLowerGroupRef,
   placedUpperGroupRef,
   placedLowerGroupRef,
   editorGizmoGroupRef,
@@ -44,6 +49,12 @@ export function useModelEditorEffect({
   const [segmentedTeeth, setSegmentedTeeth] = useState<SegmentedToothInfo[]>([]);
   const modelEdit = settings.modelEdit || DEFAULT_MODEL_EDIT_SETTINGS;
 
+  // Geometry caches for discrete tooth crown objects & gingiva bases
+  const upperCrownCacheRef = useRef<Map<number, THREE.BufferGeometry>>(new Map());
+  const lowerCrownCacheRef = useRef<Map<number, THREE.BufferGeometry>>(new Map());
+  const upperGingivaBaseCacheRef = useRef<THREE.BufferGeometry | null>(null);
+  const lowerGingivaBaseCacheRef = useRef<THREE.BufferGeometry | null>(null);
+
   // 1. Automatically segment 28 FDI teeth across Upper & Lower arches when STL meshes are ready
   useEffect(() => {
     if (!mapsReady) return;
@@ -51,7 +62,12 @@ export function useModelEditorEffect({
     const lowerGeom = lowerMeshRef.current?.geometry;
     if (!upperGeom || !lowerGeom) return;
 
-    // Segment from unedited baseline geometry
+    // Reset caches on fresh mesh load
+    upperCrownCacheRef.current.clear();
+    lowerCrownCacheRef.current.clear();
+    upperGingivaBaseCacheRef.current = null;
+    lowerGingivaBaseCacheRef.current = null;
+
     restoreNativeGeometryBeforeEdits(upperGeom);
     restoreNativeGeometryBeforeEdits(lowerGeom);
 
@@ -62,49 +78,177 @@ export function useModelEditorEffect({
     onSegmentedTeethComputed?.(allTeeth);
   }, [mapsReady, upperMeshRef, lowerMeshRef, onSegmentedTeethComputed]);
 
-  // 2. Apply non-destructive Native Tooth Edits (Delete -> Healed Gingival Saddle, Drag/Translate/Rotate/Scale)
+  // 2. Build and update Discrete Native Tooth Objects & Gingiva Base Mesh
   useEffect(() => {
     if (!mapsReady || segmentedTeeth.length === 0) return;
     const upperMesh = upperMeshRef.current;
     const lowerMesh = lowerMeshRef.current;
-    if (!upperMesh || !lowerMesh) return;
+    const nativeUpperGroup = nativeUpperGroupRef.current;
+    const nativeLowerGroup = nativeLowerGroupRef.current;
+    if (!upperMesh || !lowerMesh || !nativeUpperGroup || !nativeLowerGroup) return;
 
-    const nativeEdits = modelEdit.nativeEdits || {};
-    const hasAnyNativeEdit = Object.values(nativeEdits).some(
-      (op) =>
-        op.deleted ||
-        Math.abs(op.offsetMm.x) > 0.01 ||
-        Math.abs(op.offsetMm.y) > 0.01 ||
-        Math.abs(op.offsetMm.z) > 0.01 ||
-        Math.abs(op.rotationDeg) > 0.1 ||
-        Math.abs(op.scale - 1) > 0.01
-    );
+    const clearGroup = (group: THREE.Group) => {
+      while (group.children.length > 0) {
+        const child = group.children[0] as THREE.Mesh;
+        group.remove(child);
+        if (child.material) {
+          if (Array.isArray(child.material)) child.material.forEach((m) => m.dispose());
+          else child.material.dispose();
+        }
+      }
+    };
 
-    if (!hasAnyNativeEdit) {
+    if (!modelEdit.enabled) {
+      clearGroup(nativeUpperGroup);
+      clearGroup(nativeLowerGroup);
       restoreNativeGeometryBeforeEdits(upperMesh.geometry);
       restoreNativeGeometryBeforeEdits(lowerMesh.geometry);
-    } else {
-      applyNativeToothEditsToGeometry(upperMesh.geometry, true, segmentedTeeth, nativeEdits);
-      applyNativeToothEditsToGeometry(lowerMesh.geometry, false, segmentedTeeth, nativeEdits);
+      upperMesh.visible = settings.showUpper;
+      lowerMesh.visible = settings.showLower;
+      return;
     }
 
-    // Refresh material if vertex colors were added by native edits (and Model Diff heatmap isn't overriding)
+    // A. Gingiva Base Mesh setup (alveolar mucosa underneath teeth)
+    if (!upperGingivaBaseCacheRef.current && upperMesh.geometry) {
+      upperGingivaBaseCacheRef.current = createGingivaBaseGeometry(
+        upperMesh.geometry,
+        segmentedTeeth,
+        true
+      );
+    }
+    if (!lowerGingivaBaseCacheRef.current && lowerMesh.geometry) {
+      lowerGingivaBaseCacheRef.current = createGingivaBaseGeometry(
+        lowerMesh.geometry,
+        segmentedTeeth,
+        false
+      );
+    }
+
+    const showGingiva = modelEdit.showGingivaBase !== false;
+    upperMesh.visible = settings.showUpper && showGingiva;
+    lowerMesh.visible = settings.showLower && showGingiva;
+
+    if (upperGingivaBaseCacheRef.current) {
+      const posG = upperGingivaBaseCacheRef.current.getAttribute('position');
+      const colG = upperGingivaBaseCacheRef.current.getAttribute('color');
+      if (posG && upperMesh.geometry) {
+        upperMesh.geometry.setAttribute('position', posG);
+        if (colG) upperMesh.geometry.setAttribute('color', colG);
+        upperMesh.geometry.computeVertexNormals();
+      }
+    }
+    if (lowerGingivaBaseCacheRef.current) {
+      const posG = lowerGingivaBaseCacheRef.current.getAttribute('position');
+      const colG = lowerGingivaBaseCacheRef.current.getAttribute('color');
+      if (posG && lowerMesh.geometry) {
+        lowerMesh.geometry.setAttribute('position', posG);
+        if (colG) lowerMesh.geometry.setAttribute('color', colG);
+        lowerMesh.geometry.computeVertexNormals();
+      }
+    }
+
+    // Refresh gingiva material with healthy mucosal coral-rose shading
     if (!settings.modelDiff?.enabled) {
-      const prevUpperMat = upperMesh.material as THREE.Material | undefined;
       upperMesh.material = createDentalMaterial(true, upperMesh.geometry);
-      if (prevUpperMat && prevUpperMat !== upperMesh.material) prevUpperMat.dispose();
-
-      const prevLowerMat = lowerMesh.material as THREE.Material | undefined;
       lowerMesh.material = createDentalMaterial(false, lowerMesh.geometry);
-      if (prevLowerMat && prevLowerMat !== lowerMesh.material) prevLowerMat.dispose();
     }
+
+    // B. Discrete Native Tooth Objects setup
+    const clippingPlanes =
+      settings.clippingEnabled && clippingPlaneRef.current ? [clippingPlaneRef.current] : [];
+    const showTeeth = modelEdit.showToothObjects !== false;
+
+    const syncArchTeeth = (isUpper: boolean, group: THREE.Group, origMesh: THREE.Mesh) => {
+      const archTeeth = segmentedTeeth.filter((t) => t.isUpper === isUpper);
+      const cache = isUpper ? upperCrownCacheRef.current : lowerCrownCacheRef.current;
+
+      for (const t of archTeeth) {
+        let crownGeom = cache.get(t.fdi);
+        if (!crownGeom && origMesh.geometry) {
+          crownGeom = extractToothCrownGeometry(origMesh.geometry, t);
+          cache.set(t.fdi, crownGeom);
+        }
+        if (!crownGeom) continue;
+
+        let toothMesh = group.children.find(
+          (c) => (c as THREE.Mesh).userData?.fdi === t.fdi
+        ) as THREE.Mesh | undefined;
+
+        const edit = modelEdit.nativeEdits[t.fdi];
+        const isDeleted = Boolean(edit?.deleted);
+        const isSelected =
+          modelEdit.selectedTarget?.kind === 'native' &&
+          modelEdit.selectedTarget.fdi === t.fdi;
+
+        if (!toothMesh) {
+          const mat = new THREE.MeshPhysicalMaterial({
+            color: isSelected ? 0xf0e8ff : 0xfcfaf2,
+            emissive: isSelected ? 0x8b5cf6 : 0x000000,
+            emissiveIntensity: isSelected ? 0.38 : 0,
+            vertexColors: true,
+            roughness: 0.22,
+            metalness: 0.04,
+            clearcoat: 0.55,
+            clearcoatRoughness: 0.16,
+            ior: 1.54,
+            side: THREE.DoubleSide,
+            wireframe: settings.wireframeOverlay || settings.shadingMode === 'wireframe',
+          });
+          mat.clippingPlanes = clippingPlanes;
+
+          toothMesh = new THREE.Mesh(crownGeom, mat);
+          toothMesh.name = `tooth-${t.fdi}`;
+          toothMesh.userData = {
+            isNativeTooth: true,
+            fdi: t.fdi,
+            isUpper: t.isUpper,
+            labelZh: t.labelZh,
+            labelEn: t.labelEn,
+          };
+          group.add(toothMesh);
+        } else {
+          const mat = toothMesh.material as THREE.MeshPhysicalMaterial;
+          mat.color.setHex(isSelected ? 0xf0e8ff : 0xfcfaf2);
+          mat.emissive.setHex(isSelected ? 0x8b5cf6 : 0x000000);
+          mat.emissiveIntensity = isSelected ? 0.38 : 0;
+          mat.wireframe = settings.wireframeOverlay || settings.shadingMode === 'wireframe';
+          mat.clippingPlanes = clippingPlanes;
+        }
+
+        const ox = edit && !isDeleted ? edit.offsetMm.x : 0;
+        const oy = edit && !isDeleted ? edit.offsetMm.y : 0;
+        const oz = edit && !isDeleted ? edit.offsetMm.z : 0;
+        const rotDeg = edit && !isDeleted ? edit.rotationDeg : 0;
+        const scale = edit && !isDeleted ? edit.scale : 1.0;
+
+        toothMesh.position.set(t.center.x + ox, t.center.y + oy, t.center.z + oz);
+        toothMesh.rotation.set(0, 0, (rotDeg * Math.PI) / 180);
+        toothMesh.scale.setScalar(scale);
+        toothMesh.visible = showTeeth && !isDeleted;
+      }
+    };
+
+    syncArchTeeth(true, nativeUpperGroup, upperMesh);
+    syncArchTeeth(false, nativeLowerGroup, lowerMesh);
   }, [
     mapsReady,
     segmentedTeeth,
+    modelEdit.enabled,
+    modelEdit.selectedTarget,
     modelEdit.nativeEdits,
+    modelEdit.showToothObjects,
+    modelEdit.showGingivaBase,
+    settings.showUpper,
+    settings.showLower,
     settings.modelDiff?.enabled,
+    settings.wireframeOverlay,
+    settings.shadingMode,
+    settings.clippingEnabled,
     upperMeshRef,
     lowerMeshRef,
+    nativeUpperGroupRef,
+    nativeLowerGroupRef,
+    clippingPlaneRef,
     createDentalMaterial,
   ]);
 
@@ -144,7 +288,7 @@ export function useModelEditorEffect({
       const mat = new THREE.MeshPhysicalMaterial({
         color: isSelected ? 0xe0f2fe : 0xffffff,
         emissive: isSelected ? 0x0284c7 : 0x000000,
-        emissiveIntensity: isSelected ? 0.22 : 0,
+        emissiveIntensity: isSelected ? 0.28 : 0,
         vertexColors: true,
         roughness: 0.24,
         metalness: 0.04,
@@ -183,11 +327,41 @@ export function useModelEditorEffect({
     clippingPlaneRef,
   ]);
 
-  // 4. Synchronize Placed Teeth Groups & 3D Selection Gizmo with 6-DOF Mandibular Kinematics
+  // 4. Synchronize Native Teeth, Placed Teeth & Selection Gizmo with 6-DOF Mandibular Kinematics
   useEffect(() => {
+    const nativeUpper = nativeUpperGroupRef.current;
+    const nativeLower = nativeLowerGroupRef.current;
     const upperGroup = placedUpperGroupRef.current;
     const lowerGroup = placedLowerGroupRef.current;
     const gizmoGroup = editorGizmoGroupRef.current;
+
+    if (nativeUpper) {
+      nativeUpper.visible = settings.showUpper && modelEdit.enabled;
+      nativeUpper.position.set(
+        currentKinematics.upperPosition.x,
+        currentKinematics.upperPosition.y,
+        currentKinematics.upperPosition.z
+      );
+      nativeUpper.rotation.set(
+        currentKinematics.upperRotation.x,
+        currentKinematics.upperRotation.y,
+        currentKinematics.upperRotation.z
+      );
+    }
+
+    if (nativeLower) {
+      nativeLower.visible = settings.showLower && modelEdit.enabled;
+      nativeLower.position.set(
+        currentKinematics.lowerPosition.x,
+        currentKinematics.lowerPosition.y,
+        currentKinematics.lowerPosition.z
+      );
+      nativeLower.rotation.set(
+        currentKinematics.lowerRotation.x,
+        currentKinematics.lowerRotation.y,
+        currentKinematics.lowerRotation.z
+      );
+    }
 
     if (upperGroup) {
       upperGroup.visible = settings.showUpper;
@@ -272,7 +446,6 @@ export function useModelEditorEffect({
 
     gizmoGroup.visible = isUpper ? settings.showUpper : settings.showLower;
 
-    // Transform local arch coordinates into current articulated world coordinates
     const worldPos = localPos.clone();
     if (isUpper) {
       worldPos.z += currentKinematics.upperPosition.z;
@@ -281,7 +454,7 @@ export function useModelEditorEffect({
       worldPos.applyMatrix4(lowerMat);
     }
 
-    const ringColor = isDeleted ? 0xf43f5e : 0x0ea5e9;
+    const ringColor = isDeleted ? 0xf43f5e : 0x8b5cf6;
 
     // Selection Torus Ring around the tooth crown
     const ringGeom = new THREE.TorusGeometry(radius, 0.28, 12, 36);
@@ -297,7 +470,7 @@ export function useModelEditorEffect({
     // Center indicator sphere
     const centerSphere = new THREE.Mesh(
       new THREE.SphereGeometry(0.65, 12, 12),
-      new THREE.MeshBasicMaterial({ color: isDeleted ? 0xf43f5e : 0x38bdf8 })
+      new THREE.MeshBasicMaterial({ color: isDeleted ? 0xf43f5e : 0x8b5cf6 })
     );
     centerSphere.position.copy(worldPos);
     gizmoGroup.add(centerSphere);
@@ -335,6 +508,8 @@ export function useModelEditorEffect({
     settings.showUpper,
     settings.showLower,
     currentKinematics,
+    nativeUpperGroupRef,
+    nativeLowerGroupRef,
     placedUpperGroupRef,
     placedLowerGroupRef,
     editorGizmoGroupRef,

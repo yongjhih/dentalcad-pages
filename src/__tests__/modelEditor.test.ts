@@ -4,6 +4,8 @@ import {
   segmentArchGeometryTeeth,
   identifyToothAtPoint3D,
   createLibraryToothGeometry,
+  extractToothCrownGeometry,
+  createGingivaBaseGeometry,
   applyNativeToothEditsToGeometry,
   restoreNativeGeometryBeforeEdits,
   exportEditedArchToBinaryStl,
@@ -208,5 +210,41 @@ describe('3D Dental Model & Tooth Editor Engine (modelEditor.ts)', () => {
     expect(settings.placedTeeth[0].id).toBe('placed-lib-1');
     expect(canUndo(settings)).toBe(true);
     expect(canRedo(settings)).toBe(false);
+  });
+
+  it('partitions arch into discrete independent Tooth Objects and Gingiva Base (no mesh stretching)', () => {
+    const upperGeom = createProceduralDentalArchGeometry(true);
+    const upperTeeth = segmentArchGeometryTeeth(upperGeom, true);
+    const tooth25 = upperTeeth.find((t) => t.fdi === 25)!;
+
+    // 1. Extract discrete 3D crown geometry for Tooth #25
+    const crown25 = extractToothCrownGeometry(upperGeom, tooth25);
+    expect(crown25).toBeDefined();
+    expect(crown25.attributes.position.count).toBeGreaterThan(20);
+    expect(crown25.attributes.color).toBeDefined();
+
+    // 2. Generate smooth oral mucosal Gingiva Base
+    const gingivaBase = createGingivaBaseGeometry(upperGeom, upperTeeth, true);
+    expect(gingivaBase).toBeDefined();
+    expect(gingivaBase.attributes.position.count).toBe(upperGeom.attributes.position.count);
+    expect(gingivaBase.attributes.color).toBeDefined();
+
+    // 3. Export binary STL with discrete tooth objects + gingiva base
+    const stlBuffer = exportEditedArchToBinaryStl(
+      upperGeom,
+      [],
+      true,
+      upperTeeth,
+      {
+        25: {
+          fdi: 25,
+          deleted: false,
+          offsetMm: { x: 2.0, y: 1.5, z: 0.5 },
+          rotationDeg: 12,
+          scale: 1.05,
+        },
+      }
+    );
+    expect(stlBuffer.byteLength).toBeGreaterThan(1000);
   });
 });

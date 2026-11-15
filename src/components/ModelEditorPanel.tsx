@@ -527,8 +527,8 @@ export const ModelEditorPanel: React.FC<ModelEditorPanelProps> = ({
               <p className="text-xs text-slate-500 dark:text-slate-400">
                 {tr(
                   locale,
-                  '自動辨識 28 顆 FDI 牙位、點選/拖動牙齒、拔牙牙齦癒合、複製貼上與 3D 牙齒庫植牙排牙',
-                  'Auto-identify 28 FDI teeth, select/drag existing teeth, delete/extract, copy/paste & drag from 3D tooth library'
+                  '具備真正「牙齒物件」與「牙齦基底」分離架構，支援 28 顆 FDI 牙齒點選、剛體搬移、拔牙齒槽脊癒合、複製貼上與 3D 牙齒庫排牙，無拉扯破圖',
+                  'Discrete Tooth Objects & Gingiva Base architecture with rigid 3D movement, extraction healing, copy/paste & library placement'
                 )}
               </p>
             </div>
@@ -685,20 +685,66 @@ export const ModelEditorPanel: React.FC<ModelEditorPanelProps> = ({
         {renderOdontogramRow(UPPER_FDI_ORDER, tr(locale, '上顎齒列 (Maxillary #17–#27)', 'Upper Arch (#17–#27)'))}
         {renderOdontogramRow(LOWER_FDI_ORDER, tr(locale, '下顎齒列 (Mandibular #47–#37)', 'Lower Arch (#47–#37)'))}
 
-        {/* Status Legend */}
-        <div className="flex flex-wrap items-center gap-3 pt-1 text-[11px] text-slate-500 dark:text-slate-400">
-          <span className="flex items-center gap-1">
-            <span className="w-2.5 h-2.5 rounded-sm bg-violet-600 inline-block" />
-            {tr(locale, '已選取', 'Selected')}
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="w-2.5 h-2.5 rounded-sm bg-amber-500 inline-block" />
-            {tr(locale, '已拖動/調整', 'Moved/Edited')}
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="w-2.5 h-2.5 rounded-sm bg-rose-500 inline-block" />
-            {tr(locale, '已刪除 (拔牙癒合)', 'Deleted/Extracted')}
-          </span>
+        {/* Status Legend & Object Visibility Controls */}
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-1 text-[11px] text-slate-500 dark:text-slate-400">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="flex items-center gap-1">
+              <span className="w-2.5 h-2.5 rounded-sm bg-violet-600 inline-block" />
+              {tr(locale, '已選取', 'Selected')}
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-2.5 h-2.5 rounded-sm bg-amber-500 inline-block" />
+              {tr(locale, '已剛體位移', 'Moved/Edited')}
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-2.5 h-2.5 rounded-sm bg-rose-500 inline-block" />
+              {tr(locale, '已拔牙 (齒槽脊癒合)', 'Deleted/Extracted')}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-1.5 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                data-testid="toggle-show-tooth-objects"
+                checked={modelEdit.showToothObjects !== false}
+                onChange={(e) =>
+                  onSettingsChange((prev) => ({
+                    ...prev,
+                    modelEdit: {
+                      ...(prev.modelEdit || DEFAULT_MODEL_EDIT_SETTINGS),
+                      showToothObjects: e.target.checked,
+                    },
+                  }))
+                }
+                className="w-3.5 h-3.5 rounded text-violet-600 accent-violet-600"
+              />
+              <span className="text-slate-700 dark:text-slate-300 font-medium">
+                {tr(locale, '獨立牙齒物件', 'Tooth Objects')}
+              </span>
+            </label>
+
+            <label className="flex items-center gap-1.5 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                data-testid="toggle-show-gingiva-base"
+                checked={modelEdit.showGingivaBase !== false}
+                onChange={(e) =>
+                  onSettingsChange((prev) => ({
+                    ...prev,
+                    modelEdit: {
+                      ...(prev.modelEdit || DEFAULT_MODEL_EDIT_SETTINGS),
+                      showGingivaBase: e.target.checked,
+                    },
+                  }))
+                }
+                className="w-3.5 h-3.5 rounded text-violet-600 accent-violet-600"
+              />
+              <span className="text-slate-700 dark:text-slate-300 font-medium">
+                {tr(locale, '牙齦基底模型', 'Gingiva Base')}
+              </span>
+            </label>
+          </div>
         </div>
       </div>
 
@@ -711,20 +757,27 @@ export const ModelEditorPanel: React.FC<ModelEditorPanelProps> = ({
           <div>
             <div className="text-[11px] font-medium text-violet-600 dark:text-violet-400">
               {selectedPlaced
-                ? tr(locale, '目前選取：新增/貼上之 3D 牙齒', 'Selected: Placed / Pasted 3D Tooth')
+                ? tr(locale, '目前選取：3D 庫選/貼上牙齒物件 (Discrete Placed Tooth)', 'Selected: Discrete Placed / Pasted Tooth Object')
                 : selectedNative
-                ? tr(locale, '目前選取：原生辨識牙位', 'Selected: Segmented Native Tooth')
+                ? tr(locale, '目前選取：原生獨立 3D 牙齒物件 (Discrete Native Tooth)', 'Selected: Discrete Native Tooth Object')
                 : tr(locale, '尚未選取牙齒', 'No Tooth Selected')}
             </div>
             <div
               data-testid="inspector-selected-label"
-              className="text-sm font-bold text-slate-900 dark:text-white"
+              className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2"
             >
-              {selectedPlaced
-                ? tr(locale, selectedPlaced.labelZh, selectedPlaced.labelEn)
-                : selectedNative
-                ? `#${selectedNative.fdi} ${tr(locale, selectedNative.labelZh, selectedNative.labelEn)}`
-                : tr(locale, '請在 3D 視窗或上方牙位圖點擊任一顆牙齒', 'Click any tooth in 3D or on the chart above')}
+              <span>
+                {selectedPlaced
+                  ? tr(locale, selectedPlaced.labelZh, selectedPlaced.labelEn)
+                  : selectedNative
+                  ? `#${selectedNative.fdi} ${tr(locale, selectedNative.labelZh, selectedNative.labelEn)}`
+                  : tr(locale, '請在 3D 視窗直接點擊牙齒或由上方圖譜選取', 'Click any 3D tooth or chart to select')}
+              </span>
+              {activeNativeEdit?.deleted && (
+                <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30">
+                  {tr(locale, '已拔除 (齒槽脊)', 'Extracted')}
+                </span>
+              )}
             </div>
           </div>
 
