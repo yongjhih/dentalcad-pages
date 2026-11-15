@@ -197,7 +197,7 @@ describe('3D Model Diff Engine (modelDiff.ts)', () => {
     expect(artState.activeTab).toBe('articulator');
     expect(artState.settings.articulator.mode).toBe('compound');
 
-    expect(getShowcaseFeatures('zh-TW').length).toBe(6);
-    expect(getShowcaseQuickLinks('en').length).toBe(5);
+    expect(getShowcaseFeatures('zh-TW').length).toBe(7);
+    expect(getShowcaseQuickLinks('en').length).toBe(6);
   });
 });

@@ -36,6 +36,7 @@ export interface ViewerUrlState {
   modelDiffMode?: ModelDiffDisplayMode;
   modelDiffTarget?: string;
   activeTab?: ViewerTabType;
+  modelEditEnabled?: boolean;
   theme?: ThemeMode;
   locale?: LocaleMode;
   articulationMode?: ArticulationMode;
@@ -237,6 +238,14 @@ export function parseViewerUrlParams(search: string): Partial<ViewerUrlState> {
     if (dt) state.modelDiffTarget = dt;
   }
 
+  if (params.has('edit')) {
+    const e = params.get('edit');
+    state.modelEditEnabled = e === '1' || e === 'true';
+    if (state.modelEditEnabled && !state.activeTab) {
+      state.activeTab = 'editor';
+    }
+  }
+
   if (params.has('tab')) {
     const tab = params.get('tab') as ViewerTabType;
     if (VALID_TABS.has(tab)) {
@@ -323,6 +332,10 @@ export function serializeViewerUrlParams(state: ViewerUrlState): string {
     if (state.modelDiffTarget && state.modelDiffTarget !== 'simulated:ortho_alignment') {
       params.set('diffTarget', state.modelDiffTarget);
     }
+  }
+
+  if (state.modelEditEnabled) {
+    params.set('edit', '1');
   }
 
   if (state.activeTab && state.activeTab !== 'articulator') {

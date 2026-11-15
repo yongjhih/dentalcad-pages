@@ -13,6 +13,7 @@ import {
   Layers,
   CheckCircle2,
   Link as LinkIcon,
+  Wand2,
 } from 'lucide-react';
 import { LocaleMode } from '../types/dental';
 import { tr } from '../utils/i18n';
@@ -33,6 +34,7 @@ interface FeatureShowcaseModalProps {
 }
 
 const ICON_MAP: Record<ShowcaseFeatureIconKey, React.ComponentType<{ className?: string }>> = {
+  wand: Wand2,
   activity: Activity,
   'git-compare': GitCompare,
   flame: Flame,

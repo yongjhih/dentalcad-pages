@@ -97,6 +97,7 @@ interface DentalViewer3DProps {
   onModelDiffStatsComputed?: (stats: ModelDiffStats) => void;
   onSegmentedTeethComputed?: (teeth: SegmentedToothInfo[]) => void;
   onRegisterStlExporter?: (exporter: (isUpper: boolean) => void) => void;
+  onOpenEditorPanel?: () => void;
 }
 
 export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
@@ -124,6 +125,7 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
   onModelDiffStatsComputed,
   onSegmentedTeethComputed,
   onRegisterStlExporter,
+  onOpenEditorPanel,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
@@ -2050,10 +2052,11 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
         <button
           type="button"
           data-testid="viewport-editor-toggle"
-          onClick={() =>
+          onClick={() => {
             onSettingsChange((prev) => {
               const cur = prev.modelEdit || DEFAULT_MODEL_EDIT_SETTINGS;
               const nextEnabled = !cur.enabled;
+              if (nextEnabled) onOpenEditorPanel?.();
               return {
                 ...prev,
                 caliperToolActive: nextEnabled ? false : prev.caliperToolActive,
@@ -2066,8 +2069,8 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
                       : cur.selectedTarget,
                 },
               };
-            })
-          }
+            });
+          }}
           title={tr(
             locale,
             '切換 3D 齒列互動編輯 (辨識牙位 / 刪除 / 複製貼上 / 牙齒庫 / 拖動牙齒)',

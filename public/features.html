@@ -309,6 +309,10 @@
             <span data-zh>互動導覽彈窗 (?showcase=1)</span>
             <span data-en>Showcase Modal (?showcase=1)</span>
           </a>
+          <a href="./?tab=editor&edit=1&view=isometric" class="btn" style="border-color: rgba(139, 92, 246, 0.5); color: #c4b5fd;">
+            <span data-zh>3D 齒列編輯 (?tab=editor)</span>
+            <span data-en>3D Tooth Editor (?tab=editor)</span>
+          </a>
           <a href="./?diff=1&tab=diff&view=isometric" class="btn">
             <span data-zh>3D 模型差異比對</span>
             <span data-en>3D Model Diff</span>
@@ -340,6 +344,10 @@
           <a href="./" class="btn btn-primary">
             <span data-zh>立即開啟 3D 工作站 (Live Demo)</span>
             <span data-en>Open Live 3D Workstation</span>
+          </a>
+          <a href="./?tab=editor&edit=1&view=isometric" class="btn" style="border-color: rgba(139, 92, 246, 0.6); color: #c4b5fd;">
+            <span data-zh>體驗 3D 齒列互動編輯 (Tooth Editor)</span>
+            <span data-en>Try 3D Tooth Editor</span>
           </a>
           <a href="./?diff=1&diffMode=both&tab=diff&view=isometric" class="btn">
             <span data-zh>體驗 3D 模型差異比對 (3D Diff)</span>
@@ -393,12 +401,35 @@
       </p>
 
       <section class="grid-3">
+        <article class="card" style="border-color: rgba(139, 92, 246, 0.45);">
+          <div>
+            <span class="card-tag" style="background: rgba(139, 92, 246, 0.16); color: #c4b5fd;">3D Model &amp; Tooth Editor</span>
+            <h3>
+              <span data-zh>1. 3D 齒列模型互動編輯器 (Tooth &amp; Model Editor)</span>
+              <span data-en>1. 3D Model &amp; Tooth Editor</span>
+            </h3>
+            <p>
+              <span data-zh>自動辨識 28 顆 FDI 牙位。點選 3D 齒列或 2D 牙位圖譜即可選取牙齒，支援非破壞性拔牙刪除（平滑壓入齒槽脊模擬癒合牙齦鞍部）、3D 畫布直接拖動原生牙齒移位矯正、複製貼上、以及內建 6 種標準解剖牙冠庫（正中門齒、側門齒、犬齒、小臼齒、第一/第二大臼齒），可直接拖放至 3D 牙弓任意位置並自由調整。</span>
+              <span data-en>Automatic 28 FDI tooth identification. Click any 3D tooth or 2D chart to select. Supports non-destructive tooth extraction into healed alveolar saddles, direct 3D dragging of native teeth, copy/paste, and dragging standard crowns from the 3D tooth library.</span>
+            </p>
+            <ul>
+              <li><span data-zh>自動 28 顆 FDI 牙位分割與 3D Raycast 拾取光環與三軸指示器</span><span data-en>Automatic 28 FDI tooth segmentation &amp; 3D selection ring/axis gizmo</span></li>
+              <li><span data-zh>3D 視窗直接按住拖動原生牙齒，或使用 ΔX/ΔY/ΔZ、旋轉、縮放滑桿精密微調</span><span data-en>Drag native teeth directly on 3D canvas or fine-tune with ΔX/ΔY/ΔZ sliders</span></li>
+              <li><span data-zh>標準解剖牙齒庫卡片支援 HTML5 拖曳放開（Drag-and-Drop）至 3D 牙弓</span><span data-en>3D anatomical tooth library with drag-and-drop onto the 3D dental arch</span></li>
+            </ul>
+          </div>
+          <a href="./?tab=editor&edit=1&view=isometric" class="btn btn-primary" style="background: #7c3aed;">
+            <span data-zh>啟動 3D 齒列編輯展示 →</span>
+            <span data-en>Launch 3D Tooth Editor →</span>
+          </a>
+        </article>
+
         <article class="card">
           <div>
             <span class="card-tag">6-DOF Kinematics</span>
             <h3>
-              <span data-zh>1. 6-DOF 虛擬咬合器與多行程混用控制台</span>
-              <span data-en>1. 6-DOF Virtual Articulator &amp; Compound Stroke Mixer</span>
+              <span data-zh>2. 6-DOF 虛擬咬合器與多行程混用控制台</span>
+              <span data-en>2. 6-DOF Virtual Articulator &amp; Compound Stroke Mixer</span>
             </h3>
             <p>
               <span data-zh>模擬雙側顳顎關節（TMJ）樞軸旋轉與前突／側方 Bennett 運動。支援單一運動與「複合混用行程（Compound Mixer）」，提供統一的 5 通道獨立微調介面、左側垂直 SeekBar 與鬆開自動回彈之蘑菇頭搖桿。</span>
@@ -550,6 +581,14 @@
           </tr>
         </thead>
         <tbody>
+          <tr>
+            <td><code>?tab=editor&amp;edit=1</code></td>
+            <td>
+              <span data-zh>開啟 3D 齒列互動編輯模式（自動牙位分割、拔牙癒合、3D 拖動、牙齒庫拖放）</span>
+              <span data-en>Enable 3D Tooth &amp; Model Editor (FDI Segmentation, Extraction, Dragging, Crown Library)</span>
+            </td>
+            <td><a href="./?tab=editor&edit=1&view=isometric" style="color:#c4b5fd;text-decoration:underline;">./?tab=editor&amp;edit=1</a></td>
+          </tr>
           <tr>
             <td><code>?showcase=1</code></td>
             <td>

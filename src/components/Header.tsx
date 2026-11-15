@@ -11,6 +11,7 @@ import {
   Globe,
   Sparkles,
   BookOpen,
+  Wand2,
 } from 'lucide-react';
 import { DentalCaseBundle, ThemeMode, LocaleMode } from '../types/dental';
 import { getDisplayMetadata } from '../utils/anonymize';
@@ -30,6 +31,7 @@ interface HeaderProps {
   onToggleLocale?: () => void;
   onOpenAskAi?: () => void;
   onOpenShowcase?: () => void;
+  onOpenEditor?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -46,6 +48,7 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleLocale,
   onOpenAskAi,
   onOpenShowcase,
+  onOpenEditor,
 }) => {
   const bundleInputRef = useRef<HTMLInputElement>(null);
   const { assets } = activeCase;
@@ -239,6 +242,24 @@ export const Header: React.FC<HeaderProps> = ({
             </>
           )}
         </button>
+
+        {/* 3D Tooth & Model Editor Header Button */}
+        {onOpenEditor && (
+          <button
+            type="button"
+            data-testid="header-editor-btn"
+            onClick={onOpenEditor}
+            className="flex items-center gap-1 px-2 sm:px-2.5 py-1 rounded text-xs font-semibold bg-violet-600 hover:bg-violet-500 text-white shadow-sm transition-colors whitespace-nowrap"
+            title={tr(
+              locale,
+              '開啟 3D 齒列互動編輯器（牙位辨識、拔牙癒合、拖動排牙、牙齒庫）',
+              'Open 3D Tooth & Model Editor (Segmentation, Extraction, Dragging, Crown Library)'
+            )}
+          >
+            <Wand2 className="w-3.5 h-3.5" />
+            <span className="hidden xs:inline">{tr(locale, '3D 編輯', '3D Editor')}</span>
+          </button>
+        )}
 
         {/* Feature Showcase & Interactive Guide Button */}
         {onOpenShowcase && (

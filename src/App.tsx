@@ -727,6 +727,17 @@ export const App: React.FC = () => {
         onToggleLocale={handleToggleLocale}
         onOpenAskAi={() => setAskAiOpen((v) => !v)}
         onOpenShowcase={() => setShowcaseOpen(true)}
+        onOpenEditor={() => {
+          setSidebarCollapsed(false);
+          setActiveTab('editor');
+          setViewportSettings((prev) => ({
+            ...prev,
+            modelEdit: {
+              ...(prev.modelEdit || DEFAULT_MODEL_EDIT_SETTINGS),
+              enabled: true,
+            },
+          }));
+        }}
       />
 
       {/* Smart ?url= Local Path / ZIP Quick Loader Banner */}
@@ -878,6 +889,10 @@ export const App: React.FC = () => {
             onModelDiffStatsComputed={setModelDiffStats}
             onSegmentedTeethComputed={setSegmentedTeeth}
             onRegisterStlExporter={handleRegisterStlExporter}
+            onOpenEditorPanel={() => {
+              setSidebarCollapsed(false);
+              setActiveTab('editor');
+            }}
           />
 
           {/* Floating Expand Sidebar Button when Sidebar is Collapsed */}
@@ -1118,7 +1133,16 @@ export const App: React.FC = () => {
 
               <button
                 data-testid="tab-editor"
-                onClick={() => setActiveTab('editor')}
+                onClick={() => {
+                  setActiveTab('editor');
+                  setViewportSettings((prev) => ({
+                    ...prev,
+                    modelEdit: {
+                      ...(prev.modelEdit || DEFAULT_MODEL_EDIT_SETTINGS),
+                      enabled: true,
+                    },
+                  }));
+                }}
                 className={`flex items-center gap-1.5 px-2.5 py-2 text-xs font-medium border-b-2 transition-colors whitespace-nowrap ${
                   activeTab === 'editor'
                     ? 'border-violet-500 dark:border-violet-400 text-violet-600 dark:text-violet-300 bg-violet-500/5 dark:bg-slate-900/60 rounded-t'

@@ -6,9 +6,10 @@ import {
 import { DEFAULT_MODEL_DIFF_SETTINGS } from './modelDiff';
 import { tr } from './i18n';
 
-export type ShowcaseActiveTab = 'dossier' | 'gallery' | 'articulator' | 'diff' | 'tools' | 'xml';
+export type ShowcaseActiveTab = 'dossier' | 'gallery' | 'articulator' | 'diff' | 'editor' | 'tools' | 'xml';
 
 export type ShowcaseScenarioId =
+  | 'editor'
   | 'articulator'
   | 'occlusogram'
   | 'diff_both'
@@ -25,7 +26,8 @@ export type ShowcaseFeatureIconKey =
   | 'flame'
   | 'image'
   | 'ruler'
-  | 'sparkles';
+  | 'sparkles'
+  | 'wand';
 
 export interface ShowcaseFeatureItem {
   id: ShowcaseScenarioId;
@@ -67,6 +69,25 @@ export function resolveShowcaseScenarioState(
   const baseDiff = prevSettings.modelDiff || DEFAULT_MODEL_DIFF_SETTINGS;
 
   switch (scenario) {
+    case 'editor':
+      return {
+        activeTab: 'editor',
+        cameraPreset: 'isometric',
+        settings: {
+          ...prevSettings,
+          modelDiff: { ...baseDiff, enabled: false },
+          modelEdit: {
+            enabled: true,
+            toolMode: 'drag',
+            selectedTarget: { kind: 'native', fdi: 25 },
+            nativeEdits: {},
+            placedTeeth: [],
+            clipboard: null,
+            showFdiLabels: true,
+          },
+        },
+      };
+
     case 'articulator':
       return {
         activeTab: 'articulator',
@@ -176,14 +197,53 @@ export function resolveShowcaseScenarioState(
 export function getShowcaseFeatures(locale: LocaleMode = 'en'): ShowcaseFeatureItem[] {
   return [
     {
+      id: 'editor',
+      badge: '3D CAD Tooth Editor',
+      iconKey: 'wand',
+      accent: 'violet',
+      title: tr(
+        locale,
+        '1. 3D 齒列互動編輯器 (Tooth & Model Editor)',
+        '1. 3D Model & Tooth Editor'
+      ),
+      subtitle: tr(
+        locale,
+        '28 顆 FDI 牙位自動辨識、拔牙齒槽骨平滑癒合、3D 拖曳排牙、複製貼上與牙齒庫植牙',
+        'Auto 28 FDI tooth identification, tooth extraction gingival saddle, 3D dragging, copy/paste & library placement'
+      ),
+      description: tr(
+        locale,
+        '點擊 3D 齒列或 2D FDI 牙位圖譜即可直接選取任意牙齒，支援非破壞性拔牙刪除（平滑壓入齒槽脊模擬癒合牙齦鞍部）、3D 畫布直接按住拖動原生牙齒移位矯正、複製牙齒貼上、以及內建 6 種標準解剖牙冠庫（正中門齒、側門齒、犬齒、小臼齒、第一/第二大臼齒），可直接將牙冠拖放至 3D 齒列任意位置並自由調整。',
+        'Click any 3D tooth or 2D FDI chart to select. Supports non-destructive tooth extraction into healed alveolar saddles, direct 3D dragging of native teeth, copy/paste, and dragging standard crowns from the 3D tooth library.'
+      ),
+      highlights: [
+        tr(
+          locale,
+          '自動 28 顆 FDI 牙位分割與 3D Raycast 拾取光環與三軸指示器',
+          'Automatic 28 FDI tooth segmentation & 3D selection ring/axis gizmo'
+        ),
+        tr(
+          locale,
+          '3D 視窗直接按住拖動原生牙齒，或使用 ΔX/ΔY/ΔZ、旋轉、縮放滑桿精密微調',
+          'Drag native teeth directly on 3D canvas or fine-tune with ΔX/ΔY/ΔZ sliders'
+        ),
+        tr(
+          locale,
+          '標準解剖牙齒庫卡片支援 HTML5 拖曳放開（Drag-and-Drop）至 3D 牙弓',
+          '3D anatomical tooth library with drag-and-drop onto the 3D dental arch'
+        ),
+      ],
+      ctaLabel: tr(locale, '立即體驗 3D 齒列編輯', 'Launch 3D Tooth Editor'),
+    },
+    {
       id: 'articulator',
       badge: '6-DOF Kinematics',
       iconKey: 'activity',
       accent: 'sky',
       title: tr(
         locale,
-        '1. 6-DOF 虛擬咬合器與多行程混用控制台',
-        '1. 6-DOF Virtual Articulator & Compound Stroke Mixer'
+        '2. 6-DOF 虛擬咬合器與多行程混用控制台',
+        '2. 6-DOF Virtual Articulator & Compound Stroke Mixer'
       ),
       subtitle: tr(
         locale,
@@ -433,6 +493,11 @@ export function getShowcaseFeatures(locale: LocaleMode = 'en'): ShowcaseFeatureI
  */
 export function getShowcaseQuickLinks(locale: LocaleMode = 'en'): ShowcaseQuickLinkItem[] {
   return [
+    {
+      label: tr(locale, '3D 齒列互動編輯 (辨識/拔牙/拖動/牙齒庫)', '3D Tooth Editor (Segment/Drag/Library)'),
+      query: '?tab=editor&edit=1&view=isometric',
+      scenario: 'editor',
+    },
     {
       label: tr(locale, '預設正視咬合', 'Default Frontal View'),
       query: '?view=front&tab=articulator',
