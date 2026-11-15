@@ -327,13 +327,13 @@ export const ModelDiffPanel: React.FC<ModelDiffPanelProps> = ({
           })}
         </div>
 
-        {/* Direct Custom Comparison STL File Upload */}
+        {/* Direct Custom Comparison 3D Mesh File Upload (.stl / .ply / .obj) */}
         <div className="pt-2 border-t border-slate-200 dark:border-slate-800/80 space-y-2">
           <span className="block text-[11px] font-medium text-slate-600 dark:text-slate-400">
             {tr(
               locale,
-              '或直接載入欲比對之目標 STL 檔案 (Scan B):',
-              'Or load custom target STL files for comparison (Scan B):'
+              '或直接載入欲比對之目標 3D 檔案 (.stl / .ply / .obj):',
+              'Or load custom target 3D mesh files (.stl / .ply / .obj):'
             )}
           </span>
           <div className="grid grid-cols-2 gap-2">
@@ -341,7 +341,7 @@ export const ModelDiffPanel: React.FC<ModelDiffPanelProps> = ({
               ref={upperDiffStlInputRef}
               data-testid="diff-upper-stl-input"
               type="file"
-              accept=".stl,model/stl,application/sla,application/vnd.ms-pki.stl,application/octet-stream"
+              accept=".stl,.ply,.obj,model/stl,application/sla,application/vnd.ms-pki.stl,application/octet-stream"
               className="hidden"
               onChange={(e) => {
                 if (e.target.files?.[0]) {
@@ -359,7 +359,7 @@ export const ModelDiffPanel: React.FC<ModelDiffPanelProps> = ({
               <Upload className="w-3 h-3 text-amber-500" />
               <span className="truncate">
                 {diff.customUpperStlFileName ||
-                  tr(locale, '比對上顎 STL', 'Target Upper STL')}
+                  tr(locale, '比對上顎 STL/PLY/OBJ', 'Target Upper Mesh')}
               </span>
             </button>
 
@@ -367,7 +367,7 @@ export const ModelDiffPanel: React.FC<ModelDiffPanelProps> = ({
               ref={lowerDiffStlInputRef}
               data-testid="diff-lower-stl-input"
               type="file"
-              accept=".stl,model/stl,application/sla,application/vnd.ms-pki.stl,application/octet-stream"
+              accept=".stl,.ply,.obj,model/stl,application/sla,application/vnd.ms-pki.stl,application/octet-stream"
               className="hidden"
               onChange={(e) => {
                 if (e.target.files?.[0]) {
@@ -385,7 +385,7 @@ export const ModelDiffPanel: React.FC<ModelDiffPanelProps> = ({
               <Upload className="w-3 h-3 text-sky-500" />
               <span className="truncate">
                 {diff.customLowerStlFileName ||
-                  tr(locale, '比對下顎 STL', 'Target Lower STL')}
+                  tr(locale, '比對下顎 STL/PLY/OBJ', 'Target Lower Mesh')}
               </span>
             </button>
           </div>
@@ -627,7 +627,7 @@ export const ModelDiffPanel: React.FC<ModelDiffPanelProps> = ({
 
         {/* Distribution Bar */}
         <div className="space-y-1 pt-1">
-          <div className="flex justify-between text-[10px] font-mono">
+          <div className="flex justify-between text-[10px] font-mono tabular-nums">
             <span className="text-blue-500">
               {tr(locale, '內縮', 'Inward')} {diffStats.negativePercent}%
             </span>
@@ -713,7 +713,7 @@ export const ModelDiffPanel: React.FC<ModelDiffPanelProps> = ({
         <div className="grid grid-cols-3 gap-2 pt-1">
           {(['x', 'y', 'z'] as const).map((axis) => (
             <div key={axis} className="space-y-1">
-              <div className="flex justify-between text-[10px] font-mono">
+              <div className="flex justify-between text-[10px] font-mono tabular-nums">
                 <span className="uppercase text-slate-500">Δ{axis}</span>
                 <span className="text-sky-600 dark:text-sky-400">
                   {diff.offsetMm[axis] >= 0 ? '+' : ''}

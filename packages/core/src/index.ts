@@ -10,4 +10,6 @@ export * from '../../../src/utils/anonymize';
 export * from '../../../src/utils/i18n';
 export * from '../../../src/utils/zipExtractor';
 export * from '../../../src/utils/modelDiff';
-
+export * from '../../../src/utils/meshLoader';
+export * from '../../../src/utils/urlState';
+export * from '../../../src/utils/showcasePresets';

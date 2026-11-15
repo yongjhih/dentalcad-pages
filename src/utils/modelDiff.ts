@@ -204,6 +204,39 @@ export function generateSimulatedComparisonGeometry(
 }
 
 /**
+ * Computes the effective 3D translation offset (in mm) to align a target mesh onto a reference mesh,
+ * combining optional centroid auto-alignment and manual XYZ fine-tuning.
+ */
+export function computeEffectiveAlignmentOffset(
+  refPositions: ArrayLike<number> | null | undefined,
+  targetPositions: ArrayLike<number> | null | undefined,
+  options?: {
+    autoAlignCentroids?: boolean;
+    offsetMm?: Point3D;
+  }
+): Point3D {
+  let x = options?.offsetMm?.x || 0;
+  let y = options?.offsetMm?.y || 0;
+  let z = options?.offsetMm?.z || 0;
+
+  if (
+    options?.autoAlignCentroids &&
+    refPositions &&
+    targetPositions &&
+    refPositions.length >= 3 &&
+    targetPositions.length >= 3
+  ) {
+    const cRef = computePositionsCentroid(refPositions);
+    const cTgt = computePositionsCentroid(targetPositions);
+    x += cRef.x - cTgt.x;
+    y += cRef.y - cTgt.y;
+    z += cRef.z - cTgt.z;
+  }
+
+  return { x, y, z };
+}
+
+/**
  * Computes per-vertex signed surface deviation (in mm) from a reference mesh (`refPositions`, `refNormals`)
  * to a target comparison mesh (`targetPositions`) using a 3D spatial hash grid.
  */
@@ -225,21 +258,11 @@ export function computeMeshSignedDeviations(
     return deviations;
   }
 
-  const offsetX = options?.offsetMm?.x || 0;
-  const offsetY = options?.offsetMm?.y || 0;
-  const offsetZ = options?.offsetMm?.z || 0;
-
-  let alignX = offsetX;
-  let alignY = offsetY;
-  let alignZ = offsetZ;
-
-  if (options?.autoAlignCentroids) {
-    const cRef = computePositionsCentroid(refPositions);
-    const cTgt = computePositionsCentroid(targetPositions);
-    alignX += cRef.x - cTgt.x;
-    alignY += cRef.y - cTgt.y;
-    alignZ += cRef.z - cTgt.z;
-  }
+  const { x: alignX, y: alignY, z: alignZ } = computeEffectiveAlignmentOffset(
+    refPositions,
+    targetPositions,
+    options
+  );
 
   // Subsample target vertices if target mesh is very dense to guarantee < 10ms interactive performance
   const maxTargetSamples = 9000;

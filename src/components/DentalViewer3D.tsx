@@ -8,7 +8,6 @@ import {
   MeshGeometryStats,
   ClinicalPhoto,
   ThemeMode,
-  ArticulationMode,
   OcclusogramStats,
   OrthoArchMetrics,
   Point3D,
@@ -16,20 +15,9 @@ import {
   LocaleMode,
   DentalCaseBundle,
   ModelDiffStats,
-  ModelDiffSimulatedPreset,
-  ModelDiffDisplayMode,
 } from '../types/dental';
+import { DEFAULT_MODEL_DIFF_SETTINGS } from '../utils/modelDiff';
 import { tr } from '../utils/i18n';
-import {
-  DEFAULT_MODEL_DIFF_SETTINGS,
-  DEFAULT_MODEL_DIFF_STATS,
-  computePositionsCentroid,
-  generateSimulatedComparisonGeometry,
-  computeMeshSignedDeviations,
-  computeModelDiffStatsFromDeviations,
-  applyDiffHeatmapColorsToGeometry,
-  restoreOriginalColorsOnGeometry,
-} from '../utils/modelDiff';
 import {
   LoadedPentaTextures,
   loadPentaViewTextures,
@@ -38,8 +26,6 @@ import {
 import {
   computeMandibularKinematics,
   sampleArticulationTrajectory,
-  DEFAULT_ARTICULATOR_STROKES,
-  resolveActiveStrokes,
 } from '../utils/articulatorKinematics';
 import {
   OcclusalElevationMap,
@@ -52,26 +38,24 @@ import {
 import { computeOrthoArchMetrics } from '../utils/archMeasurements';
 import { createProceduralDentalArchGeometry } from '../utils/proceduralArch';
 import { CameraTransform } from '../utils/urlState';
+import { useModelDiffEffect } from '../hooks/useModelDiffEffect';
+import { ViewportCaliperBanner } from './viewport/ViewportCaliperBanner';
+import { ViewportDiffBanner } from './viewport/ViewportDiffBanner';
+import { MandibularJoystickBar } from './viewport/MandibularJoystickBar';
+import { ViewportBottomHud } from './viewport/ViewportBottomHud';
 import {
   Maximize2,
   Minimize2,
   Camera,
   RotateCcw,
-  Layers,
   Eye,
   EyeOff,
   Compass,
   Upload,
   AlertCircle,
-  Play,
-  Pause,
-  Flame,
   Ruler,
   Activity,
   Trash2,
-  ChevronDown,
-  ChevronUp,
-  CircleDot,
   GitCompare,
 } from 'lucide-react';
 
@@ -164,13 +148,9 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
   const pendingCaliperPointRef = useRef<Point3D | null>(null);
   const [pendingCaliperPoint, setPendingCaliperPoint] = useState<Point3D | null>(null);
 
-  // 3D Model Diff Ghost Overlay Meshes & Telemetry State
+  // 3D Model Diff Ghost Overlay Meshes
   const diffUpperOverlayMeshRef = useRef<THREE.Mesh | null>(null);
   const diffLowerOverlayMeshRef = useRef<THREE.Mesh | null>(null);
-  const [internalDiffStats, setInternalDiffStats] = useState<ModelDiffStats>(
-    DEFAULT_MODEL_DIFF_STATS
-  );
-  const activeDiffStats = diffStats || internalDiffStats;
 
   // Animation & Lerp
   const animFrameIdRef = useRef<number | null>(null);
@@ -196,10 +176,6 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
   const [fps, setFps] = useState<number>(60);
   const [triangleStats, setTriangleStats] = useState({ upper: 0, lower: 0 });
   const [isDragOver, setIsDragOver] = useState<boolean>(false);
-  const [hudCollapsed, setHudCollapsed] = useState<boolean>(false);
-  const [joystickActive, setJoystickActive] = useState<boolean>(false);
-  const [joystickPos, setJoystickPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-  const joystickContainerRef = useRef<HTMLDivElement>(null);
 
   // Dynamic dental occlusion center computed from loaded STL bounding boxes
   const centerTarget = useRef(new THREE.Vector3(1.29, -18.36, 1.24));
@@ -290,112 +266,6 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
     rafId = requestAnimationFrame(stepPlayback);
     return () => cancelAnimationFrame(rafId);
   }, [settings.articulator.isPlaying, onSettingsChange]);
-
-  // Spring-back Mandibular Joystick handler: user drags thumbstick to articulate; releasing snaps back to neutral CO (progress: 0)
-  const handleJoystickPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    e.currentTarget.setPointerCapture(e.pointerId);
-    setJoystickActive(true);
-
-    const updateFromPointer = (clientX: number, clientY: number) => {
-      const container = joystickContainerRef.current;
-      if (!container) return;
-      const rect = container.getBoundingClientRect();
-      const centerX = rect.left + rect.width / 2;
-      const centerY = rect.top + rect.height / 2;
-      const maxRadius = rect.width / 2 - 14;
-
-      const rawDx = clientX - centerX;
-      const rawDy = clientY - centerY;
-      const distance = Math.hypot(rawDx, rawDy);
-      const angle = Math.atan2(rawDy, rawDx);
-      const clampedDist = Math.min(distance, maxRadius);
-
-      const normX = clampedDist > 0 ? (Math.cos(angle) * clampedDist) / maxRadius : 0;
-      const normY = clampedDist > 0 ? (Math.sin(angle) * clampedDist) / maxRadius : 0;
-
-      setJoystickPos({
-        x: normX * maxRadius,
-        y: normY * maxRadius,
-      });
-
-      // Smooth continuous 2D mandibular excursion: directly drives jaw movements without mode switching
-      const mag = Math.min(1, clampedDist / maxRadius);
-      const roundedMag = Number(mag.toFixed(3));
-
-      onSettingsChange((prev) => ({
-        ...prev,
-        occlusionSeparation: Math.round(roundedMag * 35),
-        articulator: {
-          ...prev.articulator,
-          manualExcursion: { x: normX, y: normY },
-          progress: roundedMag,
-          isPlaying: false,
-        },
-      }));
-    };
-
-    updateFromPointer(e.clientX, e.clientY);
-  }, [onSettingsChange]);
-
-  const handleJoystickPointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    if (!joystickActive) return;
-    const container = joystickContainerRef.current;
-    if (!container) return;
-    const clientX = e.clientX;
-    const clientY = e.clientY;
-    const rect = container.getBoundingClientRect();
-    const centerX = rect.left + rect.width / 2;
-    const centerY = rect.top + rect.height / 2;
-    const maxRadius = rect.width / 2 - 14;
-
-    const rawDx = clientX - centerX;
-    const rawDy = clientY - centerY;
-    const distance = Math.hypot(rawDx, rawDy);
-    const angle = Math.atan2(rawDy, rawDx);
-    const clampedDist = Math.min(distance, maxRadius);
-
-    const normX = clampedDist > 0 ? (Math.cos(angle) * clampedDist) / maxRadius : 0;
-    const normY = clampedDist > 0 ? (Math.sin(angle) * clampedDist) / maxRadius : 0;
-
-    setJoystickPos({
-      x: normX * maxRadius,
-      y: normY * maxRadius,
-    });
-
-    const mag = Math.min(1, clampedDist / maxRadius);
-    const roundedMag = Number(mag.toFixed(3));
-
-    onSettingsChange((prev) => ({
-      ...prev,
-      occlusionSeparation: Math.round(roundedMag * 35),
-      articulator: {
-        ...prev.articulator,
-        manualExcursion: { x: normX, y: normY },
-        progress: roundedMag,
-        isPlaying: false,
-      },
-    }));
-  }, [joystickActive, onSettingsChange]);
-
-  const handleJoystickPointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    try {
-      e.currentTarget.releasePointerCapture(e.pointerId);
-    } catch {}
-    setJoystickActive(false);
-    setJoystickPos({ x: 0, y: 0 });
-
-    // Spring back to neutral centric occlusion (0 progress & clear manual excursion)
-    onSettingsChange((prev) => ({
-      ...prev,
-      occlusionSeparation: 0,
-      articulator: {
-        ...prev.articulator,
-        manualExcursion: undefined,
-        progress: 0,
-        isPlaying: false,
-      },
-    }));
-  }, [onSettingsChange]);
 
   // Build Material based on settings, Occlusogram state & loaded 5-view textures
   const createDentalMaterial = useCallback(
@@ -883,319 +753,22 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
   ]);
 
   // 3D Model Diff: Compute Per-Vertex Signed Deviations, Apply Heatmap Vertex Colors & Render Ghost Overlay Meshes
-  useEffect(() => {
-    const diff = settings.modelDiff || DEFAULT_MODEL_DIFF_SETTINGS;
-    const scene = sceneRef.current;
-
-    const cleanupOverlayMeshes = () => {
-      if (diffUpperOverlayMeshRef.current) {
-        scene?.remove(diffUpperOverlayMeshRef.current);
-        diffUpperOverlayMeshRef.current.geometry.dispose();
-        (diffUpperOverlayMeshRef.current.material as THREE.Material).dispose();
-        diffUpperOverlayMeshRef.current = null;
-      }
-      if (diffLowerOverlayMeshRef.current) {
-        scene?.remove(diffLowerOverlayMeshRef.current);
-        diffLowerOverlayMeshRef.current.geometry.dispose();
-        (diffLowerOverlayMeshRef.current.material as THREE.Material).dispose();
-        diffLowerOverlayMeshRef.current = null;
-      }
-    };
-
-    if (!diff.enabled) {
-      cleanupOverlayMeshes();
-      if (upperMeshRef.current) {
-        restoreOriginalColorsOnGeometry(upperMeshRef.current.geometry);
-        upperMeshRef.current.material = createDentalMaterial(
-          true,
-          upperMeshRef.current.geometry
-        );
-      }
-      if (lowerMeshRef.current) {
-        restoreOriginalColorsOnGeometry(lowerMeshRef.current.geometry);
-        lowerMeshRef.current.material = createDentalMaterial(
-          false,
-          lowerMeshRef.current.geometry
-        );
-      }
-      return;
-    }
-
-    // In headless/non-WebGL unit/integration tests where WebGLRenderer is unavailable,
-    // still compute and emit real 3D deviation telemetry on lightweight procedural arches
-    if (!upperMeshRef.current || !lowerMeshRef.current) {
-      if (!rendererRef.current && onModelDiffStatsComputed) {
-        const uFallback = createProceduralDentalArchGeometry(true);
-        const lFallback = createProceduralDentalArchGeometry(false);
-        const preset: ModelDiffSimulatedPreset = diff.compareTargetId.startsWith('simulated:')
-          ? (diff.compareTargetId.replace('simulated:', '') as ModelDiffSimulatedPreset)
-          : 'ortho_alignment';
-        const uTarget = generateSimulatedComparisonGeometry(uFallback, true, preset);
-        const lTarget = generateSimulatedComparisonGeometry(lFallback, false, preset);
-        const uDevs = computeMeshSignedDeviations(
-          uFallback.attributes.position.array,
-          uFallback.attributes.normal?.array,
-          uTarget.attributes.position.array,
-          {
-            autoAlignCentroids: diff.autoAlignCentroids,
-            offsetMm: diff.offsetMm,
-          }
-        );
-        const lDevs = computeMeshSignedDeviations(
-          lFallback.attributes.position.array,
-          lFallback.attributes.normal?.array,
-          lTarget.attributes.position.array,
-          {
-            autoAlignCentroids: diff.autoAlignCentroids,
-            offsetMm: diff.offsetMm,
-          }
-        );
-        const stats = computeModelDiffStatsFromDeviations(
-          uDevs,
-          lDevs,
-          diff.toleranceMm
-        );
-        setInternalDiffStats(stats);
-        onModelDiffStatsComputed(stats);
-      }
-      return;
-    }
-
-    let cancelled = false;
-    const loader = new STLLoader();
-
-    const loadTargetGeometry = (url: string | undefined, isUpper: boolean) =>
-      new Promise<THREE.BufferGeometry>((resolve) => {
-        const baseGeom = isUpper
-          ? upperMeshRef.current!.geometry
-          : lowerMeshRef.current!.geometry;
-        if (!url || url.startsWith('procedural://')) {
-          resolve(
-            generateSimulatedComparisonGeometry(baseGeom, isUpper, 'ortho_alignment')
-          );
-          return;
-        }
-        loader.load(
-          url,
-          (geom) => {
-            if (!geom.attributes.position || geom.attributes.position.count === 0) {
-              resolve(
-                generateSimulatedComparisonGeometry(baseGeom, isUpper, 'ortho_alignment')
-              );
-            } else {
-              geom.computeVertexNormals();
-              resolve(geom);
-            }
-          },
-          undefined,
-          () => {
-            resolve(
-              generateSimulatedComparisonGeometry(baseGeom, isUpper, 'ortho_alignment')
-            );
-          }
-        );
-      });
-
-    const resolveComparisonGeometries = async (): Promise<
-      [THREE.BufferGeometry, THREE.BufferGeometry]
-    > => {
-      const uBase = upperMeshRef.current!.geometry;
-      const lBase = lowerMeshRef.current!.geometry;
-
-      if (diff.compareTargetId.startsWith('simulated:')) {
-        const rawPreset = diff.compareTargetId.replace('simulated:', '');
-        const preset: ModelDiffSimulatedPreset =
-          rawPreset === 'arch_expansion' || rawPreset === 'occlusal_wear'
-            ? rawPreset
-            : 'ortho_alignment';
-        return [
-          generateSimulatedComparisonGeometry(uBase, true, preset),
-          generateSimulatedComparisonGeometry(lBase, false, preset),
-        ];
-      }
-
-      if (diff.compareTargetId === 'custom_stl') {
-        const [uG, lG] = await Promise.all([
-          diff.customUpperStlUrl
-            ? loadTargetGeometry(diff.customUpperStlUrl, true)
-            : Promise.resolve(
-                generateSimulatedComparisonGeometry(uBase, true, 'ortho_alignment')
-              ),
-          diff.customLowerStlUrl
-            ? loadTargetGeometry(diff.customLowerStlUrl, false)
-            : Promise.resolve(
-                generateSimulatedComparisonGeometry(lBase, false, 'ortho_alignment')
-              ),
-        ]);
-        return [uG, lG];
-      }
-
-      const targetCase = cases.find((c) => c.id === diff.compareTargetId);
-      if (targetCase) {
-        return Promise.all([
-          loadTargetGeometry(targetCase.assets.upperStlUrl, true),
-          loadTargetGeometry(targetCase.assets.lowerStlUrl, false),
-        ]);
-      }
-
-      return [
-        generateSimulatedComparisonGeometry(uBase, true, 'ortho_alignment'),
-        generateSimulatedComparisonGeometry(lBase, false, 'ortho_alignment'),
-      ];
-    };
-
-    resolveComparisonGeometries().then(([uTargetGeom, lTargetGeom]) => {
-      if (cancelled || !upperMeshRef.current || !lowerMeshRef.current) return;
-
-      const uBaseGeom = upperMeshRef.current.geometry;
-      const lBaseGeom = lowerMeshRef.current.geometry;
-
-      const uDevs = computeMeshSignedDeviations(
-        uBaseGeom.attributes.position.array,
-        uBaseGeom.attributes.normal?.array,
-        uTargetGeom.attributes.position.array,
-        {
-          autoAlignCentroids: diff.autoAlignCentroids,
-          offsetMm: diff.offsetMm,
-        }
-      );
-
-      const lDevs = computeMeshSignedDeviations(
-        lBaseGeom.attributes.position.array,
-        lBaseGeom.attributes.normal?.array,
-        lTargetGeom.attributes.position.array,
-        {
-          autoAlignCentroids: diff.autoAlignCentroids,
-          offsetMm: diff.offsetMm,
-        }
-      );
-
-      const computedStats = computeModelDiffStatsFromDeviations(
-        uDevs,
-        lDevs,
-        diff.toleranceMm
-      );
-      setInternalDiffStats(computedStats);
-      onModelDiffStatsComputed?.(computedStats);
-
-      // 1. Update Baseline Mesh Vertex Colors (Heatmap vs Original Enamel/Gingiva)
-      if (diff.displayMode === 'heatmap' || diff.displayMode === 'both') {
-        applyDiffHeatmapColorsToGeometry(
-          uBaseGeom,
-          uDevs,
-          diff.maxRangeMm,
-          diff.toleranceMm
-        );
-        applyDiffHeatmapColorsToGeometry(
-          lBaseGeom,
-          lDevs,
-          diff.maxRangeMm,
-          diff.toleranceMm
-        );
-      } else {
-        restoreOriginalColorsOnGeometry(uBaseGeom);
-        restoreOriginalColorsOnGeometry(lBaseGeom);
-      }
-
-      upperMeshRef.current.material = createDentalMaterial(true, uBaseGeom);
-      lowerMeshRef.current.material = createDentalMaterial(false, lBaseGeom);
-
-      // 2. Render or Remove Ghost Superimposition Overlay Meshes
-      cleanupOverlayMeshes();
-      if (
-        scene &&
-        (diff.displayMode === 'overlay' || diff.displayMode === 'both')
-      ) {
-        const clippingPlanes =
-          settings.clippingEnabled && clippingPlaneRef.current
-            ? [clippingPlaneRef.current]
-            : [];
-
-        const calcEffectiveOffset = (
-          refPos: ArrayLike<number>,
-          tgtPos: ArrayLike<number>
-        ) => {
-          let ox = diff.offsetMm?.x || 0;
-          let oy = diff.offsetMm?.y || 0;
-          let oz = diff.offsetMm?.z || 0;
-          if (diff.autoAlignCentroids) {
-            const cRef = computePositionsCentroid(refPos);
-            const cTgt = computePositionsCentroid(tgtPos);
-            ox += cRef.x - cTgt.x;
-            oy += cRef.y - cTgt.y;
-            oz += cRef.z - cTgt.z;
-          }
-          return { x: ox, y: oy, z: oz };
-        };
-
-        const uEff = calcEffectiveOffset(
-          uBaseGeom.attributes.position.array,
-          uTargetGeom.attributes.position.array
-        );
-        const lEff = calcEffectiveOffset(
-          lBaseGeom.attributes.position.array,
-          lTargetGeom.attributes.position.array
-        );
-
-        uTargetGeom.translate(uEff.x, uEff.y, uEff.z);
-        lTargetGeom.translate(lEff.x, lEff.y, lEff.z);
-
-        const createOverlayMat = (isUpper: boolean) => {
-          const isBoth = diff.displayMode === 'both';
-          const mat = new THREE.MeshPhysicalMaterial({
-            color: isUpper ? 0x06b6d4 : 0x38bdf8,
-            emissive: isUpper ? 0x083344 : 0x0c4a6e,
-            emissiveIntensity: isBoth ? 0.15 : 0.25,
-            roughness: 0.2,
-            metalness: 0.1,
-            transparent: true,
-            opacity: isBoth ? Math.min(diff.overlayOpacity, 0.26) : diff.overlayOpacity,
-            wireframe: diff.overlayWireframe,
-            depthWrite: false,
-            side: THREE.DoubleSide,
-          });
-          mat.clippingPlanes = clippingPlanes;
-          return mat;
-        };
-
-        const uOverlayMesh = new THREE.Mesh(uTargetGeom, createOverlayMat(true));
-        uOverlayMesh.visible = settings.showUpper;
-        uOverlayMesh.position.copy(upperMeshRef.current.position);
-        uOverlayMesh.rotation.copy(upperMeshRef.current.rotation);
-        uOverlayMesh.renderOrder = 2;
-
-        const lOverlayMesh = new THREE.Mesh(lTargetGeom, createOverlayMat(false));
-        lOverlayMesh.visible = settings.showLower;
-        lOverlayMesh.position.copy(lowerMeshRef.current.position);
-        lOverlayMesh.rotation.copy(lowerMeshRef.current.rotation);
-        lOverlayMesh.renderOrder = 2;
-
-        scene.add(uOverlayMesh);
-        scene.add(lOverlayMesh);
-        diffUpperOverlayMeshRef.current = uOverlayMesh;
-        diffLowerOverlayMeshRef.current = lOverlayMesh;
-      } else {
-        uTargetGeom.dispose();
-        lTargetGeom.dispose();
-      }
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    settings.modelDiff,
-    settings.clippingEnabled,
-    settings.clippingAxis,
-    settings.clippingOffset,
-    settings.showUpper,
-    settings.showLower,
+  const activeDiffStats = useModelDiffEffect({
+    settings,
+    sceneRef,
+    rendererRef,
+    upperMeshRef,
+    lowerMeshRef,
+    diffUpperOverlayMeshRef,
+    diffLowerOverlayMeshRef,
+    clippingPlaneRef,
     mapsReady,
     cases,
     activeCaseId,
     createDentalMaterial,
+    diffStats,
     onModelDiffStatsComputed,
-  ]);
+  });
 
   // Render 3D Articulation Trajectory Curve & TMJ Hinge Axis Gizmo inside the 3D scene
   useEffect(() => {
@@ -1869,154 +1442,26 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
       )}
 
       {/* 3D Caliper Active / Measurements Floating Banner */}
-      {(settings.caliperToolActive || caliperMeasurements.length > 0 || pendingCaliperPoint) && (
-        <div className="absolute top-24 sm:top-16 left-2.5 sm:left-4 z-30 bg-white/95 dark:bg-[#0f172a]/95 border border-amber-500/50 text-slate-900 dark:text-slate-100 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs flex items-center gap-2 shadow-md backdrop-blur max-w-[calc(100%-1.25rem)]">
-          <Ruler className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
-          <span className="font-medium truncate">
-            {settings.caliperToolActive
-              ? pendingCaliperPoint
-                ? tr(
-                    locale,
-                    '請點選第二點 (Point B) 完成測距',
-                    'Click second point (Point B) to measure'
-                  )
-                : tr(
-                    locale,
-                    '3D 測距中：請於齒列模型上點選兩點',
-                    '3D Caliper active: click two points on the arch'
-                  )
-              : tr(
-                  locale,
-                  `已標記 ${caliperMeasurements.length} 組 3D 測距`,
-                  `${caliperMeasurements.length} 3D measurement(s)`
-                )}
-          </span>
-          {caliperMeasurements.length > 0 && (
-            <span className="font-mono font-semibold text-amber-600 dark:text-amber-400 tabular-nums border-l border-slate-200 dark:border-slate-700 pl-2 flex-shrink-0">
-              {caliperMeasurements[0].distanceMm.toFixed(2)} mm
-            </span>
-          )}
-          {caliperMeasurements.length > 0 && (
-            <button
-              type="button"
-              data-testid="viewport-toggle-measurements-banner-btn"
-              onClick={() =>
-                onSettingsChange((prev) => ({
-                  ...prev,
-                  showMeasurements: prev.showMeasurements === false ? true : false,
-                }))
-              }
-              className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 text-[11px] font-medium flex items-center gap-1 transition-colors flex-shrink-0"
-              title={
-                settings.showMeasurements === false
-                  ? tr(locale, '顯示 3D 測距線與標記點', 'Show 3D measurements')
-                  : tr(locale, '隱藏 3D 測距線與標記點', 'Hide 3D measurements')
-              }
-            >
-              {settings.showMeasurements === false ? (
-                <>
-                  <Eye className="w-3 h-3 text-amber-500" />
-                  <span>{tr(locale, '顯示測距', 'Show')}</span>
-                </>
-              ) : (
-                <>
-                  <EyeOff className="w-3 h-3 text-slate-400" />
-                  <span>{tr(locale, '隱藏測距', 'Hide')}</span>
-                </>
-              )}
-            </button>
-          )}
-          {(caliperMeasurements.length > 0 || pendingCaliperPoint) && (
-            <button
-              type="button"
-              data-testid="viewport-clear-caliper-btn"
-              onClick={() => {
-                pendingCaliperPointRef.current = null;
-                setPendingCaliperPoint(null);
-                onClearCaliperMeasurements?.();
-              }}
-              className="px-2 py-0.5 rounded bg-rose-500/15 hover:bg-rose-500/25 text-rose-600 dark:text-rose-300 border border-rose-500/30 text-[11px] font-medium flex items-center gap-1 transition-colors flex-shrink-0"
-              title={tr(
-                locale,
-                '直接清除 3D 視窗中的所有測距線與標記點',
-                'Clear all 3D caliper lines and markers'
-              )}
-            >
-              <Trash2 className="w-3 h-3" />
-              <span>{tr(locale, '清除測距', 'Clear')}</span>
-            </button>
-          )}
-        </div>
-      )}
+      <ViewportCaliperBanner
+        settings={settings}
+        onSettingsChange={onSettingsChange}
+        caliperMeasurements={caliperMeasurements}
+        pendingCaliperPoint={pendingCaliperPoint}
+        onClearAllCaliper={() => {
+          pendingCaliperPointRef.current = null;
+          setPendingCaliperPoint(null);
+          onClearCaliperMeasurements?.();
+        }}
+        locale={locale}
+      />
 
       {/* 3D Model Diff Floating Color Scale Legend & Telemetry Banner */}
-      {settings.modelDiff?.enabled && (
-        <div
-          data-testid="viewport-diff-banner"
-          className="absolute top-32 sm:top-28 left-20 sm:left-24 z-30 bg-white/95 dark:bg-[#0f172a]/95 border border-cyan-500/50 text-slate-900 dark:text-slate-100 px-3 py-2 rounded-xl text-xs flex flex-col gap-1.5 shadow-lg backdrop-blur max-w-xs sm:max-w-md"
-        >
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-1.5 font-semibold text-cyan-600 dark:text-cyan-400">
-              <GitCompare className="w-3.5 h-3.5 flex-shrink-0" />
-              <span>{tr(locale, '3D 數位模型差異比對', '3D Model Diff')}</span>
-            </div>
-            <div className="flex items-center gap-1">
-              {(
-                [
-                  { id: 'both', label: tr(locale, '熱圖+疊影', 'Both') },
-                  { id: 'heatmap', label: tr(locale, '偏差熱圖', 'Heatmap') },
-                  { id: 'overlay', label: tr(locale, '雙模疊影', 'Overlay') },
-                ] as { id: ModelDiffDisplayMode; label: string }[]
-              ).map((m) => (
-                <button
-                  key={m.id}
-                  type="button"
-                  data-testid={`viewport-diff-mode-${m.id}`}
-                  onClick={() =>
-                    onSettingsChange((prev) => ({
-                      ...prev,
-                      modelDiff: {
-                        ...(prev.modelDiff || DEFAULT_MODEL_DIFF_SETTINGS),
-                        displayMode: m.id,
-                      },
-                    }))
-                  }
-                  className={`px-1.5 py-0.5 rounded text-[10px] font-medium transition-colors ${
-                    (settings.modelDiff?.displayMode || 'both') === m.id
-                      ? 'bg-cyan-600 text-white'
-                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
-                  }`}
-                >
-                  {m.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div
-            className="h-2 w-full rounded-full"
-            style={{
-              background:
-                'linear-gradient(90deg, #1d4ed8 0%, #06b6d4 28%, #10b981 50%, #eab308 72%, #ef4444 100%)',
-            }}
-          />
-          <div className="flex items-center justify-between text-[10px] font-mono text-slate-600 dark:text-slate-300 tabular-nums gap-2">
-            <span className="text-blue-600 dark:text-blue-400">
-              -{(settings.modelDiff?.maxRangeMm || 2.0).toFixed(1)}mm
-            </span>
-            <span className="text-emerald-600 dark:text-emerald-400">
-              ±{(settings.modelDiff?.toleranceMm || 0.25).toFixed(2)}mm (
-              {activeDiffStats.inTolerancePercent.toFixed(1)}%)
-            </span>
-            <span className="text-cyan-600 dark:text-cyan-400 font-semibold">
-              RMSD {activeDiffStats.rmsdMm.toFixed(2)}mm
-            </span>
-            <span className="text-rose-600 dark:text-rose-400">
-              +{(settings.modelDiff?.maxRangeMm || 2.0).toFixed(1)}mm
-            </span>
-          </div>
-        </div>
-      )}
+      <ViewportDiffBanner
+        settings={settings}
+        onSettingsChange={onSettingsChange}
+        diffStats={activeDiffStats}
+        locale={locale}
+      />
 
       {/* Drag Over Hint */}
       {isDragOver && (
@@ -2075,135 +1520,11 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
       </div>
 
       {/* Dedicated Vertical Articulation Seek Bar & Spring-Back Joystick on Left Edge */}
-      <div className="absolute top-20 sm:top-24 left-2.5 sm:left-4 z-30 flex flex-col items-center gap-3 bg-white/95 dark:bg-[#0f172a]/95 border border-slate-200 dark:border-slate-800 p-2 sm:p-2.5 rounded-xl backdrop-blur shadow-xl">
-        {/* Play / Pause Toggle Button */}
-        <button
-          type="button"
-          data-testid="vertical-play-toggle-btn"
-          onClick={() =>
-            onSettingsChange((prev) => ({
-              ...prev,
-              articulator: {
-                ...prev.articulator,
-                isPlaying: !prev.articulator.isPlaying,
-              },
-            }))
-          }
-          className={`p-1.5 rounded-lg transition-all shadow-sm ${
-            settings.articulator.isPlaying
-              ? 'bg-amber-500 text-white hover:bg-amber-600 animate-pulse'
-              : 'bg-sky-600 text-white hover:bg-sky-500'
-          }`}
-          title={
-            settings.articulator.isPlaying
-              ? tr(locale, '暫停下顎運動 (垂直 SeekBar)', 'Pause articulation')
-              : tr(locale, '自動播放下顎運動 (垂直 SeekBar)', 'Auto-play articulation')
-          }
-        >
-          {settings.articulator.isPlaying ? (
-            <Pause className="w-3.5 h-3.5" />
-          ) : (
-            <Play className="w-3.5 h-3.5" />
-          )}
-        </button>
-
-        {/* Vertical Seek Bar */}
-        <div className="flex flex-col items-center gap-1.5 h-36 sm:h-44">
-          <span className="text-[9px] font-mono text-slate-500 dark:text-slate-400 font-semibold uppercase">
-            100%
-          </span>
-          <div className="relative flex-1 flex items-center justify-center w-6">
-            <input
-              type="range"
-              data-testid="vertical-articulation-seekbar"
-              min="0"
-              max="1"
-              step="0.01"
-              value={settings.articulator.progress}
-              onChange={(e) => {
-                const p = parseFloat(e.target.value);
-                onSettingsChange((prev) => ({
-                  ...prev,
-                  occlusionSeparation: Math.round(p * 35),
-                  articulator: {
-                    ...prev.articulator,
-                    progress: p,
-                    isPlaying: false,
-                  },
-                }));
-              }}
-              style={{
-                writingMode: 'vertical-lr',
-                direction: 'rtl',
-              }}
-              className="w-1.5 h-28 sm:h-36 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-sky-500"
-              title={tr(locale, '垂直咬合行程拉桿', 'Vertical Articulation Slider')}
-            />
-          </div>
-          <span className="text-[9px] font-mono text-slate-500 dark:text-slate-400 font-semibold uppercase">
-            CO
-          </span>
-        </div>
-
-        {/* Readout Pill */}
-        <div className="px-1 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[10px] font-mono font-medium text-sky-600 dark:text-sky-400 text-center tabular-nums">
-          {Math.round(settings.articulator.progress * 100)}%
-        </div>
-
-        <div className="w-full h-px bg-slate-200 dark:bg-slate-800" />
-
-        {/* Spring-Back Mandibular Joystick (蘑菇頭控制器 - 鬆開自動彈回中立位) */}
-        <div className="flex flex-col items-center gap-1">
-          <div className="flex items-center gap-1 text-[9px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-            <CircleDot className="w-3 h-3 text-sky-500" />
-            <span>{tr(locale, '搖桿', 'Stick')}</span>
-          </div>
-
-          <div
-            ref={joystickContainerRef}
-            data-testid="mandibular-joystick-pad"
-            onPointerDown={handleJoystickPointerDown}
-            onPointerMove={handleJoystickPointerMove}
-            onPointerUp={handleJoystickPointerUp}
-            onPointerCancel={handleJoystickPointerUp}
-            className={`relative w-14 h-14 rounded-full border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-900/90 flex items-center justify-center cursor-grab active:cursor-grabbing select-none touch-none shadow-inner transition-colors ${
-              joystickActive ? 'border-sky-500 bg-sky-50/50 dark:bg-sky-950/40' : ''
-            }`}
-            title={tr(
-              locale,
-              '咬合運動蘑菇頭搖桿（拖曳模擬前突與側方運動，鬆開自動回到中立位 CO）',
-              'Mandibular joystick: drag to articulate in any excursion direction; release to spring back to neutral CO.'
-            )}
-          >
-            {/* Crosshairs & Direction Indicators */}
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-40">
-              <div className="w-full h-px bg-slate-400 dark:bg-slate-600" />
-              <div className="h-full w-px bg-slate-400 dark:bg-slate-600 absolute" />
-            </div>
-
-            {/* Thumbstick Puck (蘑菇頭本體) */}
-            <div
-              data-testid="mandibular-joystick-thumb"
-              style={{
-                transform: `translate(${joystickPos.x}px, ${joystickPos.y}px)`,
-                transition: joystickActive ? 'none' : 'transform 0.18s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
-              }}
-              className={`w-6 h-6 rounded-full shadow-md flex items-center justify-center pointer-events-none transition-colors ${
-                joystickActive
-                  ? 'bg-sky-500 text-white shadow-sky-500/40'
-                  : 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-600'
-              }`}
-            >
-              <div className="w-2 h-2 rounded-full bg-current opacity-70" />
-            </div>
-          </div>
-          <span className="text-[8px] text-slate-400 text-center leading-tight">
-            {joystickActive
-              ? tr(locale, '運動中', 'Active')
-              : tr(locale, '鬆開回中', 'Spring CO')}
-          </span>
-        </div>
-      </div>
+      <MandibularJoystickBar
+        settings={settings}
+        onSettingsChange={onSettingsChange}
+        locale={locale}
+      />
       <div className="absolute top-14 sm:top-14 right-2.5 sm:right-4 z-30 flex items-center space-x-1 sm:space-x-1.5 bg-white/90 dark:bg-[#0f172a]/90 border border-slate-200 dark:border-slate-800 p-1 rounded-lg backdrop-blur shadow-md">
         {/* Toggle Trajectory Gizmo (3D 運動軌跡與顳顎關節軸心) */}
         <button
@@ -2376,487 +1697,14 @@ export const DentalViewer3D: React.FC<DentalViewer3DProps> = ({
       </div>
 
       {/* Floating Bottom Left: Arch Toggles, Articulation Simulator & Texture Controls (Collapsible on Mobile) */}
-      <div className="absolute bottom-2.5 sm:bottom-4 left-2.5 sm:left-4 right-2.5 sm:right-auto z-30 flex flex-col gap-1.5 sm:gap-2 max-w-full sm:max-w-md">
-        <div className="bg-white/95 dark:bg-[#0f172a]/95 border border-slate-200 dark:border-slate-800 p-2.5 sm:p-3 rounded-lg backdrop-blur shadow-lg text-xs space-y-2">
-          <div className="flex items-center justify-between gap-2">
-            <span className="font-medium text-slate-700 dark:text-slate-300 flex items-center gap-1.5 truncate">
-              <Layers className="w-3.5 h-3.5 text-sky-500 dark:text-sky-400 flex-shrink-0" />
-              <span className="truncate">
-                {tr(locale, '咬合運動模擬與牙弓檢視', 'Articulation & Arch Control')}
-              </span>
-            </span>
-            <div className="flex items-center gap-1 flex-shrink-0">
-              <button
-                type="button"
-                onClick={() =>
-                  onSettingsChange((prev) => ({
-                    ...prev,
-                    showUpper: !prev.showUpper,
-                  }))
-                }
-                className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors flex items-center gap-1 ${
-                  settings.showUpper
-                    ? 'bg-amber-500/15 dark:bg-amber-500/20 text-amber-700 dark:text-amber-200 border border-amber-500/40'
-                    : 'bg-slate-100 dark:bg-slate-800/80 text-slate-400 border border-transparent'
-                }`}
-              >
-                {settings.showUpper ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
-                {tr(locale, '上顎 (U)', 'Upper (U)')}
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  onSettingsChange((prev) => ({
-                    ...prev,
-                    showLower: !prev.showLower,
-                  }))
-                }
-                className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors flex items-center gap-1 ${
-                  settings.showLower
-                    ? 'bg-sky-500/15 dark:bg-sky-500/20 text-sky-700 dark:text-sky-200 border border-sky-500/40'
-                    : 'bg-slate-100 dark:bg-slate-800/80 text-slate-400 border border-transparent'
-                }`}
-              >
-                {settings.showLower ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
-                {tr(locale, '下顎 (L)', 'Lower (L)')}
-              </button>
-              <button
-                type="button"
-                data-testid="viewport-hud-toggle"
-                onClick={() => setHudCollapsed((v) => !v)}
-                className="p-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-slate-700 transition-colors"
-                title={
-                  hudCollapsed
-                    ? tr(locale, '展開 3D 浮動控制面板', 'Expand 3D HUD Controls')
-                    : tr(locale, '收合 3D 浮動控制面板（釋放手機視野）', 'Collapse 3D HUD Controls')
-                }
-              >
-                {hudCollapsed ? (
-                  <ChevronUp className="w-3.5 h-3.5" />
-                ) : (
-                  <ChevronDown className="w-3.5 h-3.5" />
-                )}
-              </button>
-            </div>
-          </div>
-
-          {!hudCollapsed && (
-            <>
-              {/* Quick Articulation Mode Pills */}
-              <div className="flex items-center gap-1 flex-wrap">
-                {(
-                  [
-                    { id: 'hinge', label: tr(locale, '生理樞軸', 'Hinge') },
-                    { id: 'protrusion', label: tr(locale, '前突', 'Protrusion') },
-                    { id: 'lateral_left', label: tr(locale, '左側方', 'Lat L') },
-                    { id: 'lateral_right', label: tr(locale, '右側方', 'Lat R') },
-                    { id: 'chewing', label: tr(locale, '咀嚼循環', 'Chewing') },
-                    { id: 'parallel', label: tr(locale, '平行', 'Parallel') },
-                    { id: 'compound', label: tr(locale, '混用', 'Mix') },
-                  ] as { id: ArticulationMode; label: string }[]
-                ).map((m) => (
-                  <button
-                    key={m.id}
-                    type="button"
-                    onClick={() =>
-                      onSettingsChange((prev) => {
-                        if (m.id === 'compound') {
-                          const currentStrokes =
-                            prev.articulator.strokes ?? resolveActiveStrokes(prev.articulator);
-                          return {
-                            ...prev,
-                            articulator: {
-                              ...prev.articulator,
-                              mode: 'compound',
-                              strokes: currentStrokes,
-                              progress: prev.articulator.progress > 0 ? prev.articulator.progress : 1.0,
-                            },
-                          };
-                        }
-                        return {
-                          ...prev,
-                          articulator: {
-                            ...prev.articulator,
-                            mode: m.id,
-                          },
-                        };
-                      })
-                    }
-                    className={`px-2 py-0.5 rounded text-[10px] font-medium border transition-colors ${
-                      settings.articulator.mode === m.id
-                        ? 'bg-sky-500 text-white border-sky-600'
-                        : 'bg-slate-100 dark:bg-slate-800/90 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'
-                    }`}
-                  >
-                    {m.label}
-                  </button>
-                ))}
-              </div>
-
-              {/* Compact Mixed Strokes Sub-Panel in HUD when Compound Mode is Active */}
-              {settings.articulator.mode === 'compound' && (
-                <div
-                  data-testid="hud-compound-strokes"
-                  className="p-2 rounded bg-slate-100/90 dark:bg-slate-800/80 border border-sky-500/30 space-y-1.5 text-[10px]"
-                >
-                  <div className="flex items-center justify-between text-slate-700 dark:text-slate-300 font-medium">
-                    <span>{tr(locale, '獨立行程混用微調：', 'Stroke Mixer:')}</span>
-                    <button
-                      type="button"
-                      data-testid="hud-compound-reset-co"
-                      onClick={() =>
-                        onSettingsChange((prev) => ({
-                          ...prev,
-                          articulator: {
-                            ...prev.articulator,
-                            strokes: { hinge: 0, protrusion: 0, lateral: 0, parallel: 0 },
-                            progress: 0,
-                          },
-                        }))
-                      }
-                      className="text-sky-600 dark:text-sky-400 hover:underline"
-                    >
-                      CO (0%)
-                    </button>
-                  </div>
-                  <div className="grid grid-cols-2 gap-x-2 gap-y-1.5">
-                    <div>
-                      <div className="flex justify-between text-[9px] text-slate-500 dark:text-slate-400">
-                        <span>{tr(locale, '1. 開合', '1. Hinge')}</span>
-                        <span className="font-mono text-sky-600 dark:text-sky-400">
-                          {Math.round((settings.articulator.strokes?.hinge ?? 0) * 100)}%
-                        </span>
-                      </div>
-                      <input
-                        type="range"
-                        min="0"
-                        max="1"
-                        step="0.02"
-                        data-testid="hud-stroke-hinge"
-                        value={settings.articulator.strokes?.hinge ?? 0}
-                        onChange={(e) => {
-                          const val = parseFloat(e.target.value);
-                          onSettingsChange((prev) => ({
-                            ...prev,
-                            articulator: {
-                              ...prev.articulator,
-                              strokes: {
-                                ...(prev.articulator.strokes ?? DEFAULT_ARTICULATOR_STROKES),
-                                hinge: val,
-                              },
-                              progress: Math.max(prev.articulator.progress, 0.01),
-                            },
-                          }));
-                        }}
-                        className="w-full h-1 bg-slate-300 dark:bg-slate-700 rounded appearance-none cursor-pointer accent-sky-500"
-                      />
-                    </div>
-
-                    <div>
-                      <div className="flex justify-between text-[9px] text-slate-500 dark:text-slate-400">
-                        <span>{tr(locale, '2. 前突', '2. Protr')}</span>
-                        <span className="font-mono text-sky-600 dark:text-sky-400">
-                          {Math.round((settings.articulator.strokes?.protrusion ?? 0) * 100)}%
-                        </span>
-                      </div>
-                      <input
-                        type="range"
-                        min="0"
-                        max="1"
-                        step="0.02"
-                        data-testid="hud-stroke-protrusion"
-                        value={settings.articulator.strokes?.protrusion ?? 0}
-                        onChange={(e) => {
-                          const val = parseFloat(e.target.value);
-                          onSettingsChange((prev) => ({
-                            ...prev,
-                            articulator: {
-                              ...prev.articulator,
-                              strokes: {
-                                ...(prev.articulator.strokes ?? DEFAULT_ARTICULATOR_STROKES),
-                                protrusion: val,
-                              },
-                              progress: Math.max(prev.articulator.progress, 0.01),
-                            },
-                          }));
-                        }}
-                        className="w-full h-1 bg-slate-300 dark:bg-slate-700 rounded appearance-none cursor-pointer accent-sky-500"
-                      />
-                    </div>
-
-                    <div>
-                      <div className="flex justify-between text-[9px] text-slate-500 dark:text-slate-400">
-                        <span>{tr(locale, '3. 左側方', '3. Lat L')}</span>
-                        <span className="font-mono text-sky-600 dark:text-sky-400">
-                          {Math.round(Math.max(0, settings.articulator.strokes?.lateral ?? 0) * 100)}%
-                        </span>
-                      </div>
-                      <input
-                        type="range"
-                        min="0"
-                        max="1"
-                        step="0.02"
-                        data-testid="hud-stroke-lateral-left"
-                        value={Math.max(0, settings.articulator.strokes?.lateral ?? 0)}
-                        onChange={(e) => {
-                          const val = parseFloat(e.target.value);
-                          onSettingsChange((prev) => ({
-                            ...prev,
-                            articulator: {
-                              ...prev.articulator,
-                              strokes: {
-                                ...(prev.articulator.strokes ?? DEFAULT_ARTICULATOR_STROKES),
-                                lateral: val,
-                              },
-                              progress: Math.max(prev.articulator.progress, 0.01),
-                            },
-                          }));
-                        }}
-                        className="w-full h-1 bg-slate-300 dark:bg-slate-700 rounded appearance-none cursor-pointer accent-sky-500"
-                      />
-                    </div>
-
-                    <div>
-                      <div className="flex justify-between text-[9px] text-slate-500 dark:text-slate-400">
-                        <span>{tr(locale, '4. 右側方', '4. Lat R')}</span>
-                        <span className="font-mono text-sky-600 dark:text-sky-400">
-                          {Math.round(Math.max(0, -(settings.articulator.strokes?.lateral ?? 0)) * 100)}%
-                        </span>
-                      </div>
-                      <input
-                        type="range"
-                        min="0"
-                        max="1"
-                        step="0.02"
-                        data-testid="hud-stroke-lateral-right"
-                        value={Math.max(0, -(settings.articulator.strokes?.lateral ?? 0))}
-                        onChange={(e) => {
-                          const val = parseFloat(e.target.value);
-                          onSettingsChange((prev) => ({
-                            ...prev,
-                            articulator: {
-                              ...prev.articulator,
-                              strokes: {
-                                ...(prev.articulator.strokes ?? DEFAULT_ARTICULATOR_STROKES),
-                                lateral: -val,
-                              },
-                              progress: Math.max(prev.articulator.progress, 0.01),
-                            },
-                          }));
-                        }}
-                        className="w-full h-1 bg-slate-300 dark:bg-slate-700 rounded appearance-none cursor-pointer accent-sky-500"
-                      />
-                    </div>
-
-                    <div className="col-span-2">
-                      <div className="flex justify-between text-[9px] text-slate-500 dark:text-slate-400">
-                        <span>{tr(locale, '5. 垂直平行開離', '5. Parallel Z-Sep')}</span>
-                        <span className="font-mono text-sky-600 dark:text-sky-400">
-                          {Math.round((settings.articulator.strokes?.parallel ?? 0) * 100)}%
-                        </span>
-                      </div>
-                      <input
-                        type="range"
-                        min="0"
-                        max="1"
-                        step="0.02"
-                        data-testid="hud-stroke-parallel"
-                        value={settings.articulator.strokes?.parallel ?? 0}
-                        onChange={(e) => {
-                          const val = parseFloat(e.target.value);
-                          onSettingsChange((prev) => ({
-                            ...prev,
-                            articulator: {
-                              ...prev.articulator,
-                              strokes: {
-                                ...(prev.articulator.strokes ?? DEFAULT_ARTICULATOR_STROKES),
-                                parallel: val,
-                              },
-                              progress: Math.max(prev.articulator.progress, 0.01),
-                            },
-                          }));
-                        }}
-                        className="w-full h-1 bg-slate-300 dark:bg-slate-700 rounded appearance-none cursor-pointer accent-sky-500"
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Articulation Progress Slider & Play Button */}
-              <div className="space-y-1">
-                <div className="flex justify-between items-center text-[11px] text-slate-500 dark:text-slate-400">
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        onSettingsChange((prev) => ({
-                          ...prev,
-                          articulator: {
-                            ...prev.articulator,
-                            isPlaying: !prev.articulator.isPlaying,
-                          },
-                        }))
-                      }
-                      className="p-1 rounded bg-sky-500 text-white hover:bg-sky-600 transition-colors"
-                      title={
-                        settings.articulator.isPlaying
-                          ? tr(locale, '暫停咬合運動', 'Pause articulation')
-                          : tr(locale, '自動播放咬合運動', 'Auto-play articulation')
-                      }
-                    >
-                      {settings.articulator.isPlaying ? (
-                        <Pause className="w-3 h-3" />
-                      ) : (
-                        <Play className="w-3 h-3" />
-                      )}
-                    </button>
-                    <span>{tr(locale, '下顎運動行程', 'Excursion Progress')}</span>
-                  </div>
-                  <span className="font-mono text-sky-600 dark:text-sky-400 tabular-nums">
-                    {settings.articulator.progress === 0
-                      ? tr(locale, '中心咬合 CO (0%)', 'Centric CO (0%)')
-                      : `${Math.round(settings.articulator.progress * 100)}% · ${currentKinematics.incisalOpeningMm.toFixed(1)}mm / ${currentKinematics.rotationAngleDeg.toFixed(1)}°`}
-                  </span>
-                </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.01"
-                  value={settings.articulator.progress}
-                  onChange={(e) => {
-                    const p = parseFloat(e.target.value);
-                    onSettingsChange((prev) => ({
-                      ...prev,
-                      occlusionSeparation: Math.round(p * 35),
-                      articulator: {
-                        ...prev.articulator,
-                        progress: p,
-                        isPlaying: false,
-                      },
-                    }));
-                  }}
-                  className="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-sky-500"
-                />
-              </div>
-
-              {/* Occlusogram & 3D Model Diff Quick Toggles */}
-              <div className="grid grid-cols-2 gap-1.5 pt-2 border-t border-slate-200 dark:border-slate-800/80">
-                <button
-                  type="button"
-                  data-testid="hud-occlusogram-btn"
-                  onClick={() =>
-                    onSettingsChange((prev) => ({
-                      ...prev,
-                      occlusogramEnabled: !prev.occlusogramEnabled,
-                    }))
-                  }
-                  className={`px-2 py-1 rounded text-[11px] font-medium transition-colors border flex items-center justify-center gap-1.5 ${
-                    settings.occlusogramEnabled
-                      ? 'bg-rose-600 border-rose-500 text-white shadow-sm'
-                      : 'bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400'
-                  }`}
-                >
-                  <Flame className="w-3.5 h-3.5" />
-                  <span>{tr(locale, '咬合熱力圖', 'Occlusogram')}</span>
-                </button>
-                <button
-                  type="button"
-                  data-testid="hud-diff-toggle"
-                  onClick={() =>
-                    onSettingsChange((prev) => {
-                      const cur = prev.modelDiff || DEFAULT_MODEL_DIFF_SETTINGS;
-                      return {
-                        ...prev,
-                        modelDiff: {
-                          ...cur,
-                          enabled: !cur.enabled,
-                        },
-                      };
-                    })
-                  }
-                  className={`px-2 py-1 rounded text-[11px] font-medium transition-colors border flex items-center justify-center gap-1.5 ${
-                    settings.modelDiff?.enabled
-                      ? 'bg-cyan-600 border-cyan-500 text-white shadow-sm'
-                      : 'bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400'
-                  }`}
-                >
-                  <GitCompare className="w-3.5 h-3.5" />
-                  <span>{tr(locale, '3D 差異比對', '3D Model Diff')}</span>
-                </button>
-              </div>
-
-              {/* Quick shading pills */}
-              <div className="flex items-center justify-between pt-1.5 border-t border-slate-200 dark:border-slate-800/80 gap-1.5">
-                <span className="text-[11px] text-slate-500 dark:text-slate-400">
-                  {tr(locale, '材質', 'Shader')}
-                </span>
-                <div className="flex items-center gap-1">
-                  {[
-                    { id: 'texture', label: tr(locale, '貼圖', 'Texture') },
-                    { id: 'enamel', label: tr(locale, '琺瑯質', 'Enamel') },
-                    { id: 'plaster', label: tr(locale, '石膏', 'Plaster') },
-                    { id: 'normal', label: tr(locale, '法線', 'Normals') },
-                    { id: 'wireframe', label: tr(locale, '線框', 'Wire') },
-                    { id: 'translucent', label: tr(locale, '半透', 'X-Ray') },
-                  ].map((m) => {
-                    const isSelected =
-                      m.id === 'texture'
-                        ? settings.shadingMode === 'texture' || settings.photoTextureMapped
-                        : settings.shadingMode === m.id && !settings.photoTextureMapped;
-                    return (
-                      <button
-                        key={m.id}
-                        type="button"
-                        onClick={() =>
-                          onSettingsChange((prev) => ({
-                            ...prev,
-                            shadingMode: m.id as ViewportSettings['shadingMode'],
-                            photoTextureMapped: m.id === 'texture',
-                          }))
-                        }
-                        className={`px-1.5 py-0.5 rounded text-[10px] transition-colors ${
-                          isSelected
-                            ? 'bg-sky-500/15 dark:bg-slate-700 text-sky-700 dark:text-sky-300 font-medium'
-                            : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-                        }`}
-                      >
-                        {m.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </>
-          )}
-        </div>
-
-        {/* Real-time CAD Mesh & System Stats Badge */}
-        <div className="hidden sm:flex items-center gap-3 px-3 py-1.5 bg-white/90 dark:bg-[#090d16]/80 border border-slate-200 dark:border-slate-800/80 rounded-md text-[10px] text-slate-500 dark:text-slate-400 font-mono tabular-nums shadow-sm">
-          <span>
-            {tr(locale, '上顎', 'Maxilla')}:{' '}
-            <strong className="text-slate-800 dark:text-slate-200 font-semibold">
-              {triangleStats.upper.toLocaleString()}
-            </strong>{' '}
-            Δ
-          </span>
-          <span>
-            {tr(locale, '下顎', 'Mandible')}:{' '}
-            <strong className="text-slate-800 dark:text-slate-200 font-semibold">
-              {triangleStats.lower.toLocaleString()}
-            </strong>{' '}
-            Δ
-          </span>
-          <span>
-            {tr(locale, '總計', 'Total')}:{' '}
-            <strong className="text-sky-600 dark:text-sky-300 font-semibold">
-              {(triangleStats.upper + triangleStats.lower).toLocaleString()}
-            </strong>
-          </span>
-          <span className="text-emerald-600 dark:text-emerald-400 font-semibold">{fps} FPS</span>
-        </div>
-      </div>
+      <ViewportBottomHud
+        settings={settings}
+        onSettingsChange={onSettingsChange}
+        currentKinematics={currentKinematics}
+        triangleStats={triangleStats}
+        fps={fps}
+        locale={locale}
+      />
 
       {/* Floating Upload & Drag-and-Drop Trigger (Bottom-right on Desktop; mobile uses Header & Quick Bar so top viewport buttons never overlap) */}
       <label

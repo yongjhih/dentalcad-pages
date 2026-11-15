@@ -1,5 +1,7 @@
 export { DentalViewer3D } from '../../../src/components/DentalViewer3D';
 export { ArticulatorPanel } from '../../../src/components/ArticulatorPanel';
+export { CompoundStrokeMixer } from '../../../src/components/CompoundStrokeMixer';
+export type { CompoundStrokeMixerProps } from '../../../src/components/CompoundStrokeMixer';
 export { PentaGallery } from '../../../src/components/PentaGallery';
 export { CaseDossier } from '../../../src/components/CaseDossier';
 export { CadToolsPanel } from '../../../src/components/CadToolsPanel';
@@ -10,5 +12,13 @@ export type { ViewerControlPayload } from '../../../src/components/AskAiDrawer';
 export { ModelDiffPanel } from '../../../src/components/ModelDiffPanel';
 export { FeatureShowcaseModal } from '../../../src/components/FeatureShowcaseModal';
 export type { ShowcaseScenarioId } from '../../../src/components/FeatureShowcaseModal';
-
-
+export { ViewportCaliperBanner } from '../../../src/components/viewport/ViewportCaliperBanner';
+export type { ViewportCaliperBannerProps } from '../../../src/components/viewport/ViewportCaliperBanner';
+export { ViewportDiffBanner } from '../../../src/components/viewport/ViewportDiffBanner';
+export type { ViewportDiffBannerProps } from '../../../src/components/viewport/ViewportDiffBanner';
+export { MandibularJoystickBar } from '../../../src/components/viewport/MandibularJoystickBar';
+export type { MandibularJoystickBarProps } from '../../../src/components/viewport/MandibularJoystickBar';
+export { ViewportBottomHud } from '../../../src/components/viewport/ViewportBottomHud';
+export type { ViewportBottomHudProps } from '../../../src/components/viewport/ViewportBottomHud';
+export { useModelDiffEffect } from '../../../src/hooks/useModelDiffEffect';
+export type { UseModelDiffEffectParams } from '../../../src/hooks/useModelDiffEffect';

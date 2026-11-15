@@ -20,6 +20,9 @@ import {
   ViewportSettings,
   CameraPreset,
   ShadingMode,
+  ArticulationMode,
+  ArticulationStrokes,
+  ModelDiffDisplayMode,
 } from '../types/dental';
 import { tr } from '../utils/i18n';
 
@@ -27,9 +30,13 @@ export interface ViewerControlPayload {
   cameraPreset?: CameraPreset;
   shadingMode?: ShadingMode;
   occlusogramEnabled?: boolean;
-  articulationMode?: 'hinge' | 'protrusion' | 'lateral_left' | 'lateral_right' | 'chewing' | 'parallel';
+  articulationMode?: ArticulationMode;
+  articulationStrokes?: Partial<ArticulationStrokes>;
   articulationProgress?: number;
   occlusionSeparation?: number;
+  modelDiffEnabled?: boolean;
+  modelDiffMode?: ModelDiffDisplayMode;
+  modelDiffTargetId?: string;
 }
 
 interface ChatMessage {

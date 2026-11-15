@@ -1,14 +1,27 @@
 <!doctype html>
-<html lang="zh-TW" class="dark">
+<html lang="zh-TW" class="dark" data-lang="zh">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>DentalCAD Pages — 3D 數位牙科工作站功能展示與技術導覽</title>
     <style>
       :root {
-        --bg: #080d17;
+        --bg: #f8fafc;
+        --panel: #ffffff;
+        --panel-alt: #f1f5f9;
+        --border: #e2e8f0;
+        --text: #0f172a;
+        --muted: #475569;
+        --sky: #0284c7;
+        --cyan: #0891b2;
+        --emerald: #10b981;
+        --rose: #e11d48;
+        --amber: #d97706;
+      }
+      html.dark {
+        --bg: #090d16;
         --panel: #0f172a;
-        --panel-alt: #111c33;
+        --panel-alt: #0b0f17;
         --border: #1e293b;
         --text: #f1f5f9;
         --muted: #94a3b8;
@@ -24,9 +37,16 @@
       body {
         margin: 0;
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans TC', sans-serif;
-        background: radial-gradient(circle at 20% 0%, #0c2442 0%, var(--bg) 52%);
+        background: var(--bg);
         color: var(--text);
         line-height: 1.6;
+        font-variant-numeric: tabular-nums;
+      }
+      html[data-lang='zh'] [data-en] {
+        display: none;
+      }
+      html[data-lang='en'] [data-zh] {
+        display: none;
       }
       a {
         color: inherit;
@@ -41,16 +61,17 @@
         position: sticky;
         top: 0;
         z-index: 40;
-        background: rgba(8, 13, 23, 0.88);
-        backdrop-filter: blur(12px);
+        background: var(--panel);
         border-bottom: 1px solid var(--border);
       }
       .nav-bar {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        height: 64px;
+        min-height: 64px;
+        padding: 8px 0;
         gap: 16px;
+        flex-wrap: wrap;
       }
       .brand {
         display: flex;
@@ -62,7 +83,7 @@
         width: 34px;
         height: 34px;
         border-radius: 8px;
-        background: linear-gradient(135deg, var(--sky), var(--cyan));
+        background: var(--sky);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -73,56 +94,54 @@
       .nav-actions {
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: 8px;
         flex-wrap: wrap;
       }
       .btn {
         display: inline-flex;
         align-items: center;
         gap: 8px;
-        padding: 8px 16px;
+        padding: 8px 14px;
         border-radius: 8px;
         font-size: 13px;
         font-weight: 600;
         border: 1px solid var(--border);
         background: var(--panel);
         color: var(--text);
-        transition: all 0.18s ease;
+        transition: border-color 0.15s ease, background-color 0.15s ease;
         cursor: pointer;
       }
       .btn:hover {
         border-color: var(--sky);
-        transform: translateY(-1px);
       }
       .btn-primary {
-        background: linear-gradient(135deg, var(--sky), var(--cyan));
-        border-color: transparent;
+        background: var(--sky);
+        border-color: var(--sky);
         color: #fff;
-        box-shadow: 0 4px 18px rgba(14, 165, 233, 0.32);
       }
       .btn-primary:hover {
-        opacity: 0.94;
+        opacity: 0.92;
       }
       .hero {
-        padding: 56px 0 36px;
+        padding: 48px 0 32px;
         text-align: center;
       }
       .pill {
         display: inline-flex;
         align-items: center;
         gap: 8px;
-        padding: 5px 14px;
-        border-radius: 999px;
+        padding: 4px 12px;
+        border-radius: 8px;
         font-size: 12px;
         font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-        background: rgba(14, 165, 233, 0.14);
-        border: 1px solid rgba(14, 165, 233, 0.38);
-        color: #38bdf8;
+        background: rgba(14, 165, 233, 0.12);
+        border: 1px solid rgba(14, 165, 233, 0.35);
+        color: var(--sky);
         margin-bottom: 16px;
       }
       h1 {
-        font-size: clamp(28px, 4.2vw, 46px);
-        line-height: 1.18;
+        font-size: clamp(26px, 4vw, 42px);
+        line-height: 1.2;
         margin: 0 0 16px;
         letter-spacing: -0.02em;
       }
@@ -130,7 +149,7 @@
         max-width: 780px;
         margin: 0 auto 28px;
         color: var(--muted);
-        font-size: 16px;
+        font-size: 15px;
       }
       .hero-cta {
         display: flex;
@@ -138,14 +157,13 @@
         justify-content: center;
         gap: 12px;
         flex-wrap: wrap;
-        margin-bottom: 36px;
+        margin-bottom: 32px;
       }
       .showcase-gallery {
         background: var(--panel);
         border: 1px solid var(--border);
-        border-radius: 16px;
+        border-radius: 12px;
         padding: 16px;
-        box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
       }
       .gallery-tabs {
         display: flex;
@@ -158,25 +176,25 @@
         border-radius: 8px;
         font-size: 12px;
         font-weight: 600;
-        background: #090d16;
+        background: var(--panel-alt);
         border: 1px solid var(--border);
         color: var(--muted);
         cursor: pointer;
       }
       .gallery-tab.active {
-        background: rgba(6, 182, 212, 0.18);
+        background: rgba(6, 182, 212, 0.16);
         border-color: var(--cyan);
-        color: #fff;
+        color: var(--text);
       }
       .gallery-preview {
         width: 100%;
-        border-radius: 10px;
+        border-radius: 8px;
         border: 1px solid var(--border);
         display: block;
       }
       .section-title {
-        font-size: 24px;
-        margin: 56px 0 8px;
+        font-size: 22px;
+        margin: 48px 0 8px;
       }
       .section-sub {
         color: var(--muted);
@@ -191,7 +209,7 @@
       .card {
         background: var(--panel);
         border: 1px solid var(--border);
-        border-radius: 14px;
+        border-radius: 12px;
         padding: 24px;
         display: flex;
         flex-direction: column;
@@ -199,21 +217,21 @@
         transition: border-color 0.2s ease;
       }
       .card:hover {
-        border-color: rgba(56, 189, 248, 0.55);
+        border-color: var(--sky);
       }
       .card-tag {
         display: inline-block;
         font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
         font-size: 11px;
-        padding: 3px 9px;
-        border-radius: 6px;
-        background: rgba(14, 165, 233, 0.15);
-        color: #38bdf8;
+        padding: 3px 8px;
+        border-radius: 4px;
+        background: rgba(14, 165, 233, 0.14);
+        color: var(--sky);
         margin-bottom: 10px;
       }
       .card h3 {
         margin: 0 0 8px;
-        font-size: 18px;
+        font-size: 17px;
       }
       .card p {
         color: var(--muted);
@@ -223,7 +241,7 @@
       .card ul {
         margin: 0 0 18px;
         padding-left: 18px;
-        color: #cbd5e1;
+        color: var(--muted);
         font-size: 12.5px;
       }
       .card li {
@@ -237,6 +255,7 @@
         border-radius: 12px;
         overflow: hidden;
         font-size: 13px;
+        font-variant-numeric: tabular-nums;
       }
       .url-table th,
       .url-table td {
@@ -245,14 +264,14 @@
         border-bottom: 1px solid var(--border);
       }
       .url-table th {
-        background: #090d16;
-        color: #38bdf8;
+        background: var(--panel-alt);
+        color: var(--sky);
         font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
         font-size: 12px;
       }
       .url-table code {
         font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-        color: #67e8f9;
+        color: var(--cyan);
         background: rgba(6, 182, 212, 0.12);
         padding: 2px 6px;
         border-radius: 4px;
@@ -278,10 +297,30 @@
           </div>
         </a>
         <div class="nav-actions">
-          <a href="./?showcase=1" class="btn">互動導覽彈窗 (?showcase=1)</a>
-          <a href="./?diff=1&tab=diff&view=isometric" class="btn">3D 模型差異比對</a>
-          <a href="./?occ=1&view=upper" class="btn">咬合接觸熱力圖</a>
-          <a href="./" class="btn btn-primary">啟動 3D 數位牙科工作站 →</a>
+          <button type="button" class="btn" onclick="toggleLang()" data-testid="features-lang-toggle">
+            <span data-zh>EN / 繁中</span>
+            <span data-en>繁中 / EN</span>
+          </button>
+          <button type="button" class="btn" onclick="toggleTheme()" data-testid="features-theme-toggle">
+            <span data-zh>深色 / 淺色</span>
+            <span data-en>Dark / Light</span>
+          </button>
+          <a href="./?showcase=1" class="btn">
+            <span data-zh>互動導覽彈窗 (?showcase=1)</span>
+            <span data-en>Showcase Modal (?showcase=1)</span>
+          </a>
+          <a href="./?diff=1&tab=diff&view=isometric" class="btn">
+            <span data-zh>3D 模型差異比對</span>
+            <span data-en>3D Model Diff</span>
+          </a>
+          <a href="./?occ=1&view=upper" class="btn">
+            <span data-zh>咬合接觸熱力圖</span>
+            <span data-en>Occlusogram</span>
+          </a>
+          <a href="./" class="btn btn-primary">
+            <span data-zh>啟動 3D 數位牙科工作站 →</span>
+            <span data-en>Launch 3D Workstation →</span>
+          </a>
         </div>
       </div>
     </header>
@@ -289,30 +328,50 @@
     <main class="container">
       <section class="hero">
         <div class="pill">100% Client-Side WebGL · Zero-PHI HIPAA Sandbox · WebMCP Ready</div>
-        <h1>3D 數位牙科咬合模擬、熱力圖與模型差異比對工作站</h1>
+        <h1>
+          <span data-zh>3D 數位牙科咬合模擬、熱力圖與模型差異比對工作站</span>
+          <span data-en>3D Dental Articulation, Occlusogram &amp; Model Diff Workstation</span>
+        </h1>
         <p>
-          專為矯正、贋復與數位牙技設計之純前端 3D 臨床工作站。支援口掃 <code>.zip / .stl / .xml / .jpg</code> 拖曳直讀、6-DOF 虛擬咬合器多行程混用、即時 GPU 咬合接觸熱力圖（Occlusogram）、以及逐頂點 3D 模型差異比對（3D Model Diff）。
+          <span data-zh>專為矯正、贋復與數位牙技設計之純前端 3D 臨床工作站。支援口掃 <code>.zip / .stl / .ply / .obj / .xml / .jpg</code> 拖曳直讀、6-DOF 虛擬咬合器多行程混用、即時 GPU 咬合接觸熱力圖（Occlusogram）、以及逐頂點 3D 模型差異比對（3D Model Diff）。</span>
+          <span data-en>Client-side 3D clinical CAD workstation for orthodontics and prosthodontics. Supports drag-and-drop <code>.zip / .stl / .ply / .obj / .xml / .jpg</code> archives, 6-DOF compound mandibular articulation, real-time GPU Occlusogram bite heatmaps, and per-vertex 3D Model Diff comparison.</span>
         </p>
         <div class="hero-cta">
-          <a href="./" class="btn btn-primary">立即開啟 3D 工作站 (Live Demo)</a>
-          <a href="./?diff=1&diffMode=both&tab=diff&view=isometric" class="btn">體驗 3D 模型差異比對 (3D Diff)</a>
-          <a href="./?occ=1&view=upper&tab=articulator" class="btn">體驗即時咬合熱力圖 (Occlusogram)</a>
-          <a href="./?art=compound&strokes=h0.28,p0.48,l0.2&view=right" class="btn">體驗 5 通道混用咬合器</a>
+          <a href="./" class="btn btn-primary">
+            <span data-zh>立即開啟 3D 工作站 (Live Demo)</span>
+            <span data-en>Open Live 3D Workstation</span>
+          </a>
+          <a href="./?diff=1&diffMode=both&tab=diff&view=isometric" class="btn">
+            <span data-zh>體驗 3D 模型差異比對 (3D Diff)</span>
+            <span data-en>Try 3D Model Diff</span>
+          </a>
+          <a href="./?occ=1&view=upper&tab=articulator" class="btn">
+            <span data-zh>體驗即時咬合熱力圖 (Occlusogram)</span>
+            <span data-en>Try GPU Occlusogram</span>
+          </a>
+          <a href="./?art=compound&strokes=h0.28,p0.48,l0.2&view=right" class="btn">
+            <span data-zh>體驗 5 通道混用咬合器</span>
+            <span data-en>Try 5-Axis Stroke Mixer</span>
+          </a>
         </div>
 
         <div class="showcase-gallery">
           <div class="gallery-tabs">
             <button type="button" class="gallery-tab active" onclick="switchPreview('./demo/showcase_front.png', this)">
-              1. 五方位臨床貼圖與自然齒列形態 (正視)
+              <span data-zh>1. 五方位臨床貼圖與自然齒列形態 (正視)</span>
+              <span data-en>1. 5-View Photo Shader &amp; Anatomical Arch (Front)</span>
             </button>
             <button type="button" class="gallery-tab" onclick="switchPreview('./demo/showcase_diff_heatmap.png', this)">
-              2. 3D 模型差異比對 — 逐頂點有向偏差色溫圖 (Heatmap)
+              <span data-zh>2. 3D 模型差異比對 — 逐頂點有向偏差色溫圖 (Heatmap)</span>
+              <span data-en>2. 3D Model Diff — Signed Deviation Heatmap</span>
             </button>
             <button type="button" class="gallery-tab" onclick="switchPreview('./demo/showcase_diff_overlay.png', this)">
-              3. 3D 模型差異比對 — 雙模型疊影比對 (Superimposition)
+              <span data-zh>3. 3D 模型差異比對 — 雙模型疊影比對 (Superimposition)</span>
+              <span data-en>3. 3D Model Diff — Ghost Mesh Superimposition</span>
             </button>
             <button type="button" class="gallery-tab" onclick="switchPreview('./demo/showcase_diff_isometric.png', this)">
-              4. 3D 模型差異比對 — 立體等角色溫+疊影 (Isometric)
+              <span data-zh>4. 3D 模型差異比對 — 立體等角色溫+疊影 (Isometric)</span>
+              <span data-en>4. 3D Model Diff — Isometric Heatmap + Overlay</span>
             </button>
           </div>
           <img
@@ -324,160 +383,220 @@
         </div>
       </section>
 
-      <h2 class="section-title">核心臨床與工程功能總覽 (Core Capabilities)</h2>
-      <p class="section-sub">點擊任一功能卡片下方按鈕，可直接帶入對應網址參數並開啟 3D 實機畫面。</p>
+      <h2 class="section-title">
+        <span data-zh>核心臨床與工程功能總覽 (Core Capabilities)</span>
+        <span data-en>Core Clinical &amp; Engineering Capabilities</span>
+      </h2>
+      <p class="section-sub">
+        <span data-zh>點擊任一功能卡片下方按鈕，可直接帶入對應網址參數並開啟 3D 實機畫面。</span>
+        <span data-en>Click any card button below to launch the 3D workstation with that exact clinical preset.</span>
+      </p>
 
       <section class="grid-3">
         <article class="card">
           <div>
             <span class="card-tag">6-DOF Kinematics</span>
-            <h3>1. 6-DOF 虛擬咬合器與多行程混用控制台</h3>
+            <h3>
+              <span data-zh>1. 6-DOF 虛擬咬合器與多行程混用控制台</span>
+              <span data-en>1. 6-DOF Virtual Articulator &amp; Compound Stroke Mixer</span>
+            </h3>
             <p>
-              模擬雙側顳顎關節（TMJ）樞軸旋轉與前突／側方 Bennett 運動。支援單一運動與「複合混用行程（Compound Mixer）」，提供統一的 5 通道獨立微調介面、左側垂直 SeekBar 與鬆開自動回彈之蘑菇頭搖桿。
+              <span data-zh>模擬雙側顳顎關節（TMJ）樞軸旋轉與前突／側方 Bennett 運動。支援單一運動與「複合混用行程（Compound Mixer）」，提供統一的 5 通道獨立微調介面、左側垂直 SeekBar 與鬆開自動回彈之蘑菇頭搖桿。</span>
+              <span data-en>Simulates bilateral TMJ hinge rotation and protrusive/lateral Bennett translation with a 5-channel Compound Stroke Mixer, vertical seekbar, and spring-back thumbstick joystick.</span>
             </p>
             <ul>
-              <li>Posselt 生理雙相貝茲曲線互動編輯器（拖曳 P1/P2 控制點）</li>
-              <li>5 軸向獨立混用：開合、前突、左側方、右側方、垂直平行開離</li>
-              <li>3D 切端運動軌跡線與雙髁樞軸連桿即時渲染</li>
+              <li><span data-zh>Posselt 生理雙相貝茲曲線互動編輯器（拖曳 P1/P2 控制點）</span><span data-en>Interactive Posselt dual-phase Bezier curve editor (P1/P2)</span></li>
+              <li><span data-zh>5 軸向獨立混用：開合、前突、左側方、右側方、垂直平行開離</span><span data-en>5 independent axes: Hinge, Protrusion, Left/Right Lateral, Parallel Z-Split</span></li>
+              <li><span data-zh>3D 切端運動軌跡線與雙髁樞軸連桿即時渲染</span><span data-en>Real-time 3D incisal path trajectory &amp; intercondylar axis gizmo</span></li>
             </ul>
           </div>
           <a href="./?art=compound&strokes=h0.28,p0.48,l0.2&view=right&tab=articulator" class="btn btn-primary">
-            啟動複合咬合運動展示 →
+            <span data-zh>啟動複合咬合運動展示 →</span>
+            <span data-en>Launch Compound Articulator →</span>
           </a>
         </article>
 
         <article class="card">
           <div>
             <span class="card-tag">3D Mesh Deviation</span>
-            <h3>2. 3D 數位模型差異比對 (3D Model Diff)</h3>
+            <h3>
+              <span data-zh>2. 3D 數位模型差異比對 (3D Model Diff)</span>
+              <span data-en>2. 3D Model Diff (Signed Deviation &amp; Superimposition)</span>
+            </h3>
             <p>
-              採用 3D 空間體素雜湊網格（Spatial Hash Grid）計算基準牙弓（Scan A）與目標模型（Scan B）之逐頂點有向表面距離誤差。支援與其他載入案例、自訂 STL 或內建矯正／擴弓／磨耗模擬目標比對。
+              <span data-zh>採用 3D 空間體素雜湊網格（Spatial Hash Grid）計算基準牙弓（Scan A）與目標模型（Scan B）之逐頂點有向表面距離誤差。支援與其他載入案例、自訂 STL / PLY / OBJ 或內建矯正／擴弓／磨耗模擬目標比對。</span>
+              <span data-en>Computes per-vertex signed surface deviations between Reference (Scan A) and Target (Scan B) using a 3D spatial hash grid. Supports multi-case, custom STL/PLY/OBJ, and clinical simulation presets.</span>
             </p>
             <ul>
-              <li>三種視覺模式：色溫圖 + 疊影 (Both)、偏差色溫圖 (Heatmap)、雙模型疊影 (Overlay)</li>
-              <li>即時量化指標：RMSD 均方根誤差、平均絕對誤差、吻合公差率 (In-Tolerance %)</li>
-              <li>自動質心對位（Auto-Centroid Registration）與手動 ΔX / ΔY / ΔZ 微調</li>
+              <li><span data-zh>三種視覺模式：色溫圖 + 疊影 (Both)、偏差色溫圖 (Heatmap)、雙模型疊影 (Overlay)</span><span data-en>Three modes: Heatmap + Overlay (Both), Deviation Heatmap, Ghost Overlay</span></li>
+              <li><span data-zh>即時量化指標：RMSD 均方根誤差、平均絕對誤差、吻合公差率 (In-Tolerance %)</span><span data-en>Live telemetry: RMSD, Mean |Δ|, and In-Tolerance %</span></li>
+              <li><span data-zh>自動質心對位（Auto-Centroid Registration）與手動 ΔX / ΔY / ΔZ 微調</span><span data-en>Auto-centroid alignment + manual ΔX / ΔY / ΔZ registration</span></li>
             </ul>
           </div>
           <a href="./?diff=1&diffMode=both&tab=diff&view=isometric" class="btn btn-primary">
-            啟動 3D 模型差異比對 →
+            <span data-zh>啟動 3D 模型差異比對 →</span>
+            <span data-en>Launch 3D Model Diff →</span>
           </a>
         </article>
 
         <article class="card">
           <div>
             <span class="card-tag">GPU GLSL Shader</span>
-            <h3>3. 即時 GPU 咬合接觸熱力圖 (Occlusogram)</h3>
+            <h3>
+              <span data-zh>3. 即時 GPU 咬合接觸熱力圖 (Occlusogram)</span>
+              <span data-en>3. Real-Time GPU Occlusogram Bite Contact Heatmap</span>
+            </h3>
             <p>
-              建立上下顎 96×96 高程資料紋理（Elevation DataTextures），透過自訂 GLSL Fragment Shader 即時計算對咬間隙與早接觸穿透區，直接疊加於五方位臨床貼圖、琺瑯質或石膏材質之上。
+              <span data-zh>建立上下顎 96×96 高程資料紋理（Elevation DataTextures），透過自訂 GLSL Fragment Shader 即時計算對咬間隙與早接觸穿透區，直接疊加於五方位臨床貼圖、琺瑯質或石膏材質之上。</span>
+              <span data-en>Builds 96×96 opposing arch elevation DataTextures and evaluates real-time occlusal clearance in a custom GLSL fragment shader layered over active clinical materials.</span>
             </p>
             <ul>
-              <li>0.0mm 重度穿透碰撞（紅）至 1.6mm 咬合間隙（藍）連續光譜</li>
-              <li>隨下顎 6-DOF 開合與側方運動即時重算接觸點位</li>
-              <li>自動統計最小間隙、接觸面積 (mm²) 與左/右、前/後咬合平衡</li>
+              <li><span data-zh>0.0mm 重度穿透碰撞（紅）至 1.6mm 咬合間隙（藍）連續光譜</span><span data-en>Continuous 0.0mm collision (red) to 1.6mm clearance (blue) spectrum</span></li>
+              <li><span data-zh>隨下顎 6-DOF 開合與側方運動即時重算接觸點位</span><span data-en>Dynamically updates contact distribution across 6-DOF jaw movements</span></li>
+              <li><span data-zh>自動統計最小間隙、接觸面積 (mm²) 與左/右、前/後咬合平衡</span><span data-en>Computes minimum clearance, contact area (mm²), and L/R &amp; A/P balance</span></li>
             </ul>
           </div>
           <a href="./?occ=1&view=upper&tab=articulator" class="btn btn-primary">
-            啟動即時咬合熱力圖 →
+            <span data-zh>啟動即時咬合熱力圖 →</span>
+            <span data-en>Launch Occlusogram Heatmap →</span>
           </a>
         </article>
 
         <article class="card">
           <div>
             <span class="card-tag">5-View Tri-Planar Shader</span>
-            <h3>4. 五方位臨床攝影貼圖投射與自然牙齦形態</h3>
+            <h3>
+              <span data-zh>4. 五方位臨床攝影貼圖投射與自然牙齦形態</span>
+              <span data-en>4. 5-View Clinical Photo Texture Shader &amp; Anatomical Arch</span>
+            </h3>
             <p>
-              將正視、上顎、下顎、右側頰、左側頰五張口內攝影透過法向量權重混合投射至 3D 齒列。內建高解析程序化人體牙弓（平滑連續犬齒—小臼齒過渡、尖起齒間乳頭與自然釉質光澤）。
+              <span data-zh>將正視、上顎、下顎、右側頰、左側頰五張口內攝影透過法向量權重混合投射至 3D 齒列。內建高解析程序化人體牙弓（平滑連續犬齒—小臼齒過渡、尖起齒間乳頭與自然釉質光澤）。</span>
+              <span data-en>Projects 5 intraoral photographs onto 3D dentition meshes via normal-weighted GLSL blending, paired with a high-resolution anatomical arch with scalloped papillae.</span>
             </p>
             <ul>
-              <li>點擊五方位相簿任一照片即可一鍵同步 3D 攝影機視角</li>
-              <li>6 種臨床材質：五方位貼圖、琺瑯質、石膏、法線、線框、X-Ray 半透</li>
-              <li>實心封閉正畸底座，任何視角皆無破面或段差</li>
+              <li><span data-zh>點擊五方位相簿任一照片即可一鍵同步 3D 攝影機視角</span><span data-en>Click any 5-view photo to sync the 3D camera preset</span></li>
+              <li><span data-zh>6 種臨床材質：五方位貼圖、琺瑯質、石膏、法線、線框、X-Ray 半透</span><span data-en>6 clinical shaders: 5-View Texture, Enamel, Plaster, Normals, Wireframe, X-Ray</span></li>
+              <li><span data-zh>實心封閉正畸底座，任何視角皆無破面或段差</span><span data-en>Watertight orthodontic base with smooth C2 canine-premolar transition</span></li>
             </ul>
           </div>
           <a href="./?tex=1&tab=gallery&view=front" class="btn btn-primary">
-            啟動五方位臨床貼圖相簿 →
+            <span data-zh>啟動五方位臨床貼圖相簿 →</span>
+            <span data-en>Launch 5-View Photo Shader →</span>
           </a>
         </article>
 
         <article class="card">
           <div>
             <span class="card-tag">Metrological CAD</span>
-            <h3>5. 3D 數位游標尺測距與三軸動態剖面</h3>
+            <h3>
+              <span data-zh>5. 3D 數位游標尺測距與三軸動態剖面</span>
+              <span data-en>5. 3D Digital Caliper &amp; Cross-Section Clipping Planes</span>
+            </h3>
             <p>
-              支援於 3D 齒列模型上直接點選兩點量測直線距離與 ΔX/ΔY/ΔZ 分量；自動計算尖牙間寬（U3-U3 / L3-L3）、大臼齒間寬（U6-U6 / L6-L6）、Overjet 與 Overbite，並提供 X/Y/Z 動態剖面切層。
+              <span data-zh>支援於 3D 齒列模型上直接點選兩點量測直線距離與 ΔX/ΔY/ΔZ 分量；自動計算尖牙間寬（U3-U3 / L3-L3）、大臼齒間寬（U6-U6 / L6-L6）、Overjet 與 Overbite，並提供 X/Y/Z 動態剖面切層。</span>
+              <span data-en>Raycast two points on the 3D mesh for exact Euclidean and ΔX/ΔY/ΔZ distances, automated U3-U3 / U6-U6 / Overjet / Overbite metrics, and XYZ cross-section clipping.</span>
             </p>
             <ul>
-              <li>3D 視窗雙點射線測距 + 一鍵新增臨床常用測距點</li>
-              <li>X（矢狀）、Y（冠狀）、Z（水平）三軸即時剖面滑桿</li>
-              <li>支援測距標記一鍵顯隱與清除</li>
+              <li><span data-zh>3D 視窗雙點射線測距 + 一鍵新增臨床常用測距點</span><span data-en>Interactive 3D raycast picking + 1-click preset measurement markers</span></li>
+              <li><span data-zh>X（矢狀）、Y（冠狀）、Z（水平）三軸即時剖面滑桿</span><span data-en>Real-time Sagittal (X), Coronal (Y), and Axial (Z) clipping sliders</span></li>
+              <li><span data-zh>支援測距標記一鍵顯隱與清除</span><span data-en>Instant show/hide and clear controls for 3D measurement markers</span></li>
             </ul>
           </div>
           <a href="./?view=upper&tab=tools" class="btn btn-primary">
-            啟動材質與剖面工具 →
+            <span data-zh>啟動材質與剖面工具 →</span>
+            <span data-en>Launch CAD &amp; Clipping Tools →</span>
           </a>
         </article>
 
         <article class="card">
           <div>
             <span class="card-tag">Zero-PHI &amp; WebMCP</span>
-            <h3>6. 零個資瀏覽器沙盒、ZIP 直讀與 WebMCP AI</h3>
+            <h3>
+              <span data-zh>6. 零個資瀏覽器沙盒、ZIP 直讀與 WebMCP AI</span>
+              <span data-en>6. Zero-PHI Browser Sandbox, ZIP Loader &amp; WebMCP AI</span>
+            </h3>
             <p>
-              支援直接拖曳單一或多筆口掃 <code>.zip</code> 壓縮檔（自動去重並存入 IndexedDB）或以 <code>?url=</code> 參數載入。預設開啟 HIPAA 去識別化遮罩，並內建 Ask AI 助手與 WebMCP (<code>mcp.html</code>) 端點。
+              <span data-zh>支援直接拖曳單一或多筆口掃 <code>.zip</code> 壓縮檔（自動去重並存入 IndexedDB）或以 <code>?url=</code> 參數載入。預設開啟 HIPAA 去識別化遮罩，並內建 Ask AI 助手與 WebMCP (<code>mcp.html</code>) 端點。</span>
+              <span data-en>Drag-and-drop single or multiple scanner <code>.zip</code> archives with automatic deduplication and IndexedDB persistence, default HIPAA PHI masking, and WebMCP AI control.</span>
             </p>
             <ul>
-              <li>100% 純前端本地處理，醫療檔案絕不離開使用者瀏覽器</li>
-              <li>頂部選單僅顯示訂單編號與術式，自動遮罩病患、醫師與機構名稱</li>
-              <li>支援 Ask AI 對話控制視角、材質、咬合行程與熱力圖</li>
+              <li><span data-zh>100% 純前端本地處理，醫療檔案絕不離開使用者瀏覽器</span><span data-en>100% client-side processing; patient files never leave the browser</span></li>
+              <li><span data-zh>頂部選單僅顯示訂單編號與術式，自動遮罩病患、醫師與機構名稱</span><span data-en>Default PHI masking for patient, doctor, and clinic identifiers</span></li>
+              <li><span data-zh>支援 Ask AI 對話控制視角、材質、咬合行程與熱力圖</span><span data-en>Ask AI &amp; WebMCP tools for controlling camera, strokes, and 3D Diff</span></li>
             </ul>
           </div>
           <a href="./?tab=dossier" class="btn btn-primary">
-            檢視規格歸檔與去識別化沙盒 →
+            <span data-zh>檢視規格歸檔與去識別化沙盒 →</span>
+            <span data-en>Inspect Case Dossier &amp; Zero-PHI Sandbox →</span>
           </a>
         </article>
       </section>
 
-      <h2 class="section-title">網址參數深度連結速查表 (URL State &amp; Deep-Linking)</h2>
-      <p class="section-sub">DentalCAD Pages 支援將所有 3D 檢視狀態編碼至網址參數，方便臨床團隊直接透過連結重現相同視角與分析模式。</p>
+      <h2 class="section-title">
+        <span data-zh>網址參數深度連結速查表 (URL State &amp; Deep-Linking)</span>
+        <span data-en>URL State &amp; Deep-Linking Cheat Sheet</span>
+      </h2>
+      <p class="section-sub">
+        <span data-zh>DentalCAD Pages 支援將所有 3D 檢視狀態編碼至網址參數，方便臨床團隊直接透過連結重現相同視角與分析模式。</span>
+        <span data-en>All 3D viewport states are encoded into shareable URL query parameters for reproducible clinical review.</span>
+      </p>
 
       <table class="url-table">
         <thead>
           <tr>
             <th>URL Query Parameter</th>
-            <th>說明 (Description)</th>
-            <th>快速開啟範例 (Live Example)</th>
+            <th><span data-zh>說明 (Description)</span><span data-en>Description</span></th>
+            <th><span data-zh>快速開啟範例 (Live Example)</span><span data-en>Live Example</span></th>
           </tr>
         </thead>
         <tbody>
           <tr>
             <td><code>?showcase=1</code></td>
-            <td>開啟互動式功能展示與導覽視窗（Feature Showcase Modal）</td>
-            <td><a href="./?showcase=1" style="color:#38bdf8;text-decoration:underline;">./?showcase=1</a></td>
+            <td>
+              <span data-zh>開啟互動式功能展示與導覽視窗（Feature Showcase Modal）</span>
+              <span data-en>Open the interactive Feature Showcase Modal on startup</span>
+            </td>
+            <td><a href="./?showcase=1" style="color:var(--sky);text-decoration:underline;">./?showcase=1</a></td>
           </tr>
           <tr>
             <td><code>?diff=1&amp;diffMode=both|heatmap|overlay</code></td>
-            <td>開啟 3D 模型差異比對模式（支援色溫圖、疊影或雙重模式）</td>
-            <td><a href="./?diff=1&diffMode=both&tab=diff&view=isometric" style="color:#38bdf8;text-decoration:underline;">./?diff=1&amp;diffMode=both&amp;tab=diff</a></td>
+            <td>
+              <span data-zh>開啟 3D 模型差異比對模式（支援色溫圖、疊影或雙重模式）</span>
+              <span data-en>Enable 3D Model Diff comparison (Both, Heatmap, or Ghost Overlay)</span>
+            </td>
+            <td><a href="./?diff=1&diffMode=both&tab=diff&view=isometric" style="color:var(--sky);text-decoration:underline;">./?diff=1&amp;diffMode=both&amp;tab=diff</a></td>
           </tr>
           <tr>
             <td><code>?occ=1</code></td>
-            <td>開啟即時 GPU 咬合接觸熱力圖（Occlusogram Bite Heatmap）</td>
-            <td><a href="./?occ=1&view=upper" style="color:#38bdf8;text-decoration:underline;">./?occ=1&amp;view=upper</a></td>
+            <td>
+              <span data-zh>開啟即時 GPU 咬合接觸熱力圖（Occlusogram Bite Heatmap）</span>
+              <span data-en>Enable real-time GPU Occlusogram bite contact heatmap</span>
+            </td>
+            <td><a href="./?occ=1&view=upper" style="color:var(--sky);text-decoration:underline;">./?occ=1&amp;view=upper</a></td>
           </tr>
           <tr>
             <td><code>?art=compound&amp;strokes=h0.3,p0.5,l-0.2</code></td>
-            <td>載入多行程混用模式並指定各軸向百分比（開合 h、前突 p、側方 l、平行 s）</td>
-            <td><a href="./?art=compound&strokes=h0.3,p0.5&view=right" style="color:#38bdf8;text-decoration:underline;">./?art=compound&amp;strokes=h0.3,p0.5</a></td>
+            <td>
+              <span data-zh>載入多行程混用模式並指定各軸向百分比（開合 h、前突 p、側方 l、平行 s）</span>
+              <span data-en>Load Compound Stroke Mixer with per-axis excursion weights (h, p, l, s)</span>
+            </td>
+            <td><a href="./?art=compound&strokes=h0.3,p0.5&view=right" style="color:var(--sky);text-decoration:underline;">./?art=compound&amp;strokes=h0.3,p0.5</a></td>
           </tr>
           <tr>
             <td><code>?view=front|upper|lower|right|left|isometric</code></td>
-            <td>指定預設 3D 攝影機臨床視角（或使用 <code>?cam=px,py,pz,tx,ty,tz</code> 自由座標）</td>
-            <td><a href="./?view=isometric" style="color:#38bdf8;text-decoration:underline;">./?view=isometric</a></td>
+            <td>
+              <span data-zh>指定預設 3D 攝影機臨床視角（或使用 <code>?cam=px,py,pz,tx,ty,tz</code> 自由座標）</span>
+              <span data-en>Select clinical camera preset (or free orbit via <code>?cam=px,py,pz,tx,ty,tz</code>)</span>
+            </td>
+            <td><a href="./?view=isometric" style="color:var(--sky);text-decoration:underline;">./?view=isometric</a></td>
           </tr>
           <tr>
             <td><code>?url="/path/to/Export_case.zip"</code></td>
-            <td>指定遠端或本機口掃 <code>.zip / .stl</code> 資料包路徑進行快速載入與 IndexedDB 快取</td>
-            <td><a href="./?tab=tools" style="color:#38bdf8;text-decoration:underline;">./?tab=tools</a></td>
+            <td>
+              <span data-zh>指定遠端或本機口掃 <code>.zip / .stl</code> 資料包路徑進行快速載入與 IndexedDB 快取</span>
+              <span data-en>Load a scanner <code>.zip / .stl</code> archive path with IndexedDB caching</span>
+            </td>
+            <td><a href="./?tab=tools" style="color:var(--sky);text-decoration:underline;">./?tab=tools</a></td>
           </tr>
         </tbody>
       </table>
@@ -498,6 +617,15 @@
           buttons[i].classList.remove('active');
         }
         if (btn) btn.classList.add('active');
+      }
+      function toggleTheme() {
+        document.documentElement.classList.toggle('dark');
+      }
+      function toggleLang() {
+        var html = document.documentElement;
+        var next = html.getAttribute('data-lang') === 'en' ? 'zh' : 'en';
+        html.setAttribute('data-lang', next);
+        html.setAttribute('lang', next === 'en' ? 'en' : 'zh-TW');
       }
     </script>
   </body>

@@ -31,15 +31,15 @@ import {
   detectInitialLocale,
   parseUrlDataParameter,
   ParsedUrlDataParam,
-} from '@dentalcad-pages/core';
-import {
   ViewerUrlState,
   CameraTransform,
   parseViewerUrlParams,
   loadPersistedViewerState,
   savePersistedViewerState,
   updateBrowserUrl,
-} from './utils/urlState';
+  resolveShowcaseScenarioState,
+  DEFAULT_ARTICULATOR_STROKES,
+} from '@dentalcad-pages/core';
 import {
   Header,
   DentalViewer3D,
@@ -566,26 +566,45 @@ export const App: React.FC = () => {
     if (payload.cameraPreset) {
       setCameraPreset(payload.cameraPreset);
     }
-    setViewportSettings((prev) => ({
-      ...prev,
-      shadingMode: payload.shadingMode ?? prev.shadingMode,
-      occlusogramEnabled:
-        typeof payload.occlusogramEnabled === 'boolean'
-          ? payload.occlusogramEnabled
-          : prev.occlusogramEnabled,
-      occlusionSeparation:
-        typeof payload.occlusionSeparation === 'number'
-          ? payload.occlusionSeparation
-          : prev.occlusionSeparation,
-      articulator: {
-        ...prev.articulator,
-        mode: payload.articulationMode ?? prev.articulator.mode,
-        progress:
-          typeof payload.articulationProgress === 'number'
-            ? payload.articulationProgress
-            : prev.articulator.progress,
-      },
-    }));
+    if (payload.modelDiffEnabled) {
+      setActiveTab('diff');
+    }
+    setViewportSettings((prev) => {
+      const prevDiff = prev.modelDiff || DEFAULT_MODEL_DIFF_SETTINGS;
+      const prevStrokes = prev.articulator.strokes || DEFAULT_ARTICULATOR_STROKES;
+      return {
+        ...prev,
+        shadingMode: payload.shadingMode ?? prev.shadingMode,
+        occlusogramEnabled:
+          typeof payload.occlusogramEnabled === 'boolean'
+            ? payload.occlusogramEnabled
+            : prev.occlusogramEnabled,
+        occlusionSeparation:
+          typeof payload.occlusionSeparation === 'number'
+            ? payload.occlusionSeparation
+            : prev.occlusionSeparation,
+        modelDiff: {
+          ...prevDiff,
+          enabled:
+            typeof payload.modelDiffEnabled === 'boolean'
+              ? payload.modelDiffEnabled
+              : prevDiff.enabled,
+          displayMode: payload.modelDiffMode ?? prevDiff.displayMode,
+          compareTargetId: payload.modelDiffTargetId ?? prevDiff.compareTargetId,
+        },
+        articulator: {
+          ...prev.articulator,
+          mode: payload.articulationMode ?? prev.articulator.mode,
+          strokes: payload.articulationStrokes
+            ? { ...prevStrokes, ...payload.articulationStrokes }
+            : prev.articulator.strokes,
+          progress:
+            typeof payload.articulationProgress === 'number'
+              ? payload.articulationProgress
+              : prev.articulator.progress,
+        },
+      };
+    });
   }, []);
 
   useEffect(() => {
@@ -642,94 +661,19 @@ export const App: React.FC = () => {
       setShowcaseOpen(false);
       setSidebarCollapsed(false);
 
-      switch (scenario) {
-        case 'articulator':
-          setActiveTab('articulator');
-          handlePresetSelect('right');
-          setViewportSettings((prev) => ({
-            ...prev,
-            modelDiff: { ...(prev.modelDiff || DEFAULT_MODEL_DIFF_SETTINGS), enabled: false },
-            articulator: {
-              ...prev.articulator,
-              mode: 'compound',
-              strokes: { hinge: 0.28, protrusion: 0.48, lateral: 0.2, parallel: 0 },
-              progress: 1.0,
-              showTrajectoryGizmo: true,
-            },
-          }));
-          break;
-        case 'occlusogram':
-          setActiveTab('articulator');
-          handlePresetSelect('upper');
-          setViewportSettings((prev) => ({
-            ...prev,
-            occlusogramEnabled: true,
-            modelDiff: { ...(prev.modelDiff || DEFAULT_MODEL_DIFF_SETTINGS), enabled: false },
-            articulator: {
-              ...prev.articulator,
-              progress: 0,
-            },
-          }));
-          break;
-        case 'diff_both':
-        case 'diff_heatmap':
-        case 'diff_overlay': {
-          const mode =
-            scenario === 'diff_heatmap'
-              ? 'heatmap'
-              : scenario === 'diff_overlay'
-              ? 'overlay'
-              : 'both';
-          setActiveTab('diff');
-          handlePresetSelect(scenario === 'diff_both' ? 'isometric' : 'front');
-          setViewportSettings((prev) => ({
-            ...prev,
-            occlusogramEnabled: false,
-            modelDiff: {
-              ...(prev.modelDiff || DEFAULT_MODEL_DIFF_SETTINGS),
-              enabled: true,
-              displayMode: mode,
-              compareTargetId: 'simulated:ortho_alignment',
-            },
-          }));
-          break;
+      setViewportSettings((prev) => {
+        const resolution = resolveShowcaseScenarioState(scenario, prev);
+        if (resolution.activeTab) {
+          setActiveTab(resolution.activeTab);
         }
-        case 'texture':
-          setActiveTab('gallery');
-          handlePresetSelect('front');
-          setViewportSettings((prev) => ({
-            ...prev,
-            shadingMode: 'texture',
-            photoTextureMapped: true,
-            occlusogramEnabled: false,
-            modelDiff: { ...(prev.modelDiff || DEFAULT_MODEL_DIFF_SETTINGS), enabled: false },
-          }));
-          break;
-        case 'caliper':
-          setActiveTab('articulator');
-          handlePresetSelect('upper');
-          setViewportSettings((prev) => ({
-            ...prev,
-            caliperToolActive: true,
-            showMeasurements: true,
-            modelDiff: { ...(prev.modelDiff || DEFAULT_MODEL_DIFF_SETTINGS), enabled: false },
-          }));
-          break;
-        case 'clipping':
-          setActiveTab('tools');
-          handlePresetSelect('isometric');
-          setViewportSettings((prev) => ({
-            ...prev,
-            clippingEnabled: true,
-            clippingAxis: 'x',
-            clippingOffset: 2.0,
-            modelDiff: { ...(prev.modelDiff || DEFAULT_MODEL_DIFF_SETTINGS), enabled: false },
-          }));
-          break;
-        case 'ask_ai':
+        if (resolution.cameraPreset) {
+          handlePresetSelect(resolution.cameraPreset);
+        }
+        if (resolution.openAskAi) {
           setAskAiOpen(true);
-          break;
-      }
+        }
+        return resolution.settings;
+      });
     },
     [handlePresetSelect]
   );
@@ -1250,6 +1194,7 @@ export const App: React.FC = () => {
                 diffStats={modelDiffStats}
                 cases={cases}
                 activeCaseId={activeCase.id}
+                anonymizePatient={anonymizePatient}
                 locale={locale}
               />
             )}
